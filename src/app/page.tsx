@@ -4,6 +4,7 @@ import { listArticles } from "@/lib/repository";
 import { modelConfigured } from "@/lib/generation";
 import { ArticleCard } from "@/components/article-card";
 import { SpriteIcon } from "@/components/sprite-icon";
+import { LearningResources } from "@/components/learning-resources";
 import type { LibraryArticle } from "@/lib/types";
 export const dynamic = "force-dynamic";
 export default async function Home() {
@@ -114,6 +115,7 @@ export default async function Home() {
           </div>
         )}
       </section>
+      <LearningResources />
       <div className="quiet-tip">
         <span>一点阅读建议</span>
         <p>
