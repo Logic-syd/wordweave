@@ -56,8 +56,8 @@ Railway 官方文档已将旧的 Config as Code 标为弃用：新服务不能�
 部署按以下顺序执行：
 
 1. Railpack 安装依赖，并执行 `npm run db:generate && npm run build`。
-2. 在私有网络中执行预部署命令 `npm run deploy:prepare`：应用迁移；`SEED_DEMOS=true` 时写入演示。失败会阻止此次部署继续。
-3. 使用 `npm run start` 启动正式服务。容器进程重启时不会重新执行数据库迁移。
+2. 在私有网络中执行预部署命令 `npm run deploy:prepare`：先检查连接，再应用迁移；`SEED_DEMOS=true` 时写入演示。失败会阻止此次部署继续。
+3. 使用 `npm run start` 启动正式服务。npm 的 `prestart` 会先验证连接及文章表可读，失败时以非零状态退出并给出安全错误提示；通过后才启动 Next.js。容器进程重启时只重新检查就绪状态，不会重新执行数据库迁移。
 4. Railway 请求 `/api/health`，应用可读取数据库文章表时才返回 200；数据库不可用或尚未初始化时返回 503。
 
 在 **Deployments → 最新部署** 检查实际状态及预部署日志，应看到 `prisma migrate deploy` 成功应用迁移或提示没有待执行迁移。若预部署失败，旧版本可能仍显示 Online；因此不要仅凭服务卡片判断本次部署成功。首次成功迁移后 PostgreSQL 中应有 `Article`、`VocabularyItem`、`_prisma_migrations` 等表；`SEED_DEMOS=true` 时还会写入两篇演示。
@@ -81,10 +81,14 @@ Railway 上的新数据库不会自动包含 Codex 或本机数据库中的个�
 - 构建提示 Prisma Client 不存在：确认使用仓库的构建命令，并检查依赖安装结果。
 - 应用显示 Online 但数据库没有表：先看最新部署是否成功，以及其实际配置和日志是否包含 `npm run deploy:prepare`。对新服务，在 Settings 显式设置预部署命令及健康检查；仅上传 `railway.json` 不会启用它们。
 - 预部署迁移连接失败：检查 `DATABASE_URL` 引用是否指向同项目已运行的 PostgreSQL。
+- 日志出现 `ECONNREFUSED`：连接目标拒绝了连接；先看预部署或启动日志的 `[database] target=主机:端口`，不能仅凭此错误认定是缺表。配置为空或未展开会明确报告 `DATABASE_URL_MISSING` / `DATABASE_URL_UNRESOLVED`；Railway 上的 localhost 连接会报告 `DATABASE_URL_LOCAL_ON_RAILWAY`。
+- Postgres 自身的 `DATABASE_URL` 为 `<empty string>`：应用引用后也会为空。先在 **Postgres → Variables** 恢复值 `postgresql://${{PGUSER}}:${{PGPASSWORD}}@${{PGHOST}}:${{PGPORT}}/${{PGDATABASE}}`，再确认 **wordweave → Variables** 的值为 `${{Postgres.DATABASE_URL}}`，应用变更并重新部署 wordweave。
 - 迁移日志成功但数据库页面仍为空：刷新 Database 页面，核对日志中的数据库名、schema 与正在查看的 Postgres 服务及环境。不要手动新建空表或重置数据库。
-- 健康检查 503：检查迁移日志与数据库连接；这个接口不会调用模型，也不会显示密钥。
+- 健康检查 503：响应中的 `code` 是经过白名单筛选的错误码，结合部署日志检查连接与迁移。此接口不返回主机、用户名、密码或完整连接串，也不会调用模型。
 - 页面能打开但生成失败：检查三项 `LLM_*`；不要使用翻译插件的展示名称替代真实模型 ID。
 - 重新部署后演示自动回来：将 `SEED_DEMOS` 设为 `false`；seed 是幂等的，但会补回已删除的演示。
+
+可在应用的终端运行 `npm run db:check` 检查连接，或 `npm run db:check -- --schema` 检查文章表。诊断只输出主机、端口和受控错误提示，不输出完整连接串、账号或密码。若目标已经是 Postgres 内网主机但仍拒绝连接，检查 Postgres 的日志是否出现 ready to accept connections、数据库端口是否匹配，并确认两项服务位于同一 Railway 环境。
 
 官方参考：
 

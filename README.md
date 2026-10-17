@@ -33,7 +33,7 @@ START_LOCAL_DB=0 npm run setup
 npm run dev
 ```
 
-迁移用 `npm run db:migrate`（`prisma migrate deploy`），演示用 `npm run db:seed`。修改 schema 后可用 `npx prisma migrate dev --name <说明>` 创建新迁移；不要在有个人数据的库上执行 reset。Prisma 7 使用官方 `@prisma/adapter-pg`；连接 URL 统一在 `prisma.config.ts` 与服务端进程环境读取。
+迁移用 `npm run db:migrate`（`prisma migrate deploy`），演示用 `npm run db:seed`。`npm run db:check` 可检查连接；加 `-- --schema` 检查文章表，诊断不显示账号密码。`npm run start` 在启动前自动检查连接及文章表，失败会给出错误提示并退出。修改 schema 后可用 `npx prisma migrate dev --name <说明>` 创建新迁移；不要在有个人数据的库上执行 reset。Prisma 7 使用官方 `@prisma/adapter-pg`；连接 URL 统一在 `prisma.config.ts` 与服务端进程环境读取。
 
 本地 PostgreSQL 数据在忽略提交的 仓库外的 `../.wordweave/postgres`（可用 `WORDWEAVE_DATA_DIR` 覆盖），停止容器或 `docker compose down` 后仍保留。不要删除此目录。Docker 会将数据目录设置为 PostgreSQL 用户所有，这是正常行为。数据库目录位于源码树之外，避免数据库写入触发开发服务器热刷新。
 

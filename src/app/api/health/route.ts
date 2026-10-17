@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { getDatabaseErrorCode } from "@/lib/database-config";
 
 export const dynamic = "force-dynamic";
 
@@ -11,9 +12,9 @@ export async function GET() {
       { status: "ok" },
       { headers: { "Cache-Control": "no-store" } },
     );
-  } catch {
+  } catch (error) {
     return NextResponse.json(
-      { status: "unavailable" },
+      { status: "unavailable", code: getDatabaseErrorCode(error) },
       { status: 503, headers: { "Cache-Control": "no-store" } },
     );
   }
