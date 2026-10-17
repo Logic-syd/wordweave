@@ -1,17 +1,17 @@
 import { NextResponse } from "next/server";
 import { AppError, apiError } from "./errors";
-import { requireRequestOwner } from "./trial-auth";
+import { resolveRequestOwner } from "./auth-identity";
 import { runAsOwner } from "./auth-context";
 
 const extensionOrigin = /^chrome-extension:\/\/[a-p]{32}$/;
 
-export function requireExtensionAuth(request: Request) {
+export async function requireExtensionAuth(request: Request) {
   const origin = request.headers.get("origin");
   if (origin && !extensionOrigin.test(origin)) {
     throw new AppError("仅允许浏览器插件访问此接口。", 403);
   }
   // A website cookie alone never grants access to the browser extension API.
-  return requireRequestOwner(request, true);
+  return resolveRequestOwner(request, true);
 }
 
 export function extensionHeaders(request: Request, response: NextResponse) {
@@ -68,7 +68,7 @@ export async function extensionHandler(
   action: () => Promise<NextResponse>,
 ) {
   try {
-    const owner = requireExtensionAuth(request);
+    const owner = await requireExtensionAuth(request);
     return extensionHeaders(request, await runAsOwner(owner, action));
   } catch (error) {
     return extensionHeaders(request, apiError(error));

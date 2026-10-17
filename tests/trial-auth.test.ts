@@ -21,6 +21,11 @@ import {
 } from "../src/lib/extension-auth";
 import { NextResponse } from "next/server";
 import { proxy } from "../src/proxy";
+import {
+  loginIdentity,
+  requireAdministrator,
+  resolveRequestOwner,
+} from "../src/lib/auth-identity";
 
 const personal = "p".repeat(64);
 const friend = "f".repeat(64);
@@ -30,17 +35,82 @@ function configured() {
   vi.stubEnv("NODE_ENV", "production");
   vi.stubEnv("TRIAL_ACCESS_TOKENS", tokens);
   vi.stubEnv("EXTENSION_ACCESS_TOKEN", "");
+  vi.stubEnv("ADMIN_ACCESS_TOKEN", "");
 }
 afterEach(() => vi.unstubAllEnvs());
 
 describe("trial identities and signed sessions", () => {
-  it("fails closed in production even with a legacy extension token, but keeps local development usable", () => {
-    expect(() =>
+  it("lets the existing standalone extension credential sign in as the site owner, without an anonymous admin claim", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("TRIAL_ACCESS_TOKENS", "");
+    vi.stubEnv("ADMIN_ACCESS_TOKEN", "");
+    vi.stubEnv("EXTENSION_ACCESS_TOKEN", personal);
+    const login = await loginIdentity(personal);
+    expect(login).toMatchObject({ ownerId: "personal", isAdmin: true });
+    expect(login.cookie).toBeTruthy();
+    expect(
+      await resolveRequestOwner(
+        new Request("https://app.test", {
+          headers: { cookie: `${SESSION_COOKIE}=${login.cookie}` },
+        }),
+      ),
+    ).toBe("personal");
+    await expect(
+      resolveRequestOwner(new Request("https://app.test")),
+    ).rejects.toMatchObject({ status: 401 });
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("EXTENSION_ACCESS_TOKEN", "");
+    expect(() => runAsOwner("personal", requireAdministrator)).toThrow(
+      /只有站主/,
+    );
+    expect(await loginIdentity("arbitrary-local-input")).toEqual({
+      ownerId: "personal",
+      cookie: null,
+      isAdmin: false,
+    });
+  });
+
+  it("keeps the old signed sessions compatible and requires a verified personal identity to manage invitations", async () => {
+    configured();
+    const cookie = createSession("friend_anna");
+    expect(
+      await resolveRequestOwner(
+        new Request("https://app.test", {
+          headers: { cookie: `${SESSION_COOKIE}=${cookie}` },
+        }),
+      ),
+    ).toBe("friend_anna");
+    expect(() => runAsOwner("friend_anna", requireAdministrator)).toThrow(
+      /只有站主/,
+    );
+    expect(() => runAsOwner("personal", requireAdministrator)).not.toThrow();
+    vi.stubEnv("ADMIN_ACCESS_TOKEN", "a".repeat(64));
+    const admin = await loginIdentity("a".repeat(64));
+    expect(admin).toMatchObject({ ownerId: "personal", isAdmin: true });
+    expect(
+      await resolveRequestOwner(
+        new Request("https://app.test", {
+          headers: { cookie: `${SESSION_COOKIE}=${admin.cookie}` },
+        }),
+      ),
+    ).toBe("personal");
+  });
+  it("fails closed in production without trusted owner credentials, while supporting existing owner tokens", async () => {
+    expect(
       ownerForToken(personal, {
         NODE_ENV: "production",
         EXTENSION_ACCESS_TOKEN: personal,
       }),
-    ).toThrow(/TRIAL_ACCESS_TOKENS/);
+    ).toBe("personal");
+    expect(
+      ownerForToken(personal, {
+        NODE_ENV: "production",
+        ADMIN_ACCESS_TOKEN: personal,
+      }),
+    ).toBe("personal");
+    expect(() => trialConfiguration({ NODE_ENV: "production" })).toThrow(
+      /站主凭据/,
+    );
     expect(() =>
       trialConfiguration({ ...env, TRIAL_ACCESS_TOKENS: "{broken" }),
     ).toThrow(/TRIAL_ACCESS_TOKENS/);
@@ -63,10 +133,14 @@ describe("trial identities and signed sessions", () => {
     ).toBe("personal");
     configured();
     vi.stubEnv("TRIAL_ACCESS_TOKENS", "");
-    const denied = proxy(new NextRequest("https://example.test/api/articles"));
+    const denied = await proxy(
+      new NextRequest("https://example.test/api/articles"),
+    );
     expect(denied.status).toBe(503);
     expect(
-      proxy(new NextRequest("https://example.test/")).headers.get("location"),
+      (await proxy(new NextRequest("https://example.test/"))).headers.get(
+        "location",
+      ),
     ).toContain("/login");
   });
 
@@ -86,7 +160,7 @@ describe("trial identities and signed sessions", () => {
         TRIAL_ACCESS_TOKENS: JSON.stringify({ friend_anna: friend }),
         EXTENSION_ACCESS_TOKEN: legacy,
       }),
-    ).toBeNull();
+    ).toBe("personal");
     expect(() =>
       ownerForToken(friend, { ...env, EXTENSION_ACCESS_TOKEN: friend }),
     ).toThrow();
@@ -142,7 +216,7 @@ describe("trial identities and signed sessions", () => {
       },
     });
     expect(requireRequestOwner(request)).toBe("friend_anna");
-    expect(() => requireExtensionAuth(request)).toThrow();
+    await expect(requireExtensionAuth(request)).rejects.toThrow();
     const bearer = new Request(request.url, {
       headers: {
         authorization: `Bearer ${friend}`,

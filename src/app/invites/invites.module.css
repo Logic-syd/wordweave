@@ -1,0 +1,319 @@
+.page {
+  max-width: 1040px;
+}
+.heading {
+  margin-bottom: 29px;
+}
+.heading h1 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 13px 0 12px;
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+}
+.heading h1 svg {
+  color: #9a647e;
+}
+.heading > p:last-child {
+  max-width: 620px;
+  color: #767c73;
+  font-size: 14px;
+  line-height: 1.9;
+}
+.create {
+  padding: 25px 26px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+}
+.create h2,
+.fresh h2,
+.listHeading h2 {
+  font-size: 16px;
+  font-weight: 600;
+}
+.create form {
+  display: flex;
+  align-items: flex-end;
+  gap: 15px;
+  margin-top: 19px;
+}
+.labelField {
+  flex: 1;
+}
+.labelField label {
+  font-size: 13px;
+}
+.labelField label span {
+  font-weight: 400;
+  font-size: 11px;
+  margin-left: 7px;
+  color: #92948d;
+}
+.labelField input {
+  margin-top: 9px;
+}
+.create form > button {
+  min-height: 43px;
+  white-space: nowrap;
+  margin-bottom: 0;
+}
+.hint {
+  font-size: 12px;
+  line-height: 1.8;
+  color: #929187;
+  margin: 12px 0 0;
+}
+.error,
+.notice {
+  padding: 13px 17px;
+  border-radius: 9px;
+  line-height: 1.8;
+  font-size: 13px;
+  margin: 18px 0;
+}
+.error {
+  color: #a03f50;
+  background: #fff3f3;
+  border: 1px solid #eed0d5;
+}
+.notice {
+  color: #586e56;
+  background: #f2f6ed;
+  border: 1px solid #dce6d3;
+}
+.fresh {
+  margin-top: 21px;
+  padding: 24px 26px;
+  background: #fcf4f7;
+  border: 1px solid #eddae2;
+  border-radius: 13px;
+}
+.freshHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.freshHeading h2 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #8f536d;
+  overflow-wrap: anywhere;
+}
+.fresh > p {
+  font-size: 12px;
+  line-height: 1.9;
+  color: #8c727f;
+  margin: 9px 0 20px;
+}
+.iconButton {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  color: #987785;
+}
+.iconButton:hover {
+  background: #f4e6ec;
+}
+.fresh > label {
+  font-size: 12px;
+  color: #8a687a;
+  margin: 16px 0 8px;
+}
+.copyRow {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.copyRow input,
+.copyRow textarea {
+  flex: 1;
+  min-width: 0;
+  background: #fffafb;
+  color: #6e5461;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  border-color: #e9d9e0;
+  resize: none;
+}
+.copyRow button {
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-size: 12px;
+  min-width: 136px;
+}
+.listSection {
+  margin-top: 35px;
+}
+.listHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 17px;
+}
+.listHeading button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #8b7b83;
+  font-size: 12px;
+}
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 11px;
+}
+.list > li {
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: #fff;
+  padding: 20px 23px;
+}
+.invitationRow {
+  display: flex;
+  align-items: center;
+  gap: 17px;
+}
+.invitationInfo {
+  flex: 1;
+  min-width: 0;
+}
+.invitationInfo h3 {
+  font-size: 15px;
+  font-weight: 550;
+  overflow-wrap: anywhere;
+}
+.invitationInfo p {
+  font-size: 11px;
+  color: #92958e;
+  margin-top: 6px;
+}
+.active,
+.revoked {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  line-height: 1.5;
+  padding: 4px 9px;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+.active {
+  color: #5e7655;
+  background: #edf3e8;
+}
+.revoked {
+  color: #8f8987;
+  background: #f2efed;
+}
+.rowActions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: 7px;
+}
+.rowActions button {
+  font-size: 12px;
+}
+.rowActions .revokeButton {
+  color: #a36670;
+}
+.rowActions .text-button {
+  color: #8c6378;
+}
+.confirmation {
+  border-top: 1px solid #eee2e6;
+  padding-top: 15px;
+  margin-top: 17px;
+}
+.confirmation > p {
+  font-size: 12px;
+  line-height: 1.9;
+  color: #866d76;
+}
+.confirmation > div {
+  display: flex;
+  align-items: center;
+  gap: 19px;
+  margin-top: 12px;
+}
+.confirmation button {
+  font-size: 12px;
+}
+.empty {
+  padding: 40px 24px;
+  border: 1px dashed #deded2;
+  border-radius: 11px;
+  color: #92978a;
+  text-align: center;
+  background: #f9faf5;
+}
+.empty > svg {
+  margin: auto;
+}
+.empty p {
+  font-size: 13px;
+  line-height: 1.8;
+  margin-top: 12px;
+}
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 28px;
+  color: #9a9c94;
+  font-size: 11px;
+}
+@media (max-width: 650px) {
+  .heading h1 {
+    font-size: 26px;
+  }
+  .create,
+  .fresh {
+    padding: 21px 19px;
+  }
+  .create form {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 15px;
+  }
+  .copyRow {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .copyRow button {
+    align-self: flex-start;
+  }
+  .invitationRow {
+    flex-wrap: wrap;
+    gap: 11px;
+  }
+  .invitationInfo {
+    flex-basis: calc(100% - 75px);
+  }
+  .rowActions {
+    flex-basis: 100%;
+    margin: 5px 0 0;
+  }
+  .list > li {
+    padding: 18px 19px;
+  }
+  .listHeading h2 {
+    font-size: 15px;
+  }
+  .fresh > p {
+    margin-bottom: 15px;
+  }
+}

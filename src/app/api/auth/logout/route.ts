@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { apiError } from "@/lib/errors";
 import { assertSameOrigin, SESSION_COOKIE } from "@/lib/trial-auth";
+import { logoutIdentity } from "@/lib/auth-identity";
 
 export async function POST(request: Request) {
   try {
     assertSameOrigin(request);
+    await logoutIdentity(request);
     const response = NextResponse.json(
       { ok: true },
       { headers: { "Cache-Control": "no-store" } },

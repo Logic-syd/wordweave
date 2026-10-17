@@ -4,15 +4,16 @@ import { AppError } from "./errors";
 type Environment = Readonly<Record<string, string | undefined>>;
 export const SESSION_COOKIE = "wordweave_trial_session";
 export const SESSION_SECONDS = 7 * 24 * 60 * 60;
-const validToken = (token: unknown): token is string =>
+export const validToken = (token: unknown): token is string =>
   typeof token === "string" && /^[\x21-\x7e]{32,512}$/.test(token);
 const configurationMessage =
-  "管理员尚未配置有效的 TRIAL_ACCESS_TOKENS。请配置独立邀请码并重新部署。";
+  "管理员尚未配置有效的站主凭据。请设置 ADMIN_ACCESS_TOKEN，或沿用 EXTENSION_ACCESS_TOKEN / TRIAL_ACCESS_TOKENS 中的 personal。";
 
 type TrialConfiguration = {
   enabled: boolean;
   tokens: ReadonlyMap<string, string>;
   legacyToken: string | null;
+  adminToken: string | null;
 };
 
 export function trialConfiguration(
@@ -22,10 +23,21 @@ export function trialConfiguration(
   const legacyToken = validToken(env.EXTENSION_ACCESS_TOKEN?.trim())
     ? env.EXTENSION_ACCESS_TOKEN!.trim()
     : null;
+  const adminToken = validToken(env.ADMIN_ACCESS_TOKEN?.trim())
+    ? env.ADMIN_ACCESS_TOKEN!.trim()
+    : null;
   if (!raw?.trim()) {
+    const personal = adminToken ?? legacyToken;
+    if (personal)
+      return {
+        enabled: true,
+        tokens: new Map([["personal", personal]]),
+        legacyToken,
+        adminToken,
+      };
     if (env.NODE_ENV === "production")
       throw new AppError(configurationMessage, 503);
-    return { enabled: false, tokens: new Map(), legacyToken };
+    return { enabled: false, tokens: new Map(), legacyToken, adminToken };
   }
   let data: unknown;
   try {
@@ -46,14 +58,20 @@ export function trialConfiguration(
       seen.has(token)
     )
       throw new AppError(configurationMessage, 503);
-    if (legacyToken === token && owner !== "personal")
+    if ((legacyToken === token || adminToken === token) && owner !== "personal")
       throw new AppError(configurationMessage, 503);
     seen.add(token);
   }
+  const tokens = new Map(entries as [string, string][]);
+  if (!tokens.has("personal") && (adminToken ?? legacyToken))
+    tokens.set("personal", (adminToken ?? legacyToken)!);
+  if (!tokens.has("personal") && env.NODE_ENV === "production")
+    throw new AppError(configurationMessage, 503);
   return {
     enabled: true,
-    tokens: new Map(entries as [string, string][]),
+    tokens,
     legacyToken,
+    adminToken,
   };
 }
 
@@ -76,6 +94,12 @@ export function ownerForToken(
     config.legacyToken &&
     (!config.enabled || config.tokens.has("personal")) &&
     equalSecret(token, config.legacyToken)
+  )
+    return "personal";
+  if (
+    config.adminToken &&
+    config.tokens.has("personal") &&
+    equalSecret(token, config.adminToken)
   )
     return "personal";
   return null;

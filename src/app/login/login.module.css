@@ -157,6 +157,27 @@
 .notice {
   color: #78566a;
 }
+.inviteReady {
+  padding: 12px 14px;
+  margin-bottom: 19px;
+  border: 1px solid #ead7e0;
+  border-radius: 9px;
+  background: #fcf4f7;
+  color: #8b5b72;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.inviteEntry {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 5px 8px;
+  color: #92607a;
+  font-size: 12px;
+  border-radius: 7px;
+  background: #f7eaf0;
+}
 .footer {
   margin-top: 26px;
   color: #8b9089;

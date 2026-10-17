@@ -5,7 +5,8 @@ import {
   requireExtensionAuth,
 } from "./lib/extension-auth";
 import { apiError } from "./lib/errors";
-import { assertSameOrigin, requireRequestOwner } from "./lib/trial-auth";
+import { assertSameOrigin, trialConfiguration } from "./lib/trial-auth";
+import { resolveRequestOwner } from "./lib/auth-identity";
 
 function secure(response: NextResponse) {
   response.headers.set("X-Content-Type-Options", "nosniff");
@@ -15,13 +16,13 @@ function secure(response: NextResponse) {
   return response;
 }
 
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
   if (path.startsWith("/api/extension/")) {
     if (request.method === "OPTIONS")
       return secure(extensionPreflight(request));
     try {
-      requireExtensionAuth(request);
+      await requireExtensionAuth(request);
       return secure(extensionHeaders(request, NextResponse.next()));
     } catch (error) {
       return secure(extensionHeaders(request, apiError(error)));
@@ -31,7 +32,12 @@ export function proxy(request: NextRequest) {
     assertSameOrigin(request);
     if (path === "/api/health" || path.startsWith("/api/auth/"))
       return secure(NextResponse.next());
-    requireRequestOwner(request);
+    const owner = await resolveRequestOwner(request);
+    if (
+      (path === "/invites" || path.startsWith("/invites/")) &&
+      (owner !== "personal" || !trialConfiguration().enabled)
+    )
+      return secure(NextResponse.redirect(new URL("/", request.url)));
     return secure(NextResponse.next());
   } catch (error) {
     if (path.startsWith("/api/")) return secure(apiError(error));
@@ -46,6 +52,7 @@ export const config = {
     "/new",
     "/library",
     "/vocabulary",
+    "/invites/:path*",
     "/read/:path*",
     "/api/:path*",
   ],

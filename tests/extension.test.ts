@@ -30,25 +30,31 @@ afterEach(() => vi.unstubAllEnvs());
 describe("extension authentication boundary", () => {
   it("fails closed when unconfigured and requires the dedicated bearer token", async () => {
     vi.stubEnv("EXTENSION_ACCESS_TOKEN", "");
-    expect(() => requireExtensionAuth(request())).toThrow(/尚未配置/);
+    vi.stubEnv("ADMIN_ACCESS_TOKEN", "");
+    vi.stubEnv("TRIAL_ACCESS_TOKENS", "");
+    await expect(requireExtensionAuth(request())).rejects.toThrow(/尚未配置/);
     vi.stubEnv("EXTENSION_ACCESS_TOKEN", token);
-    expect(() => requireExtensionAuth(request())).not.toThrow();
-    const denied = proxy(request(undefined, { authorization: "Bearer wrong" }));
+    await expect(requireExtensionAuth(request())).resolves.toBe("personal");
+    const denied = await proxy(
+      request(undefined, { authorization: "Bearer wrong" }),
+    );
     expect(denied.status).toBe(401);
     expect(denied.headers.get("Access-Control-Allow-Origin")).toBe(origin);
     expect(JSON.stringify(await denied.json())).not.toContain(token);
-    expect(() =>
+    await expect(
       requireExtensionAuth(request(undefined, { authorization: "" })),
-    ).toThrow(/令牌无效/);
+    ).rejects.toThrow(/邀请码无效/);
   });
 
-  it("allows extension preflight without weakening ordinary API origin checks", () => {
+  it("allows extension preflight without weakening ordinary API origin checks", async () => {
     vi.stubEnv("EXTENSION_ACCESS_TOKEN", token);
-    expect(proxy(request("/api/extension/articles", {}, "POST")).status).toBe(
-      200,
+    expect(
+      (await proxy(request("/api/extension/articles", {}, "POST"))).status,
+    ).toBe(200);
+    expect((await proxy(request("/api/articles", {}, "POST"))).status).toBe(
+      403,
     );
-    expect(proxy(request("/api/articles", {}, "POST")).status).toBe(403);
-    const evil = proxy(
+    const evil = await proxy(
       request(
         "/api/extension/articles",
         { origin: "https://untrusted.example" },
@@ -75,13 +81,13 @@ describe("extension authentication boundary", () => {
     expect(preflight.headers.has("Access-Control-Allow-Credentials")).toBe(
       false,
     );
-    expect(() =>
+    await expect(
       requireExtensionAuth(
         new Request("https://wordweave.example/api/extension/status", {
           headers: { authorization: `Bearer ${token}` },
         }),
       ),
-    ).not.toThrow();
+    ).resolves.toBe("personal");
   });
 });
 

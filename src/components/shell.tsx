@@ -11,6 +11,7 @@ import {
   Layers,
   Puzzle,
   LogOut,
+  UserRoundPlus,
 } from "lucide-react";
 const nav = [
   { href: "/", label: "开始阅读", icon: BookOpen },
@@ -26,6 +27,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
     authenticated: boolean;
     enabled: boolean;
     ownerId?: string;
+    isAdmin?: boolean;
   } | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState("");
@@ -94,6 +96,15 @@ export function Shell({ children }: { children: React.ReactNode }) {
               <span>{label}</span>
             </Link>
           ))}
+          {session?.isAdmin && (
+            <Link
+              href="/invites"
+              className={path === "/invites" ? "active" : ""}
+            >
+              <UserRoundPlus size={19} />
+              <span>邀请朋友</span>
+            </Link>
+          )}
         </nav>
         <div className="sidebar-note">
           <span className="tiny-dot" />
@@ -111,7 +122,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
             </span>
             语境
           </Link>
-          <span className="eyebrow">在语境里，慢慢学会</span>
+          {session?.isAdmin ? (
+            <Link href="/invites" className={styles.inviteEntry}>
+              <UserRoundPlus size={14} aria-hidden="true" />
+              邀请朋友
+            </Link>
+          ) : (
+            <span className="eyebrow">在语境里，慢慢学会</span>
+          )}
         </header>
         {session?.enabled && session.authenticated && (
           <div className={styles.sessionBar}>

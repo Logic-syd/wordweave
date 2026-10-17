@@ -13,7 +13,12 @@ export function currentOwnerId() {
   if (owner) return owner;
   // CLI development and old local fixtures remain usable; deployed requests
   // must always enter a verified scope, never silently use the personal data.
-  if (process.env.NODE_ENV !== "production" && !process.env.TRIAL_ACCESS_TOKENS)
+  if (
+    process.env.NODE_ENV !== "production" &&
+    !process.env.TRIAL_ACCESS_TOKENS &&
+    !process.env.ADMIN_ACCESS_TOKEN &&
+    !process.env.EXTENSION_ACCESS_TOKEN
+  )
     return "personal";
   throw new AppError("请先使用自己的邀请码登录。", 401);
 }

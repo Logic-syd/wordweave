@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { AppError } from "@/lib/errors";
-import { requireRequestOwner, trialConfiguration } from "@/lib/trial-auth";
+import { trialConfiguration } from "@/lib/trial-auth";
+import { resolveRequestOwner } from "@/lib/auth-identity";
 
 export async function GET(request: Request) {
   let enabled = true;
@@ -9,9 +10,15 @@ export async function GET(request: Request) {
     const config = trialConfiguration();
     enabled = config.enabled;
     configured = config.tokens.size > 0;
-    const ownerId = requireRequestOwner(request);
+    const ownerId = await resolveRequestOwner(request);
     return NextResponse.json(
-      { authenticated: true, ownerId, configured, enabled },
+      {
+        authenticated: true,
+        ownerId,
+        configured,
+        enabled,
+        isAdmin: configured && ownerId === "personal",
+      },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
@@ -20,6 +27,7 @@ export async function GET(request: Request) {
         authenticated: false,
         configured,
         enabled,
+        isAdmin: false,
         ...(error instanceof AppError && error.status === 503
           ? { error: error.message }
           : {}),

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ArrowRight, Copy, KeyRound } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import styles from "./login.module.css";
 
 type Session = {
@@ -30,97 +30,34 @@ function safeNextPath(value: string | null) {
   }
 }
 
-function TrialConfiguration() {
-  const [configuration, setConfiguration] = useState("");
-  const [notice, setNotice] = useState("");
-  const output = useRef<HTMLTextAreaElement>(null);
-
-  function generate() {
-    try {
-      const token = () =>
-        Array.from(crypto.getRandomValues(new Uint8Array(32)), (byte) =>
-          byte.toString(16).padStart(2, "0"),
-        ).join("");
-      setConfiguration(
-        JSON.stringify({ personal: token(), friend_anna: token() }, null, 2),
-      );
-      setNotice("配置已在当前浏览器生成，尚未保存到服务器。刷新页面会清除它。");
-    } catch {
-      setNotice("当前浏览器无法生成安全邀请码，请使用最新版浏览器重试。");
-    }
-  }
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(configuration);
-      setNotice("已复制配置，请粘贴到 Railway 的 TRIAL_ACCESS_TOKENS 变量中。");
-    } catch {
-      output.current?.focus();
-      output.current?.select();
-      setNotice("无法自动复制，已选中配置，请手动复制。");
-    }
-  }
-
-  return (
-    <details className={styles.setup}>
-      <summary>我是管理员，设置试用邀请码</summary>
-      <p>点击后会在当前浏览器生成两份独立邀请码，仅保留在本页内存中。</p>
-      <button type="button" className={styles.secondary} onClick={generate}>
-        <KeyRound size={16} aria-hidden="true" />
-        {configuration ? "重新生成配置" : "生成试用配置"}
-      </button>
-      {configuration && (
-        <>
-          <label className={styles.outputLabel} htmlFor="trial-configuration">
-            TRIAL_ACCESS_TOKENS 配置
-          </label>
-          <textarea
-            ref={output}
-            id="trial-configuration"
-            value={configuration}
-            readOnly
-            rows={6}
-            spellCheck={false}
-            autoComplete="off"
-            className={styles.output}
-          />
-          <button type="button" className={styles.secondary} onClick={copy}>
-            <Copy size={15} aria-hidden="true" />
-            复制配置
-          </button>
-          <ol>
-            <li>
-              把完整 JSON 填入 Railway → wordweave → Variables 的{" "}
-              <code>TRIAL_ACCESS_TOKENS</code>，保存并重新部署。
-            </li>
-            <li>
-              使用 <code>personal</code> 对应的引号内邀请码进入自己的空间。
-            </li>
-            <li>
-              将 <code>friend_anna</code>{" "}
-              对应的邀请码单独发给朋友，每人使用自己的邀请码。
-            </li>
-          </ol>
-        </>
-      )}
-      {notice && (
-        <p className={styles.notice} role="status">
-          {notice}
-        </p>
-      )}
-    </details>
-  );
-}
-
 export function LoginForm() {
   const params = useSearchParams();
   const [session, setSession] = useState<Session | null>(null);
   const [checkError, setCheckError] = useState("");
   const [attempt, setAttempt] = useState(0);
   const [token, setToken] = useState("");
+  const [linkedInvitation, setLinkedInvitation] = useState(false);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const submitting = useRef(false);
+
+  useEffect(() => {
+    const fragment = new URLSearchParams(window.location.hash.slice(1));
+    if (!fragment.has("invite")) return;
+    const invitation = fragment.get("invite") ?? "";
+    // A fragment never reaches the server. Remove it before any subsequent
+    // session request or user navigation, and keep the token only in memory.
+    window.history.replaceState(
+      window.history.state,
+      "",
+      window.location.pathname + window.location.search,
+    );
+    queueMicrotask(() => {
+      setLinkedInvitation(true);
+      if (/^[\x21-\x7e]{32,512}$/.test(invitation)) setToken(invitation);
+      else setError("邀请链接不完整，请向邀请你的人获取新的链接或邀请码。");
+    });
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -221,15 +158,20 @@ export function LoginForm() {
   if (!session.configured)
     return (
       <div className={styles.help}>
-        <h2>管理员尚未完成访问保护配置</h2>
-        <p>
-          请管理员在 Railway 中配置 <code>TRIAL_ACCESS_TOKENS</code>{" "}
-          并重新部署，再使用分配给你的邀请码进入。
-        </p>
-        <TrialConfiguration />
+        <h2>站主还没有完成首次设置</h2>
+        <p>请站主先设置登录凭据。完成后，就能直接在网页里生成邀请。</p>
+        <details className={styles.setup}>
+          <summary>我是站主，查看首次设置</summary>
+          <p>
+            在部署平台设置 <code>ADMIN_ACCESS_TOKEN</code>，使用至少 32
+            个字符的随机值，
+            保存并重新部署一次。用这个凭据登录后，点击「邀请朋友」即可。
+          </p>
+          <p>已经配置过的站主邀请码或插件访问令牌也可以继续使用。</p>
+        </details>
       </div>
     );
-  if (session.authenticated)
+  if (session.authenticated && !linkedInvitation)
     return (
       <div className={styles.help}>
         <p>你已登录{session.ownerId ? `：${session.ownerId}` : ""}。</p>
@@ -241,6 +183,13 @@ export function LoginForm() {
 
   return (
     <form className={styles.form} onSubmit={login}>
+      {linkedInvitation && (
+        <p className={styles.inviteReady} role="status">
+          {session.authenticated
+            ? "你已登录另一个学习空间。确认后，将使用这份邀请进入对应空间。"
+            : "邀请已填好，点击下方按钮进入你的学习空间。"}
+        </p>
+      )}
       <label htmlFor="invitation-token">邀请码</label>
       <input
         id="invitation-token"

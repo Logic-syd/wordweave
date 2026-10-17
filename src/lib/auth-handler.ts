@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { runAsOwner } from "./auth-context";
 import { apiError } from "./errors";
-import { assertSameOrigin, requireRequestOwner } from "./trial-auth";
+import { assertSameOrigin } from "./trial-auth";
+import { resolveRequestOwner } from "./auth-identity";
 
 export async function authHandler(
   request: Request,
@@ -9,7 +10,7 @@ export async function authHandler(
 ) {
   try {
     assertSameOrigin(request);
-    const owner = requireRequestOwner(request);
+    const owner = await resolveRequestOwner(request);
     const response = await runAsOwner(owner, action);
     response.headers.set("Cache-Control", "no-store");
     return response;
