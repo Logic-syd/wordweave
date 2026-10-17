@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { ArrowRight, Braces, Sprout, BookOpen, CircleHelp } from "lucide-react";
+import { ArrowRight, Sprout, BookOpen, CircleHelp } from "lucide-react";
 import { listArticles } from "@/lib/repository";
 import { modelConfigured } from "@/lib/generation";
 import { ArticleCard } from "@/components/article-card";
+import { SpriteIcon } from "@/components/sprite-icon";
 import type { LibraryArticle } from "@/lib/types";
 export const dynamic = "force-dynamic";
 export default async function Home() {
@@ -30,7 +31,7 @@ export default async function Home() {
         <Link href="/new?mode=tech" className="mode-card tech-mode">
           <div className="mode-top">
             <span className="mode-icon">
-              <Braces size={26} />
+              <SpriteIcon size={28} />
             </span>
             <span className="mode-language">EN → 中文 + English</span>
           </div>

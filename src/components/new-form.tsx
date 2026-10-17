@@ -8,12 +8,12 @@ import {
   ArrowRight,
   Sparkles,
   Info,
-  Braces,
   Sprout,
 } from "lucide-react";
 import { MAX_INPUT, settingsSchema, type Settings } from "@/lib/schemas";
 import { useHydrated } from "./use-hydrated";
 import { SettingsFields } from "./settings-fields";
+import { SpriteIcon } from "./sprite-icon";
 export function NewForm({
   mode,
   configured,
@@ -126,7 +126,7 @@ export function NewForm({
       </Link>
       <div className="create-heading">
         <span className={`small-icon ${tech ? "rose" : "sage"}`}>
-          {tech ? <Braces size={24} /> : <Sprout size={24} />}
+          {tech ? <SpriteIcon size={26} /> : <Sprout size={24} />}
         </span>
         <div>
           <span className="eyebrow">

@@ -1,11 +1,11 @@
 import Link from "next/link";
 import {
   ArrowUpRight,
-  Braces,
   Coffee,
   Check,
   ChevronRight,
 } from "lucide-react";
+import { SpriteIcon } from "@/components/sprite-icon";
 import type { LibraryArticle } from "@/lib/types";
 export function ArticleCard({
   article: a,
@@ -21,7 +21,7 @@ export function ArticleCard({
       className={`article-card ${compact ? "compact" : ""}`}
     >
       <div className={`article-symbol ${de ? "sage" : "rose"}`}>
-        {de ? <Coffee size={23} /> : <Braces size={23} />}
+        {de ? <Coffee size={23} /> : <SpriteIcon size={25} />}
       </div>
       <div className="article-card-body">
         <div className="article-meta">
