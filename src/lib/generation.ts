@@ -325,29 +325,38 @@ function validateNewGerman(result: Generation) {
   if (parseSource(source).length !== result.paragraphs.length)
     throw new AppError("德语全文段落结构不一致", 502);
 }
-export async function generateArticle(id: string, settings: Settings) {
+export async function generateArticle(
+  id: string,
+  settings: Settings,
+  preclaimedToken?: string,
+) {
   const article = await requireArticle(id);
   if (!modelConfigured())
     throw new AppError(
       "生成需要在服务端配置 LLM_API_KEY、LLM_BASE_URL 和 LLM_MODEL；目前可完整体验演示文章。",
       503,
     );
-  const token = randomUUID();
-  const lock = await db.article.updateMany({
-    where: {
-      id,
-      OR: [
-        { generationToken: null },
-        { generationStartedAt: { lt: new Date(Date.now() - 10 * 60000) } },
-      ],
-    },
-    data: {
-      generationToken: token,
-      generationStartedAt: new Date(),
-      generationError: null,
-    },
-  });
-  if (!lock.count) throw new AppError("这篇文章正在生成，请勿重复提交", 409);
+  const token = preclaimedToken ?? randomUUID();
+  if (preclaimedToken) {
+    if (article.generationToken !== preclaimedToken)
+      throw new AppError("生成任务已过期，请重试", 409);
+  } else {
+    const lock = await db.article.updateMany({
+      where: {
+        id,
+        OR: [
+          { generationToken: null },
+          { generationStartedAt: { lt: new Date(Date.now() - 10 * 60000) } },
+        ],
+      },
+      data: {
+        generationToken: token,
+        generationStartedAt: new Date(),
+        generationError: null,
+      },
+    });
+    if (!lock.count) throw new AppError("这篇文章正在生成，请勿重复提交", 409);
+  }
   try {
     const targets = article.mode === "german" ? await getReviewTargets() : [];
     const known = await getKnownWords(article.language);

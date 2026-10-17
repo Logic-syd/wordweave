@@ -7,11 +7,13 @@ import {
   NotebookPen,
   ArrowUpRight,
   Layers,
+  Puzzle,
 } from "lucide-react";
 const nav = [
   { href: "/", label: "开始阅读", icon: BookOpen },
   { href: "/library", label: "文章库", icon: Library },
   { href: "/vocabulary", label: "生词本", icon: NotebookPen },
+  { href: "/extension", label: "浏览器插件", icon: Puzzle },
 ];
 export function Shell({ children }: { children: React.ReactNode }) {
   const path = usePathname();

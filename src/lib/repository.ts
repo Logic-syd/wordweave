@@ -286,8 +286,8 @@ export async function saveVersion(
       const generatedSource = result.paragraphs
         .map((p) => p.original ?? "")
         .join("\n\n");
-      await tx.article.update({
-        where: { id: articleId },
+      const saved = await tx.article.updateMany({
+        where: { id: articleId, ...userScope(), generationToken: token },
         data: {
           activeVersionId: version.id,
           generationToken: null,
@@ -302,6 +302,7 @@ export async function saveVersion(
           ...(a.origin === "generated" ? { title: result.title } : {}),
         },
       });
+      if (!saved.count) throw new AppError("生成任务已过期，请重试", 409);
       if (options.savePreferences !== false) {
         await tx.languagePreference.createMany({
           data: {

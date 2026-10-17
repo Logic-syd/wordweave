@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>语境 · 网页学习</title>
+    <link rel="stylesheet" href="ui.css" />
+    <script src="popup.js" type="module"></script>
+  </head>
+  <body class="popup">
+    <header class="brand"><img src="icons/icon-48.png" width="42" height="42" alt="" /><div><h1>语境</h1><p>在正在读的文章里，学会一点。</p></div></header>
+    <p id="page-title" class="page-title">正在读取当前网页…</p>
+    <div class="field inline-field"><label for="retention">英文保留量</label><select id="retention"><option value="low">少</option><option value="medium">中</option><option value="high">多</option></select></div>
+    <div class="actions">
+      <button id="convert-article" class="primary" type="button">转换当前文章 <span aria-hidden="true">→</span></button>
+      <button id="convert-selection" type="button">只转换选中段落</button>
+      <button id="restore" class="subtle" type="button">恢复原文</button>
+    </div>
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+    <p class="privacy">点击转换后，才会把提取到的正文发送到你配置的网站与模型服务。不会自动读取浏览记录。</p>
+    <footer><span>支持普通英文文章网页</span><button id="settings" class="text-button" type="button">插件设置</button></footer>
+  </body>
+</html>

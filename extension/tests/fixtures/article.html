@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>React state updates — extension smoke fixture</title>
+    <style>
+      body { margin: 0; color: #302b2d; background: #faf8f6; font: 18px/1.9 system-ui, sans-serif; }
+      nav, footer { padding: 20px; background: #f0eeeb; }
+      article { max-width: 680px; margin: 50px auto; padding: 20px; }
+      h1 { font-size: 32px; line-height: 1.3; }
+      p { margin: 28px 0; }
+      pre { padding: 22px; overflow: auto; background: #eee8e9; border-radius: 12px; }
+      a { color: #8b5067; }
+    </style>
+  </head>
+  <body>
+    <nav>Do not translate navigation.</nav>
+    <article>
+      <h1>React state updates</h1>
+      <p id="target">React batches state updates to avoid unnecessary re-renders.</p>
+      <p id="protected">Read the <a id="original-link" href="/reference?from=fixture&amp;lang=en">React guide</a> and call <code>setCount((n) =&gt; n + 1)</code> when the event happens.</p>
+      <pre id="code"><code>const message = "&lt;script&gt;not executable&lt;/script&gt;";
+setCount((n) =&gt; n + 1);
+// Never send or rewrite this code block.</code></pre>
+      <p id="repeat">React batches state updates to avoid unnecessary re-renders.</p>
+      <p id="event-paragraph">An <span id="event-target">original DOM node</span> keeps its event listener when restored.</p>
+      <p hidden>Hidden secret fixture text must not be extracted.</p>
+      <form><p>Private form content must not be extracted.</p><input value="private fixture input" /></form>
+    </article>
+    <footer>Do not translate footer.</footer>
+    <script>
+      window.originalLink = document.querySelector("#original-link");
+      window.originalEventNode = document.querySelector("#event-target");
+      window.originalEventNode.addEventListener("click", () => { document.body.dataset.originalClicks = String(Number(document.body.dataset.originalClicks || 0) + 1); });
+      window.originalLink.addEventListener("click", (event) => { event.preventDefault(); document.body.dataset.linkClicked = "yes"; });
+    </script>
+  </body>
+</html>

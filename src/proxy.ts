@@ -1,5 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  extensionHeaders,
+  extensionPreflight,
+  requireExtensionAuth,
+} from "./lib/extension-auth";
+import { apiError } from "./lib/errors";
 export function proxy(request: NextRequest) {
+  if (request.nextUrl.pathname.startsWith("/api/extension/")) {
+    if (request.method === "OPTIONS") return extensionPreflight(request);
+    try {
+      requireExtensionAuth(request);
+      return extensionHeaders(request, NextResponse.next());
+    } catch (error) {
+      return extensionHeaders(request, apiError(error));
+    }
+  }
   if (!["GET", "HEAD", "OPTIONS"].includes(request.method)) {
     const origin = request.headers.get("origin");
     if (origin) {

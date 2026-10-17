@@ -9,3 +9,5 @@ test-results/
 coverage/
 .cache/
 .local/
+extension/dist/
+public/downloads/wordweave-extension.zip

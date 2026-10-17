@@ -1870,7 +1870,7 @@ legend {
     z-index: 35;
     padding: 10px 15px max(10px, env(safe-area-inset-bottom));
     justify-content: space-around;
-    gap: 20px;
+    gap: 10px;
   }
   .mobile-nav a {
     display: flex;
@@ -1879,7 +1879,8 @@ legend {
     gap: 6px;
     color: #a1ac94;
     font-size: 9px;
-    min-width: 75px;
+    min-width: 0;
+    flex: 1;
   }
   .mobile-nav a.active {
     color: #536d43;

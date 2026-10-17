@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>语境 · 插件设置</title>
+    <link rel="stylesheet" href="ui.css" />
+    <script src="options.js" type="module"></script>
+  </head>
+  <body class="options">
+    <main class="settings-card">
+      <header class="brand"><img src="icons/icon-48.png" width="46" height="46" alt="" /><div><h1>连接你的语境</h1><p>网页负责阅读，语境保存你的词卡。</p></div></header>
+      <form id="config-form">
+        <div class="field"><label for="server-url">网站地址</label><input id="server-url" type="url" required spellcheck="false" placeholder="https://wordweave-production.up.railway.app" /><p class="help">填写你部署的语境网址。保存时仅请求连接这个网站的权限。</p></div>
+        <div class="field"><label for="access-token">插件访问令牌</label><input id="access-token" type="password" required minlength="32" maxlength="512" autocomplete="off" spellcheck="false" placeholder="至少 32 个字符" /><p class="help">与网站环境变量 <code>EXTENSION_ACCESS_TOKEN</code> 一致。这是你自己设置的插件令牌，请勿填写 DeepSeek API Key。</p></div>
+        <div class="preferences-grid">
+          <div class="field"><label for="retention">默认英文保留量</label><select id="retention"><option value="low">少</option><option value="medium">中</option><option value="high">多</option></select></div>
+          <div class="field"><label for="gloss-mode">中文释义</label><select id="gloss-mode"><option value="all">全部显示</option><option value="first">每个词首次显示</option><option value="click">点击词语查看</option></select></div>
+        </div>
+        <div class="button-row"><button class="primary" type="submit" id="save">保存并授权连接</button><button id="test" type="button">测试连接</button></div>
+      </form>
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+      <section class="note"><h2>使用方式</h2><p>打开英文文章，点击浏览器工具栏的语境小精灵，选择转换整篇或选中段落。生成时可以关闭弹窗；词卡收藏会保存到网站生词本。</p><p>模型转换需要网站已配置模型 API。第一次使用先选一小段试试；相同内容和保留量会复用任务。</p></section>
+      <section class="cache"><h2>任务缓存</h2><p>插件仅保存最近 100 个任务的编号与摘要，不在本地长期缓存正文。清除后，相同文章再次转换可能产生模型费用；网站中的文章和收藏会保留。</p><button id="clear-cache" type="button">清除任务缓存</button></section>
+      <p class="privacy">插件只在你主动点击转换时读取正文。插件访问令牌只保存在浏览器扩展的本地存储中，不提供给网页脚本；模型 API Key 留在网站服务端。</p>
+    </main>
+  </body>
+</html>
