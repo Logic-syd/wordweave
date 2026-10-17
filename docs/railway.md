@@ -36,14 +36,31 @@
 
 Codex 云环境里的代理密钥可能是仅对其平台代理有效的占位绑定。请从 DeepSeek 开放平台在 Railway 中安全填写真实 Key，不要从云环境导出密钥或复制整份进程环境。也不要复制 Codex 的 `HTTP_PROXY`、`HTTPS_PROXY` 或 CA 路径到 Railway。
 
-## 4. 部署顺序
+## 4. 在应用服务 Settings 中设置部署命令
 
-仓库中的 `railway.json` 已设置：
+Railway 官方文档已将旧的 Config as Code 标为弃用：新服务不能启用 `railway.json` / `railway.toml`；原来已使用它们的服务仅兼容到 2026-12-01。仓库保留 `railway.json` 作为旧服务兼容配置，**新建服务必须在 Dashboard 明确设置下面的值**，不能依赖这个文件自动生效。后续如需代码化管理，可按官方 Infrastructure as Code 指南迁移。
+
+打开 **wordweave → Settings**，在 Build 和 Deploy 区域分别设置：
+
+| 设置 | 值 |
+| --- | --- |
+| Builder | Railpack |
+| Build Command | `npm run db:generate && npm run build` |
+| Pre-deploy Command | `npm run deploy:prepare` |
+| Start Command | `npm run start` |
+| Healthcheck Path | `/api/health` |
+| Healthcheck Timeout | `120` 秒 |
+
+保存后点击项目的 **Deploy / Apply changes**，确认新部署使用的是这些设置。变量已经引用 PostgreSQL 只代表配置了连接目标，不会创建数据表。
+
+部署按以下顺序执行：
 
 1. Railpack 安装依赖，并执行 `npm run db:generate && npm run build`。
 2. 在私有网络中执行预部署命令 `npm run deploy:prepare`：应用迁移；`SEED_DEMOS=true` 时写入演示。失败会阻止此次部署继续。
 3. 使用 `npm run start` 启动正式服务。容器进程重启时不会重新执行数据库迁移。
 4. Railway 请求 `/api/health`，应用可读取数据库文章表时才返回 200；数据库不可用或尚未初始化时返回 503。
+
+在 **Deployments → 最新部署** 检查实际状态及预部署日志，应看到 `prisma migrate deploy` 成功应用迁移或提示没有待执行迁移。若预部署失败，旧版本可能仍显示 Online；因此不要仅凭服务卡片判断本次部署成功。首次成功迁移后 PostgreSQL 中应有 `Article`、`VocabularyItem`、`_prisma_migrations` 等表；`SEED_DEMOS=true` 时还会写入两篇演示。
 
 Prisma CLI、tsx 与 TypeScript 放在运行依赖中，供预部署迁移、演示初始化及配置加载使用，即使平台裁剪开发依赖也能运行。
 
@@ -62,13 +79,16 @@ Prisma CLI、tsx 与 TypeScript 放在运行依赖中，供预部署迁移、演
 Railway 上的新数据库不会自动包含 Codex 或本机数据库中的个人文章、收藏和学习进度。演示可以通过 seed 重新初始化；如需搬迁个人数据，应先备份，再恢复到目标 PostgreSQL，避免覆盖已有目标数据。
 
 - 构建提示 Prisma Client 不存在：确认使用仓库的构建命令，并检查依赖安装结果。
+- 应用显示 Online 但数据库没有表：先看最新部署是否成功，以及其实际配置和日志是否包含 `npm run deploy:prepare`。对新服务，在 Settings 显式设置预部署命令及健康检查；仅上传 `railway.json` 不会启用它们。
 - 预部署迁移连接失败：检查 `DATABASE_URL` 引用是否指向同项目已运行的 PostgreSQL。
+- 迁移日志成功但数据库页面仍为空：刷新 Database 页面，核对日志中的数据库名、schema 与正在查看的 Postgres 服务及环境。不要手动新建空表或重置数据库。
 - 健康检查 503：检查迁移日志与数据库连接；这个接口不会调用模型，也不会显示密钥。
 - 页面能打开但生成失败：检查三项 `LLM_*`；不要使用翻译插件的展示名称替代真实模型 ID。
 - 重新部署后演示自动回来：将 `SEED_DEMOS` 设为 `false`；seed 是幂等的，但会补回已删除的演示。
 
 官方参考：
 
-- [Config as Code](https://docs.railway.com/config-as-code/reference)
+- [Config as Code 弃用说明](https://docs.railway.com/config-as-code)
+- [Infrastructure as Code](https://docs.railway.com/infrastructure-as-code)
 - [Pre-deploy commands](https://docs.railway.com/deployments/pre-deploy-command)
 - [Public networking](https://docs.railway.com/networking/public-networking)

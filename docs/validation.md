@@ -28,4 +28,8 @@
 
 已根据 Railway 官方配置参考加入 `railway.json`、预部署迁移命令和独立健康检查。`npm run deploy:prepare`、TypeScript、lint、生产构建和 18 项既有测试通过。实际以 `PORT=3100` 启动生产服务，健康数据库返回 200；使用不可达数据库启动临时服务时，健康检查返回 503，没有泄露连接信息。生产迁移／初始化依赖已保留在运行依赖中。
 
-这些是本地部署准备验证。当前没有连接 Railway 账号，也没有创建 Railway 项目，尚未验证 Railpack 云端构建、线上 PostgreSQL 或实际公网域名。
+这些是本地部署准备验证。该轮验证未连接 Railway 账号，未验证 Railpack 云端构建、线上 PostgreSQL 或实际公网域名。
+
+## Railway 首次上线排查
+
+用户随后创建了 Railway 应用和 PostgreSQL，并提供了公网健康检查返回 `unavailable`、数据库无表的截图；尚未确认线上迁移成功。重新核对 Railway 官方文档（文档仓库提交 `166e6d1b1eb53fa7a2ca551e9b3c1e5097ab72ed`）发现新服务已不能启用旧的 Config as Code。已修正 README 和部署说明，要求在 Dashboard 显式配置构建、预部署、启动及健康检查，并依据最新部署的迁移日志验证结果。代码中的迁移脚本和健康接口此前已通过本地验证；这不能代替 Railway 的实际执行结果。

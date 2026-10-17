@@ -49,7 +49,7 @@ docker compose exec -T db pg_restore --clean --if-exists --no-owner --no-privile
 
 ## Railway 首次部署
 
-仓库已附带 Railway 构建、迁移与健康检查配置。操作步骤和变量填写见 [Railway 部署说明](docs/railway.md)。这是一个 Next.js 全栈服务加独立 PostgreSQL 数据库，页面与后端接口在同一应用内分层实现；没有把前端和后端拆成两个独立部署服务。
+首次部署需要在 Railway 的应用服务 Settings 中明确填写构建、预部署迁移、启动命令和健康检查，具体值及变量填写见 [Railway 部署说明](docs/railway.md)。Railway 新服务已不再启用旧的 `railway.json` 配置，不能仅凭仓库包含该文件就认为迁移会自动运行。这个项目由一个 Next.js 全栈服务和独立 PostgreSQL 数据库组成，页面与后端接口在同一应用内分层实现。
 
 ## 启用真实生成
 
