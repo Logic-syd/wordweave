@@ -1,0 +1,57 @@
+{
+  "name": "wordweave",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --hostname 0.0.0.0",
+    "build": "next build",
+    "start": "next start --hostname 0.0.0.0",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:seed": "tsx prisma/seed.ts",
+    "setup": "bash scripts/setup.sh",
+    "local": "bash scripts/start-local.sh",
+    "test:unit": "vitest run tests/markdown.test.ts tests/output.test.ts tests/review.test.ts",
+    "deploy:prepare": "bash scripts/railway-predeploy.sh"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.10.1",
+    "@prisma/client": "^7.10.1",
+    "dotenv": "^18.0.8",
+    "lucide-react": "^0.577.0",
+    "mdast-util-to-string": "^4.0.0",
+    "next": "16.4.2",
+    "pg": "^8.23.1",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "remark-parse": "^11.0.0",
+    "unified": "^11.0.5",
+    "zod": "^4.3.6",
+    "prisma": "^7.10.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@tailwindcss/postcss": "^4.2.1",
+    "@types/mdast": "^4.0.4",
+    "@types/node": "^24.0.0",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "eslint": "^9.39.0",
+    "eslint-config-next": "16.4.2",
+    "prettier": "^3.9.10",
+    "tailwindcss": "^4.2.1",
+    "vitest": "^4.0.18"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  }
+}

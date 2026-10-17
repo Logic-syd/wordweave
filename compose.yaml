@@ -1,0 +1,17 @@
+services:
+  db:
+    container_name: wordweave-postgres
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: wordweave
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wordweave_local}
+      POSTGRES_DB: wordweave
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - ${WORDWEAVE_DATA_DIR:-../.wordweave/postgres}:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wordweave -d wordweave"]
+      interval: 5s
+      timeout: 5s
+      retries: 10

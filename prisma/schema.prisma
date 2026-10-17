@@ -1,0 +1,118 @@
+generator client {
+  provider = "prisma-client-js"
+  engineType = "client"
+}
+datasource db {
+  provider = "postgresql"
+}
+model Article {
+  id String @id @default(cuid())
+  ownerId String @default("personal")
+  title String
+  mode String
+  language String
+  sourceUrl String?
+  sourceText String
+  sourceBlocks Json
+  origin String
+  demoKey String? @unique
+  requestKey String? @unique
+  draftSettings Json @default("{}")
+  activeVersionId String?
+  generationToken String?
+  generationStartedAt DateTime?
+  generationError String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  versions ArticleVersion[]
+  progress ReadingProgress?
+  @@index([ownerId, mode, createdAt])
+}
+model ArticleVersion {
+  id String @id @default(cuid())
+  articleId String
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  settings Json
+  status String @default("SUCCESS")
+  coverage Json
+  createdAt DateTime @default(now())
+  paragraphs Paragraph[]
+  occurrences Occurrence[]
+}
+model Paragraph {
+  id String @id @default(cuid())
+  versionId String
+  version ArticleVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  sourceId String
+  position Int
+  original String
+  segments Json
+  @@unique([versionId, sourceId])
+}
+model VocabularyItem {
+  id String @id @default(cuid())
+  language String
+  key String @unique
+  lemma String
+  partOfSpeech String
+  meaning String
+  grammar Json
+  explanation String
+  example String
+  exampleTranslation String
+  occurrences Occurrence[]
+  users UserVocabulary[]
+}
+model Occurrence {
+  id String @id @default(cuid())
+  versionId String
+  version ArticleVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  vocabularyId String
+  vocabulary VocabularyItem @relation(fields: [vocabularyId], references: [id], onDelete: Cascade)
+  sourceId String
+  form String
+  meaning String
+  sentence String
+  grammar Json @default("{}")
+  explanation String?
+  example String?
+  exampleTranslation String?
+  targetKind String
+  @@index([vocabularyId, versionId])
+}
+model UserVocabulary {
+  id String @id @default(cuid())
+  ownerId String @default("personal")
+  vocabularyId String
+  vocabulary VocabularyItem @relation(fields: [vocabularyId], references: [id], onDelete: Cascade)
+  status String @default("NEW")
+  favorite Boolean @default(false)
+  category String?
+  exposureCount Int @default(0)
+  reviewCount Int @default(0)
+  knownStreak Int @default(0)
+  dueAt DateTime?
+  lastReviewedAt DateTime?
+  updatedAt DateTime @updatedAt
+  @@unique([ownerId, vocabularyId])
+  @@index([ownerId, status, dueAt])
+}
+model ReadingProgress {
+  id String @id @default(cuid())
+  articleId String @unique
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  ownerId String @default("personal")
+  paragraphId String?
+  view String @default("learning")
+  glossMode String @default("first")
+  completed Boolean @default(false)
+  updatedAt DateTime @updatedAt
+}
+model LanguagePreference {
+  id String @id @default(cuid())
+  ownerId String @default("personal")
+  language String
+  glossMode String @default("first")
+  settings Json
+  @@unique([ownerId, language])
+}
