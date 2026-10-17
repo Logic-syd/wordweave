@@ -5,7 +5,6 @@
     "buildCommand": "npm run db:generate && npm run build"
   },
   "deploy": {
-    "preDeployCommand": ["npm run deploy:prepare"],
     "startCommand": "npm run start",
     "healthcheckPath": "/api/health",
     "healthcheckTimeout": 120,

@@ -33,7 +33,7 @@ START_LOCAL_DB=0 npm run setup
 npm run dev
 ```
 
-迁移用 `npm run db:migrate`（`prisma migrate deploy`），演示用 `npm run db:seed`。`npm run db:check` 可检查连接；加 `-- --schema` 检查文章表，诊断不显示账号密码。`npm run start` 在启动前自动检查连接及文章表，失败会给出错误提示并退出。修改 schema 后可用 `npx prisma migrate dev --name <说明>` 创建新迁移；不要在有个人数据的库上执行 reset。Prisma 7 使用官方 `@prisma/adapter-pg`；连接 URL 统一在 `prisma.config.ts` 与服务端进程环境读取。
+迁移用 `npm run db:migrate`（`prisma migrate deploy`），演示用 `npm run db:seed`。`npm run db:check` 可检查连接；加 `-- --schema` 检查文章表，诊断不显示账号密码。`npm run start` 在启动前自动检查连接、应用待执行迁移、按 `SEED_DEMOS` 初始化演示，再检查文章表；失败会给出错误提示并退出。已执行迁移不会重复执行，已有学习记录不会被重置。修改 schema 后可用 `npx prisma migrate dev --name <说明>` 创建新迁移；不要在有个人数据的库上执行 reset。Prisma 7 使用官方 `@prisma/adapter-pg`；连接 URL 统一在 `prisma.config.ts` 与服务端进程环境读取。
 
 本地 PostgreSQL 数据在忽略提交的 仓库外的 `../.wordweave/postgres`（可用 `WORDWEAVE_DATA_DIR` 覆盖），停止容器或 `docker compose down` 后仍保留。不要删除此目录。Docker 会将数据目录设置为 PostgreSQL 用户所有，这是正常行为。数据库目录位于源码树之外，避免数据库写入触发开发服务器热刷新。
 
@@ -49,7 +49,7 @@ docker compose exec -T db pg_restore --clean --if-exists --no-owner --no-privile
 
 ## Railway 首次部署
 
-首次部署需要在 Railway 的应用服务 Settings 中明确填写构建、预部署迁移、启动命令和健康检查，具体值及变量填写见 [Railway 部署说明](docs/railway.md)。Railway 新服务已不再启用旧的 `railway.json` 配置，不能仅凭仓库包含该文件就认为迁移会自动运行。这个项目由一个 Next.js 全栈服务和独立 PostgreSQL 数据库组成，页面与后端接口在同一应用内分层实现。
+首次部署在 Railway 的应用服务 Settings 中设置构建命令、`npm run start` 和健康检查；启动流程会自动执行数据库迁移，无须单独设置预部署步骤。具体值及变量填写见 [Railway 部署说明](docs/railway.md)。Railway 新服务已不再启用旧的 `railway.json` 配置。这个项目由一个 Next.js 全栈服务和独立 PostgreSQL 数据库组成，页面与后端接口在同一应用内分层实现。
 
 ## 启用真实生成
 

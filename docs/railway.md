@@ -46,23 +46,23 @@ Railway 官方文档已将旧的 Config as Code 标为弃用：新服务不能�
 | --- | --- |
 | Builder | Railpack |
 | Build Command | `npm run db:generate && npm run build` |
-| Pre-deploy Command | `npm run deploy:prepare` |
+| Pre-deploy Command | 留空；启动命令已包含迁移与初始化 |
 | Start Command | `npm run start` |
 | Healthcheck Path | `/api/health` |
 | Healthcheck Timeout | `120` 秒 |
 
-保存后点击项目的 **Deploy / Apply changes**，确认新部署使用的是这些设置。变量已经引用 PostgreSQL 只代表配置了连接目标，不会创建数据表。
+保存后点击项目的 **Deploy / Apply changes**，确认新部署使用的是这些设置。`npm run start` 会通过 npm 的 `prestart` 自动执行连接检查、迁移和可选演示初始化，无须额外寻找预部署按钮。此前已配置 `npm run deploy:prepare` 作为预部署步骤也可以继续使用，只是启动时会再检查一次。
 
 部署按以下顺序执行：
 
 1. Railpack 安装依赖，并执行 `npm run db:generate && npm run build`。
-2. 在私有网络中执行预部署命令 `npm run deploy:prepare`：先检查连接，再应用迁移；`SEED_DEMOS=true` 时写入演示。失败会阻止此次部署继续。
-3. 使用 `npm run start` 启动正式服务。npm 的 `prestart` 会先验证连接及文章表可读，失败时以非零状态退出并给出安全错误提示；通过后才启动 Next.js。容器进程重启时只重新检查就绪状态，不会重新执行数据库迁移。
+2. 启动命令 `npm run start` 自动触发 `prestart`，先执行 `npm run deploy:prepare`：检查连接、应用待执行迁移；`SEED_DEMOS=true` 时初始化演示。任一步失败会阻止 Next.js 启动。
+3. 验证文章表可读后启动 Next.js。容器进程重启时再次执行上述步骤，Prisma 只应用尚未执行的迁移；成功演示会跳过，不会覆盖已有收藏、阅读进度或生成偏好。
 4. Railway 请求 `/api/health`，应用可读取数据库文章表时才返回 200；数据库不可用或尚未初始化时返回 503。
 
-在 **Deployments → 最新部署** 检查实际状态及预部署日志，应看到 `prisma migrate deploy` 成功应用迁移或提示没有待执行迁移。若预部署失败，旧版本可能仍显示 Online；因此不要仅凭服务卡片判断本次部署成功。首次成功迁移后 PostgreSQL 中应有 `Article`、`VocabularyItem`、`_prisma_migrations` 等表；`SEED_DEMOS=true` 时还会写入两篇演示。
+在 **Deployments → 最新部署 → Deploy Logs** 检查实际状态和启动日志，应看到 `prisma migrate deploy` 成功应用迁移或提示没有待执行迁移，然后出现文章表 ready 和 Next.js ready。若新部署失败，旧版本可能仍显示 Online；因此不要仅凭服务卡片判断本次部署成功。首次成功迁移后 PostgreSQL 中应有 `Article`、`VocabularyItem`、`_prisma_migrations` 等表；`SEED_DEMOS=true` 时还会写入两篇演示。
 
-Prisma CLI、tsx 与 TypeScript 放在运行依赖中，供预部署迁移、演示初始化及配置加载使用，即使平台裁剪开发依赖也能运行。
+Prisma CLI、tsx 与 TypeScript 放在运行依赖中，供启动迁移、演示初始化及配置加载使用，即使平台裁剪开发依赖也能运行。第一版使用一个应用实例；扩展多个实例前，应将初始化协调为独立部署任务，避免同时首次写入演示。首次初始化后可将 `SEED_DEMOS` 设为 `false`，防止删除过的演示在重启时被补回。
 
 不要在 Railway 上运行 `npm run setup` 或 `npm run local`，这两个命令用于本机 Docker 数据库。不要在 Railway 上执行 `prisma migrate reset`。
 
@@ -79,7 +79,7 @@ Prisma CLI、tsx 与 TypeScript 放在运行依赖中，供预部署迁移、演
 Railway 上的新数据库不会自动包含 Codex 或本机数据库中的个人文章、收藏和学习进度。演示可以通过 seed 重新初始化；如需搬迁个人数据，应先备份，再恢复到目标 PostgreSQL，避免覆盖已有目标数据。
 
 - 构建提示 Prisma Client 不存在：确认使用仓库的构建命令，并检查依赖安装结果。
-- 应用显示 Online 但数据库没有表：先看最新部署是否成功，以及其实际配置和日志是否包含 `npm run deploy:prepare`。对新服务，在 Settings 显式设置预部署命令及健康检查；仅上传 `railway.json` 不会启用它们。
+- 应用显示 Online 但数据库没有表：确认正在部署最新代码，Start Command 为 `npm run start`，并检查日志是否执行 `prestart` 和 `prisma migrate deploy`。直接运行 `next start` 会跳过初始化；仅上传 `railway.json` 不会为新服务设置健康检查。
 - 预部署迁移连接失败：检查 `DATABASE_URL` 引用是否指向同项目已运行的 PostgreSQL。
 - 日志出现 `ECONNREFUSED`：连接目标拒绝了连接；先看预部署或启动日志的 `[database] target=主机:端口`，不能仅凭此错误认定是缺表。配置为空或未展开会明确报告 `DATABASE_URL_MISSING` / `DATABASE_URL_UNRESOLVED`；Railway 上的 localhost 连接会报告 `DATABASE_URL_LOCAL_ON_RAILWAY`。
 - Postgres 自身的 `DATABASE_URL` 为 `<empty string>`：应用引用后也会为空。先在 **Postgres → Variables** 恢复值 `postgresql://${{PGUSER}}:${{PGPASSWORD}}@${{PGHOST}}:${{PGPORT}}/${{PGDATABASE}}`，再确认 **wordweave → Variables** 的值为 `${{Postgres.DATABASE_URL}}`，应用变更并重新部署 wordweave。

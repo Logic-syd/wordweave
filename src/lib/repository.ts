@@ -188,6 +188,7 @@ export async function saveVersion(
   settings: Settings,
   coverage: Coverage,
   targets: Awaited<ReturnType<typeof getReviewTargets>>,
+  options: { savePreferences?: boolean } = {},
 ) {
   return db.$transaction(
     async (tx) => {
@@ -301,18 +302,20 @@ export async function saveVersion(
           ...(a.origin === "generated" ? { title: result.title } : {}),
         },
       });
-      await tx.languagePreference.createMany({
-        data: {
-          ...userScope(),
-          language: a.language,
-          settings: json(settings),
-        },
-        skipDuplicates: true,
-      });
-      await tx.languagePreference.update({
-        where: { ownerId_language: { ...userScope(), language: a.language } },
-        data: { settings: json(settings) },
-      });
+      if (options.savePreferences !== false) {
+        await tx.languagePreference.createMany({
+          data: {
+            ...userScope(),
+            language: a.language,
+            settings: json(settings),
+          },
+          skipDuplicates: true,
+        });
+        await tx.languagePreference.update({
+          where: { ownerId_language: { ...userScope(), language: a.language } },
+          data: { settings: json(settings) },
+        });
+      }
       return version.id;
     },
     { timeout: 30000 },

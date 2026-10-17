@@ -324,6 +324,7 @@ export async function seedDemos() {
         missing: [],
       },
       [],
+      { savePreferences: false },
     );
   }
 }
