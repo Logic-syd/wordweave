@@ -1,10 +1,10 @@
 import { randomUUID } from "node:crypto";
-import type { ExtensionJob, Prisma } from "@prisma/client";
+import { type ExtensionJob, Prisma } from "@prisma/client";
 import { db, userScope } from "./db";
 import { AppError } from "./errors";
 import { getDatabaseErrorCode } from "./database-config";
 import { generateArticle, modelConfigured } from "./generation";
-import { getArticle } from "./repository";
+import { getArticle, assertArticleQuota, scopedRequestKey } from "./repository";
 import { settingsSchema } from "./schemas";
 import { prepareExtensionArticle } from "./extension-input";
 import { safeExtensionArticle } from "./extension-output";
@@ -57,6 +57,7 @@ async function expireJobs(tx: Prisma.TransactionClient, now: Date) {
           generationToken: null,
           generationStartedAt: null,
           generationError: timeoutMessage,
+          generationProgress: Prisma.DbNull,
         },
       });
     }
@@ -103,14 +104,23 @@ function requireModel() {
 }
 
 export async function createExtensionJob(raw: unknown) {
-  const { input, blocks, requestKey, requestHash } =
-    prepareExtensionArticle(raw);
+  const {
+    input,
+    blocks,
+    requestKey: clientKey,
+    requestHash,
+  } = prepareExtensionArticle(raw);
+  const requestKey = scopedRequestKey(clientKey, "extension");
   return withJobLock(async (tx) => {
     const now = new Date();
     await expireJobs(tx, now);
-    const previous = await tx.extensionJob.findUnique({
-      where: { requestKey },
-    });
+    const previous =
+      (await tx.extensionJob.findUnique({ where: { requestKey } })) ??
+      (userScope().ownerId === "personal"
+        ? await tx.extensionJob.findFirst({
+            where: { requestKey: clientKey, ownerId: "personal" },
+          })
+        : null);
     if (previous) {
       if (
         previous.ownerId !== userScope().ownerId ||
@@ -121,10 +131,18 @@ export async function createExtensionJob(raw: unknown) {
           409,
         );
       }
+      // Preserve idempotency across the upgrade from the personal-only plugin.
+      // The payload hash and owner must both match before migrating its key.
+      if (previous.requestKey !== requestKey)
+        await tx.extensionJob.update({
+          where: { articleId: previous.articleId },
+          data: { requestKey },
+        });
       return summary(previous);
     }
     requireModel();
     await assertCapacity(tx, now);
+    await assertArticleQuota(tx);
     const settings = settingsSchema.parse({ retention: input.retention });
     const article = await tx.article.create({
       data: {
@@ -221,6 +239,7 @@ async function claimJob(id: string) {
         generationToken: runToken,
         generationStartedAt: now,
         generationError: null,
+        generationProgress: Prisma.DbNull,
       },
     });
     if (!articleClaim.count) {
@@ -314,6 +333,7 @@ export async function runExtensionJob(id: string) {
             generationToken: null,
             generationStartedAt: null,
             generationError: succeeded ? null : message,
+            generationProgress: Prisma.DbNull,
           },
         });
       });

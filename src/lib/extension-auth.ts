@@ -1,32 +1,17 @@
-import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { AppError, apiError } from "./errors";
+import { requireRequestOwner } from "./trial-auth";
+import { runAsOwner } from "./auth-context";
 
 const extensionOrigin = /^chrome-extension:\/\/[a-p]{32}$/;
 
 export function requireExtensionAuth(request: Request) {
-  const expected = process.env.EXTENSION_ACCESS_TOKEN?.trim();
-  if (!expected || expected.length < 32 || /\s/.test(expected)) {
-    throw new AppError(
-      "服务端尚未配置有效的插件访问令牌（至少 32 个字符）。",
-      503,
-    );
-  }
   const origin = request.headers.get("origin");
   if (origin && !extensionOrigin.test(origin)) {
     throw new AppError("仅允许浏览器插件访问此接口。", 403);
   }
-  const supplied = request.headers
-    .get("authorization")
-    ?.match(/^Bearer (\S+)$/i)?.[1];
-  const expectedBytes = Buffer.from(expected);
-  const suppliedBytes = Buffer.from(supplied ?? "");
-  if (
-    suppliedBytes.length !== expectedBytes.length ||
-    !timingSafeEqual(suppliedBytes, expectedBytes)
-  ) {
-    throw new AppError("插件访问令牌无效，请在插件设置中重新填写。", 401);
-  }
+  // A website cookie alone never grants access to the browser extension API.
+  return requireRequestOwner(request, true);
 }
 
 export function extensionHeaders(request: Request, response: NextResponse) {
@@ -83,12 +68,8 @@ export async function extensionHandler(
   action: () => Promise<NextResponse>,
 ) {
   try {
-    requireExtensionAuth(request);
-  } catch (error) {
-    return extensionHeaders(request, apiError(error));
-  }
-  try {
-    return extensionHeaders(request, await action());
+    const owner = requireExtensionAuth(request);
+    return extensionHeaders(request, await runAsOwner(owner, action));
   } catch (error) {
     return extensionHeaders(request, apiError(error));
   }

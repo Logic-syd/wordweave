@@ -17,17 +17,37 @@ model Article {
   origin String
   demoKey String? @unique
   requestKey String? @unique
+  requestHash String?
   draftSettings Json @default("{}")
   activeVersionId String?
   generationToken String?
   generationStartedAt DateTime?
   generationError String?
+  generationProgress Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   versions ArticleVersion[]
   progress ReadingProgress?
   extensionJob ExtensionJob?
   @@index([ownerId, mode, createdAt])
+}
+model GenerationUsage {
+  id String @id @default(cuid())
+  ownerId String
+  day String
+  count Int @default(0)
+  inputChars Int @default(0)
+  @@unique([ownerId, day])
+}
+model GenerationPermit {
+  token String @id
+  ownerId String
+  articleId String
+  expiresAt DateTime
+  releasedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([ownerId, expiresAt])
+  @@index([expiresAt])
 }
 model ExtensionJob {
   articleId String @id
@@ -72,6 +92,7 @@ model Paragraph {
 }
 model VocabularyItem {
   id String @id @default(cuid())
+  ownerId String @default("personal")
   language String
   key String @unique
   lemma String
@@ -83,6 +104,7 @@ model VocabularyItem {
   exampleTranslation String
   occurrences Occurrence[]
   users UserVocabulary[]
+  @@index([ownerId, language])
 }
 model Occurrence {
   id String @id @default(cuid())

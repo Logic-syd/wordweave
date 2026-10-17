@@ -5,30 +5,48 @@ import {
   requireExtensionAuth,
 } from "./lib/extension-auth";
 import { apiError } from "./lib/errors";
+import { assertSameOrigin, requireRequestOwner } from "./lib/trial-auth";
+
+function secure(response: NextResponse) {
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("Referrer-Policy", "same-origin");
+  response.headers.set("X-Frame-Options", "SAMEORIGIN");
+  response.headers.set("Cache-Control", "no-store");
+  return response;
+}
+
 export function proxy(request: NextRequest) {
-  if (request.nextUrl.pathname.startsWith("/api/extension/")) {
-    if (request.method === "OPTIONS") return extensionPreflight(request);
+  const path = request.nextUrl.pathname;
+  if (path.startsWith("/api/extension/")) {
+    if (request.method === "OPTIONS")
+      return secure(extensionPreflight(request));
     try {
       requireExtensionAuth(request);
-      return extensionHeaders(request, NextResponse.next());
+      return secure(extensionHeaders(request, NextResponse.next()));
     } catch (error) {
-      return extensionHeaders(request, apiError(error));
+      return secure(extensionHeaders(request, apiError(error)));
     }
   }
-  if (!["GET", "HEAD", "OPTIONS"].includes(request.method)) {
-    const origin = request.headers.get("origin");
-    if (origin) {
-      try {
-        if (new URL(origin).host !== request.headers.get("host"))
-          return NextResponse.json(
-            { error: "请从当前应用页面提交请求" },
-            { status: 403 },
-          );
-      } catch {
-        return NextResponse.json({ error: "请求来源不合法" }, { status: 403 });
-      }
-    }
+  try {
+    assertSameOrigin(request);
+    if (path === "/api/health" || path.startsWith("/api/auth/"))
+      return secure(NextResponse.next());
+    requireRequestOwner(request);
+    return secure(NextResponse.next());
+  } catch (error) {
+    if (path.startsWith("/api/")) return secure(apiError(error));
+    const url = new URL("/login", request.url);
+    url.searchParams.set("next", `${path}${request.nextUrl.search}`);
+    return secure(NextResponse.redirect(url));
   }
-  return NextResponse.next();
 }
-export const config = { matcher: "/api/:path*" };
+export const config = {
+  matcher: [
+    "/",
+    "/new",
+    "/library",
+    "/vocabulary",
+    "/read/:path*",
+    "/api/:path*",
+  ],
+};

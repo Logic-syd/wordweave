@@ -1,4 +1,5 @@
-// Real PostgreSQL with isolated ownership; model transport is deliberately mocked.
+import { temporaryDatabase } from "./helpers/local-database";
+// Real temporary PostgreSQL database; model transport is deliberately mocked.
 import { randomUUID } from "node:crypto";
 import {
   afterAll,
@@ -113,11 +114,14 @@ function mockSuccess() {
   vi.stubGlobal("fetch", transport);
   return transport;
 }
-beforeAll(() => {
+let isolatedDatabase: Awaited<ReturnType<typeof temporaryDatabase>> | undefined;
+beforeAll(async () => {
+  isolatedDatabase = await temporaryDatabase();
+  vi.stubEnv("DATABASE_URL", isolatedDatabase.url);
   vi.stubEnv("LLM_API_KEY", "extension-test-placeholder");
   vi.stubEnv("LLM_BASE_URL", "http://127.0.0.1:9999/v1");
   vi.stubEnv("LLM_MODEL", "extension-test-fixture");
-});
+}, 45000);
 afterEach(async () => {
   hooks.afterArticleRead = undefined;
   vi.unstubAllGlobals();
@@ -139,6 +143,7 @@ afterEach(async () => {
 afterAll(async () => {
   vi.unstubAllEnvs();
   await db.$disconnect();
+  await isolatedDatabase?.cleanup();
 });
 
 describe("extension jobs, persisted retries and ownership", () => {

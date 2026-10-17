@@ -1,3 +1,4 @@
+import { withPageOwner } from "@/lib/auth-page";
 import { notFound } from "next/navigation";
 import { getArticle, requireArticle } from "@/lib/repository";
 import { Reader } from "@/components/reader";
@@ -12,23 +13,25 @@ export default async function ReadPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ generate?: string }>;
 }) {
-  const { id } = await params;
-  let data;
-  try {
-    data = await Promise.all([getArticle(id), requireArticle(id)]);
-  } catch (e) {
-    if (e instanceof AppError && e.status === 404) notFound();
-    throw e;
-  }
-  const [article, row] = data;
-  return (
-    <Reader
-      initial={article}
-      configured={modelConfigured()}
-      autoGenerate={(await searchParams).generate === "1"}
-      initialSettings={settingsSchema.parse(
-        article.version?.settings ?? row.draftSettings ?? {},
-      )}
-    />
-  );
+  return withPageOwner(async () => {
+    const { id } = await params;
+    let data;
+    try {
+      data = await Promise.all([getArticle(id), requireArticle(id)]);
+    } catch (e) {
+      if (e instanceof AppError && e.status === 404) notFound();
+      throw e;
+    }
+    const [article, row] = data;
+    return (
+      <Reader
+        initial={article}
+        configured={modelConfigured()}
+        autoGenerate={(await searchParams).generate === "1"}
+        initialSettings={settingsSchema.parse(
+          article.version?.settings ?? row.draftSettings ?? {},
+        )}
+      />
+    );
+  }, "/read");
 }

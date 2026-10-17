@@ -12,7 +12,7 @@
       <header class="brand"><img src="icons/icon-48.png" width="46" height="46" alt="" /><div><h1>连接你的语境</h1><p>网页负责阅读，语境保存你的词卡。</p></div></header>
       <form id="config-form">
         <div class="field"><label for="server-url">网站地址</label><input id="server-url" type="url" required spellcheck="false" placeholder="https://wordweave-production.up.railway.app" /><p class="help">填写你部署的语境网址。保存时仅请求连接这个网站的权限。</p></div>
-        <div class="field"><label for="access-token">插件访问令牌</label><input id="access-token" type="password" required minlength="32" maxlength="512" autocomplete="off" spellcheck="false" placeholder="至少 32 个字符" /><p class="help">与网站环境变量 <code>EXTENSION_ACCESS_TOKEN</code> 一致。这是你自己设置的插件令牌，请勿填写 DeepSeek API Key。</p></div>
+        <div class="field"><label for="access-token">插件访问令牌</label><input id="access-token" type="password" required minlength="32" maxlength="512" autocomplete="off" spellcheck="false" placeholder="至少 32 个字符" /><p class="help">填写你登录语境网站时使用的个人邀请码。每人使用自己的邀请码；请勿填写 DeepSeek API Key。</p></div>
         <div class="preferences-grid">
           <div class="field"><label for="retention">默认英文保留量</label><select id="retention"><option value="low">少</option><option value="medium">中</option><option value="high">多</option></select></div>
           <div class="field"><label for="gloss-mode">中文释义</label><select id="gloss-mode"><option value="all">全部显示</option><option value="first">每个词首次显示</option><option value="click">点击词语查看</option></select></div>

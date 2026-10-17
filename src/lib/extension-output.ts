@@ -14,6 +14,7 @@ export function safeExtensionArticle(article: ArticleDetail): ArticleDetail {
     origin: article.origin,
     generationStartedAt: article.generationStartedAt,
     generationError: article.generationError,
+    generationProgress: article.generationProgress,
     createdAt: article.createdAt,
     defaultGlossMode: article.defaultGlossMode,
     progress: article.progress

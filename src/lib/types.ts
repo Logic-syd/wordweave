@@ -38,6 +38,14 @@ export type Coverage = {
   requestedReview: number;
   missing: string[];
 };
+export type GenerationProgress = {
+  stage: string;
+  completed: number;
+  total: number;
+  updatedAt?: string;
+  startedAt?: string;
+  message?: string;
+};
 export type ArticleDetail = {
   id: string;
   title: string;
@@ -49,6 +57,7 @@ export type ArticleDetail = {
   origin: string;
   generationStartedAt: string | null;
   generationError: string | null;
+  generationProgress?: GenerationProgress | null;
   createdAt: string;
   version: null | {
     id: string;

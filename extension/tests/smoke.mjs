@@ -112,6 +112,8 @@ try {
   await mkdir(results, { recursive: true });
   temporary = await mkdtemp(path.join(tmpdir(), "wordweave-extension-smoke-"));
   admin = new pg.Client({ connectionString: originalDatabaseUrl });
+  if (!["localhost", "127.0.0.1", "::1"].includes(admin.host))
+    throw new Error("Refusing PostgreSQL host overrides that point outside localhost.");
   await admin.connect();
   await admin.query(`CREATE DATABASE "${databaseName}"`);
   databaseCreated = true;
@@ -119,7 +121,12 @@ try {
   testDatabaseUrl = databaseUrl.href;
   database = new pg.Client({ connectionString: testDatabaseUrl });
   await database.connect();
-  const env = { ...process.env, DATABASE_URL: testDatabaseUrl, EXTENSION_ACCESS_TOKEN: accessToken, SEED_DEMOS: "false", NODE_ENV: "production" };
+  const env = {
+    ...process.env, DATABASE_URL: testDatabaseUrl, EXTENSION_ACCESS_TOKEN: accessToken,
+    TRIAL_ACCESS_TOKENS: JSON.stringify({ personal: accessToken }), SEED_DEMOS: "false", NODE_ENV: "production",
+    GENERATION_DAILY_LIMIT: "20", GENERATION_DAILY_CHAR_LIMIT: "120000",
+    GENERATION_GLOBAL_DAILY_LIMIT: "100", GENERATION_GLOBAL_DAILY_CHAR_LIMIT: "600000", GENERATION_MAX_CONCURRENT: "2",
+  };
   const migration = spawnNode(["node_modules/prisma/build/index.js", "migrate", "deploy"], env);
   const [migrationCode] = await once(migration.child, "exit");
   assert.equal(migrationCode, 0, `Migrations failed: ${safeLog(migration.output())}`);
@@ -319,6 +326,8 @@ try {
   assert.equal(saved.rowCount, 1); assert.equal(saved.rows[0].favorite, true); assert.equal(saved.rows[0].status, "LEARNING");
   await page.screenshot({ path: path.join(results, "desktop-word-card.png"), fullPage: true });
   await card.getByRole("button", { name: "关闭词卡" }).click();
+  const login = await context.request.post(`${appUrl}/api/auth/login`, { data: { token: accessToken }, headers: { Origin: appUrl } });
+  assert.equal(login.status(), 200, "The website must authenticate as the same owner as the extension");
   const vocabulary = await context.newPage();
   await vocabulary.goto(`${appUrl}/vocabulary`);
   await expect(vocabulary.getByText(expression, { exact: true }).first()).toBeVisible();

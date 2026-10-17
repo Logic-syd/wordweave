@@ -24,6 +24,38 @@ type Node = {
 function tree(markdown: string): Root {
   return unified().use(remarkParse).use(remarkGfm).parse(markdown);
 }
+// Model text must not introduce executable markup or new outbound resources.
+// Comparing raw protected nodes also prevents a model from adding extra code.
+function protectedMarkup(markdown: string) {
+  const values: string[] = [];
+  function visit(node: Node) {
+    if (
+      [
+        "code",
+        "inlineCode",
+        "link",
+        "image",
+        "linkReference",
+        "imageReference",
+        "html",
+        "definition",
+      ].includes(node.type)
+    ) {
+      values.push(
+        markdown.slice(
+          node.position!.start.offset!,
+          node.position!.end.offset!,
+        ),
+      );
+    } else node.children?.forEach(visit);
+  }
+  visit(tree(markdown) as Node);
+  return values.sort();
+}
+export function assertNoGeneratedMarkup(markdown: string) {
+  if (protectedMarkup(markdown).length)
+    throw new Error("生成短文不得包含 HTML、代码或外部链接与图片");
+}
 export function parseSource(source: string): SourceBlock[] {
   const root = tree(source);
   return root.children.map((node: RootContent, index) => {
@@ -131,6 +163,11 @@ export function restoreAndValidate(
         throw new Error("出现未声明的词条");
     if (structure(plainSegments(segments)) !== structure(block.original))
       throw new Error("Markdown 标题、列表或段落结构被改变");
+    if (
+      JSON.stringify(protectedMarkup(plainSegments(segments))) !==
+      JSON.stringify(protectedMarkup(block.original))
+    )
+      throw new Error("模型新增或改变了 HTML、代码、链接或图片，已拒绝保存");
     return { ...p, original: block.original, segments };
   });
   const protectedParts = Object.assign(

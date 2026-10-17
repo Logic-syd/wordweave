@@ -2,6 +2,7 @@ import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { readDatabaseConfig } from "./database-config";
+import { currentOwnerId } from "./auth-context";
 
 // Validate on the first connection, not while Next.js imports routes for a build.
 // An empty connectionString otherwise makes pg silently fall back to localhost.
@@ -23,8 +24,6 @@ export const db =
     adapter: new EnvironmentPrismaPg({}),
   });
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = db;
-// Personal edition. All user data queries go through the repository layer with this scope.
-// Replace with a verified session identity when adding accounts; never accept an ownerId from clients.
 export function userScope() {
-  return { ownerId: "personal" };
+  return { ownerId: currentOwnerId() };
 }

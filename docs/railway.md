@@ -28,9 +28,10 @@
 | `LLM_API_KEY`  | 在 Railway 安全变量设置中填入自己的 DeepSeek API Key                                                        |
 | `LLM_BASE_URL` | `https://api.deepseek.com/v1`                                                                               |
 | `LLM_MODEL`    | DeepSeek 开放平台当前支持 JSON 输出的准确模型 ID                                                            |
+| `TRIAL_ACCESS_TOKENS` | 必填：每人独立邀请码的 JSON；首次可在 `/login` 页面本地生成，保留 `personal` 对应站主既有数据 |
 | `SEED_DEMOS`   | 首次部署设为 `true`，初始化两篇演示；之后可删掉此变量或设为 `false`                                         |
 
-没填模型变量也能启动和阅读演示，但生成新内容不可用。模型名称不硬编码。
+没填模型变量也能启动并在登录后阅读演示，但生成新内容不可用。模型名称不硬编码。生产未配置有效 `TRIAL_ACCESS_TOKENS` 时学习页面和生成接口默认关闭，`/login` 提供设置说明；`/api/health` 仍用于数据库部署检查。
 
 无需手填 `PORT`：Railway 会注入端口，Next.js 的启动命令会读取它，并监听 `0.0.0.0`。
 
@@ -70,9 +71,9 @@ Prisma CLI、tsx 与 TypeScript 放在运行依赖中，供启动迁移、演示
 
 部署成功后，打开 **应用服务 → Settings → Networking → Public Networking → Generate Domain**。Railway 会为应用分配 HTTPS 域名。这个操作针对 Next.js 应用服务，不是 PostgreSQL 服务。
 
-先访问地址后面的 `/api/health`，应得到 `{"status":"ok"}`，再打开首页和两篇演示。随后用一小段英文进行真实生成测试，确认 DeepSeek 权限与余额、模型 ID 和结构化输出能力。
+先访问地址后面的 `/api/health`，应得到 `{"status":"ok"}`，再打开首页，使用 `personal` 的邀请码登录并阅读两篇演示。随后用一小段英文进行真实生成测试，确认 DeepSeek 权限与余额、模型 ID 和结构化输出能力。
 
-目前是个人版，没有账户认证。持有公开地址的人可以访问同一份学习数据并调用生成接口；对外开放前应在入口配置访问保护，不要把随机域名当作身份验证。
+给朋友试用时，每人分配独立邀请码，不分享 `personal` 或整份环境变量 JSON。网页与插件使用同一个人的邀请码，分别保存文章、词卡和进度。默认每人每日 20 次、全站每日 100 次生成，并有限制输入字符与并发；完整变量和撤销方式见 [README](../README.md#邀请朋友试用)。供应商消费上限仍需在 DeepSeek 控制台设置，应用额度不等于精确费用预算。
 
 ## 数据与故障排查
 
@@ -85,6 +86,7 @@ Railway 上的新数据库不会自动包含 Codex 或本机数据库中的个�
 - Postgres 自身的 `DATABASE_URL` 为 `<empty string>`：应用引用后也会为空。先在 **Postgres → Variables** 恢复值 `postgresql://${{PGUSER}}:${{PGPASSWORD}}@${{PGHOST}}:${{PGPORT}}/${{PGDATABASE}}`，再确认 **wordweave → Variables** 的值为 `${{Postgres.DATABASE_URL}}`，应用变更并重新部署 wordweave。
 - 迁移日志成功但数据库页面仍为空：刷新 Database 页面，核对日志中的数据库名、schema 与正在查看的 Postgres 服务及环境。不要手动新建空表或重置数据库。
 - 健康检查 503：响应中的 `code` 是经过白名单筛选的错误码，结合部署日志检查连接与迁移。此接口不返回主机、用户名、密码或完整连接串，也不会调用模型。
+- 登录页提示未配置：在 wordweave 的 Variables 中新增有效 `TRIAL_ACCESS_TOKENS` JSON 后 Deploy。原个人数据不会删除，使用 `personal` 对应邀请码访问。
 - 页面能打开但生成失败：检查三项 `LLM_*`；不要使用翻译插件的展示名称替代真实模型 ID。
 - 重新部署后演示自动回来：将 `SEED_DEMOS` 设为 `false`；seed 是幂等的，但会补回已删除的演示。
 

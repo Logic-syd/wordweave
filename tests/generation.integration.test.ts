@@ -1,4 +1,5 @@
-// Runs against the configured development PostgreSQL. Model transport is mocked;
+import { temporaryDatabase } from "./helpers/local-database";
+// Runs in a temporary local PostgreSQL database. Model transport is mocked;
 // these tests verify persistence and failure semantics, not model language quality.
 import {
   afterAll,
@@ -92,11 +93,14 @@ async function article(mode = "tech", text = source) {
   return a;
 }
 
+let isolatedDatabase: Awaited<ReturnType<typeof temporaryDatabase>> | undefined;
 beforeAll(async () => {
+  isolatedDatabase = await temporaryDatabase();
+  vi.stubEnv("DATABASE_URL", isolatedDatabase.url);
   vi.stubEnv("LLM_API_KEY", "test-placeholder");
   vi.stubEnv("LLM_BASE_URL", "http://127.0.0.1:9999/v1");
   vi.stubEnv("LLM_MODEL", "test-fixture");
-});
+}, 45000);
 afterEach(() => vi.unstubAllGlobals());
 afterAll(async () => {
   const touched = await db.userVocabulary.findMany({
@@ -115,6 +119,7 @@ afterAll(async () => {
   });
   vi.unstubAllEnvs();
   await db.$disconnect();
+  await isolatedDatabase?.cleanup();
 });
 
 describe("generation transaction with real PostgreSQL and mocked model transport", () => {
@@ -131,6 +136,7 @@ describe("generation transaction with real PostgreSQL and mocked model transport
     await generateArticle(a.id, settings);
     const saved = await getArticle(a.id);
     expect(saved.sourceText).toBe(source);
+    expect(saved.generationProgress).toBeNull();
     expect(saved.version?.paragraphs[2].segments[0].text).toBe(
       parseSource(source)[2].original,
     );
@@ -168,6 +174,7 @@ describe("generation transaction with real PostgreSQL and mocked model transport
     const saved = await db.article.findUniqueOrThrow({ where: { id: a.id } });
     expect(saved.activeVersionId).toBe(version);
     expect(saved.generationToken).toBeNull();
+    expect(saved.generationProgress).toBeNull();
     expect(await db.articleVersion.count({ where: { articleId: a.id } })).toBe(
       before,
     );
@@ -192,6 +199,14 @@ describe("generation transaction with real PostgreSQL and mocked model transport
     );
     const first = generateArticle(a.id, settings);
     await started;
+    const running = await db.article.findUniqueOrThrow({ where: { id: a.id } });
+    expect(running.generationProgress).toMatchObject({
+      stage: "translating",
+      completed: 0,
+      total: 1,
+      startedAt: expect.any(String),
+      updatedAt: expect.any(String),
+    });
     await expect(generateArticle(a.id, settings)).rejects.toMatchObject({
       status: 409,
     });
@@ -200,6 +215,68 @@ describe("generation transaction with real PostgreSQL and mocked model transport
     expect(await db.articleVersion.count({ where: { articleId: a.id } })).toBe(
       1,
     );
+  });
+  it("does not overwrite a newer generation claim when an old worker reports progress", async () => {
+    const a = await article();
+    let release!: () => void, entered!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const started = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        entered();
+        await gate;
+        return envelope(techResult());
+      }),
+    );
+    const original = generateArticle(a.id, settings);
+    await started;
+    const newerToken = randomUUID();
+    const newerProgress = {
+      stage: "preparing",
+      completed: 0,
+      total: 0,
+      message: "newer generation",
+    };
+    await db.article.update({
+      where: { id: a.id },
+      data: { generationToken: newerToken, generationProgress: newerProgress },
+    });
+    const rejected = expect(original).rejects.toMatchObject({ status: 409 });
+    release();
+    await rejected;
+    const saved = await db.article.findUniqueOrThrow({ where: { id: a.id } });
+    expect(saved.generationToken).toBe(newerToken);
+    expect(saved.generationProgress).toEqual(newerProgress);
+    expect(saved.activeVersionId).toBeNull();
+    expect(
+      await db.generationPermit.count({
+        where: { articleId: a.id, releasedAt: null },
+      }),
+    ).toBe(0);
+  });
+  it("clears the article claim without contacting the model when generation quota denies the request", async () => {
+    const a = await article();
+    const previous = process.env.GENERATION_DAILY_LIMIT;
+    vi.stubEnv("GENERATION_DAILY_LIMIT", "0");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      await expect(generateArticle(a.id, settings)).rejects.toMatchObject({
+        status: 429,
+      });
+      expect(fetchMock).not.toHaveBeenCalled();
+      const saved = await db.article.findUniqueOrThrow({ where: { id: a.id } });
+      expect(saved.generationToken).toBeNull();
+      expect(saved.generationProgress).toBeNull();
+      expect(saved.generationError).toContain("停用");
+    } finally {
+      vi.stubEnv("GENERATION_DAILY_LIMIT", previous);
+    }
   });
   it("keeps explicitly favorited words and review history after deleting their only article", async () => {
     const a = await article();
@@ -232,8 +309,19 @@ describe("generation transaction with real PostgreSQL and mocked model transport
     expect(saved.sourceText).toBe(source);
   });
   it("honors three new words and includes an explicitly due review word, without declaring mastery", async () => {
-    const kasse = await db.vocabularyItem.findFirstOrThrow({
-      where: { language: "de", lemma: "Kasse" },
+    const kasse = await db.vocabularyItem.create({
+      data: {
+        ownerId: testOwner,
+        key: randomUUID(),
+        language: "de",
+        lemma: "Kasse",
+        partOfSpeech: "noun",
+        meaning: "收银台",
+        grammar: { article: "die", plural: "die Kassen" },
+        explanation: "结账的位置。",
+        example: "An der Kasse ist es ruhig.",
+        exampleTranslation: "收银台很安静。",
+      },
     });
     await db.userVocabulary.createMany({
       data: { ownerId: testOwner, vocabularyId: kasse.id },

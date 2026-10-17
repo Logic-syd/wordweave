@@ -20,8 +20,10 @@
     "db:seed": "tsx prisma/seed.ts",
     "setup": "bash scripts/setup.sh",
     "local": "bash scripts/start-local.sh",
-    "test:unit": "vitest run tests/markdown.test.ts tests/output.test.ts tests/review.test.ts tests/database-config.test.ts tests/extension.test.ts tests/extension-worker.test.ts",
-    "deploy:prepare": "bash scripts/railway-predeploy.sh"
+    "test:unit": "vitest run tests/markdown.test.ts tests/output.test.ts tests/review.test.ts tests/database-config.test.ts tests/extension.test.ts tests/extension-worker.test.ts tests/generation-performance.test.ts tests/trial-auth.test.ts",
+    "deploy:prepare": "bash scripts/railway-predeploy.sh",
+    "test:reader:browser": "node tests/reader-progress.browser.mjs",
+    "test:auth:http": "node tests/auth-http-smoke.mjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.1",

@@ -1,19 +1,15 @@
+import { authHandler } from "@/lib/auth-handler";
 import { NextResponse } from "next/server";
 import { deleteArticle, getArticle } from "@/lib/repository";
-import { apiError } from "@/lib/errors";
 type Context = { params: Promise<{ id: string }> };
-export async function GET(_: Request, { params }: Context) {
-  try {
+export async function GET(request: Request, { params }: Context) {
+  return authHandler(request, async () => {
     return NextResponse.json(await getArticle((await params).id));
-  } catch (e) {
-    return apiError(e);
-  }
+  });
 }
-export async function DELETE(_: Request, { params }: Context) {
-  try {
+export async function DELETE(request: Request, { params }: Context) {
+  return authHandler(request, async () => {
     await deleteArticle((await params).id);
     return NextResponse.json({ ok: true });
-  } catch (e) {
-    return apiError(e);
-  }
+  });
 }

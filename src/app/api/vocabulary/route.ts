@@ -1,8 +1,9 @@
+import { authHandler } from "@/lib/auth-handler";
 import { NextResponse } from "next/server";
 import { getReviewTargets, listVocabulary } from "@/lib/repository";
-import { apiError, AppError } from "@/lib/errors";
+import { AppError } from "@/lib/errors";
 export async function GET(request: Request) {
-  try {
+  return authHandler(request, async () => {
     const p = new URL(request.url).searchParams;
     const lang = p.get("language"),
       status = p.get("status");
@@ -18,7 +19,5 @@ export async function GET(request: Request) {
         p.get("favorite") === "true",
       ),
     );
-  } catch (e) {
-    return apiError(e);
-  }
+  });
 }

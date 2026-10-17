@@ -1,18 +1,85 @@
 import { createHash } from "node:crypto";
-import { Prisma } from "@prisma/client";
+import {
+  Prisma,
+  type UserVocabulary,
+  type VocabularyItem,
+} from "@prisma/client";
 import { db, userScope } from "./db";
 import { AppError } from "./errors";
 import { parseSource, type SourceBlock } from "./markdown";
 import { normalizeLemma, reviewUpdate, selectReviewWords } from "./review";
 import type { Generation, Settings, Term } from "./schemas";
-import type { ArticleDetail, Coverage, Word } from "./types";
+import type {
+  ArticleDetail,
+  Coverage,
+  GenerationProgress,
+  LibraryArticle,
+  UserWord,
+  VocabularyView,
+  Word,
+} from "./types";
 const json = (value: unknown) => value as Prisma.InputJsonValue;
+
+function publicUserWord(
+  user: UserVocabulary | null | undefined,
+): UserWord | null {
+  return user
+    ? {
+        status: user.status,
+        favorite: user.favorite,
+        category: user.category,
+        exposureCount: user.exposureCount,
+        reviewCount: user.reviewCount,
+        knownStreak: user.knownStreak,
+        dueAt: user.dueAt?.toISOString() ?? null,
+      }
+    : null;
+}
+
+function publicWord(
+  vocabulary: VocabularyItem,
+  user: UserVocabulary | null | undefined,
+): Word {
+  return {
+    id: vocabulary.id,
+    language: vocabulary.language,
+    lemma: vocabulary.lemma,
+    partOfSpeech: vocabulary.partOfSpeech,
+    meaning: vocabulary.meaning,
+    grammar: vocabulary.grammar as Term["grammar"],
+    explanation: vocabulary.explanation,
+    example: vocabulary.example,
+    exampleTranslation: vocabulary.exampleTranslation,
+    user: publicUserWord(user),
+  };
+}
+
+export function scopedRequestKey(key: string, namespace = "article") {
+  return createHash("sha256")
+    .update(JSON.stringify([namespace, userScope().ownerId, key]))
+    .digest("hex");
+}
+
+async function lockArticleOwner(tx: Prisma.TransactionClient) {
+  const { ownerId } = userScope();
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(1694772027, hashtext(${ownerId}))`;
+}
+
+export async function assertArticleQuota(tx: Prisma.TransactionClient) {
+  await lockArticleOwner(tx);
+  if ((await tx.article.count({ where: userScope() })) >= 200)
+    throw new AppError(
+      "文章库已达到试用上限（200 篇），请先删除不需要的文章。",
+      429,
+    );
+}
+
 export async function requireArticle(id: string) {
   const a = await db.article.findFirst({ where: { id, ...userScope() } });
   if (!a) throw new AppError("文章不存在或已删除", 404);
   return a;
 }
-export async function listArticles(mode?: string) {
+export async function listArticles(mode?: string): Promise<LibraryArticle[]> {
   const rows = await db.article.findMany({
     where: { ...userScope(), ...(mode ? { mode } : {}) },
     include: {
@@ -41,13 +108,23 @@ export async function listArticles(mode?: string) {
           )
           .join(" ") || a.sourceText;
       return {
-        ...a,
-        versions: undefined,
+        id: a.id,
+        title: a.title,
+        mode: a.mode,
+        origin: a.origin,
+        createdAt: a.createdAt.toISOString(),
+        updatedAt: a.updatedAt.toISOString(),
+        activeVersionId: a.activeVersionId,
+        generationStartedAt: a.generationStartedAt?.toISOString() ?? null,
+        generationError: a.generationError,
+        progress: a.progress
+          ? {
+              paragraphId: a.progress.paragraphId,
+              completed: a.progress.completed,
+              updatedAt: a.progress.updatedAt.toISOString(),
+            }
+          : null,
         level: (version?.settings as Settings | undefined)?.level,
-        sourceBlocks: undefined,
-        sourceText: undefined,
-        generationToken: undefined,
-        ownerId: undefined,
         preview: preview.replace(/[#*`>]/g, "").slice(0, 110),
       };
     });
@@ -61,6 +138,7 @@ export async function getArticle(id: string): Promise<ArticleDetail> {
           include: {
             paragraphs: { orderBy: { position: "asc" } },
             occurrences: {
+              where: { vocabulary: userScope() },
               include: {
                 vocabulary: { include: { users: { where: userScope() } } },
               },
@@ -68,38 +146,70 @@ export async function getArticle(id: string): Promise<ArticleDetail> {
           },
         })
       : null,
-    db.readingProgress.findUnique({ where: { articleId: id } }),
+    db.readingProgress.findFirst({ where: { articleId: id, ...userScope() } }),
     db.languagePreference.findUnique({
       where: { ownerId_language: { ...userScope(), language: a.language } },
     }),
   ]);
-  const result = {
-    ...a,
+  return {
+    id: a.id,
+    title: a.title,
+    mode: a.mode,
+    language: a.language,
+    sourceUrl: a.sourceUrl,
+    sourceText: a.sourceText,
     sourceBlocks: a.sourceBlocks as SourceBlock[],
+    origin: a.origin,
+    generationStartedAt: a.generationStartedAt?.toISOString() ?? null,
+    generationError: a.generationError,
+    generationProgress: a.generationProgress as GenerationProgress | null,
+    createdAt: a.createdAt.toISOString(),
     defaultGlossMode: preference?.glossMode ?? "first",
-    progress,
+    progress: progress
+      ? {
+          paragraphId: progress.paragraphId,
+          view: progress.view,
+          glossMode: progress.glossMode,
+          completed: progress.completed,
+        }
+      : null,
     version: version
       ? {
-          ...version,
+          id: version.id,
+          settings: version.settings as Settings,
+          coverage: version.coverage as Coverage,
+          createdAt: version.createdAt.toISOString(),
+          paragraphs: version.paragraphs.map((paragraph) => ({
+            id: paragraph.id,
+            sourceId: paragraph.sourceId,
+            position: paragraph.position,
+            original: paragraph.original,
+            segments:
+              paragraph.segments as Generation["paragraphs"][number]["segments"],
+          })),
           occurrences: version.occurrences.map((o) => ({
-            ...o,
+            id: o.id,
+            vocabularyId: o.vocabularyId,
+            sourceId: o.sourceId,
+            form: o.form,
+            meaning: o.meaning,
+            sentence: o.sentence,
+            targetKind: o.targetKind,
             word: {
-              ...o.vocabulary,
+              ...publicWord(o.vocabulary, o.vocabulary.users[0]),
               grammar: {
-                ...(o.vocabulary.grammar as Record<string, string>),
+                ...(o.vocabulary.grammar as Term["grammar"]),
                 ...(o.grammar as Record<string, string>),
               },
               explanation: o.explanation ?? o.vocabulary.explanation,
               example: o.example ?? o.vocabulary.example,
               exampleTranslation:
                 o.exampleTranslation ?? o.vocabulary.exampleTranslation,
-              user: o.vocabulary.users[0] ?? null,
             },
           })),
         }
       : null,
   };
-  return JSON.parse(JSON.stringify(result)) as ArticleDetail;
 }
 export async function createArticle(
   input: {
@@ -112,39 +222,105 @@ export async function createArticle(
   key: string,
 ) {
   const language = input.mode === "tech" ? "en" : "de";
-  await db.article.createMany({
-    data: {
-      ...userScope(),
-      requestKey: key,
-      draftSettings: json(input.settings),
-      title: input.title,
-      mode: input.mode,
-      language,
-      sourceText: input.text,
-      sourceBlocks: json(parseSource(input.text)),
-      sourceUrl: input.sourceUrl || null,
-      origin: input.text ? "imported" : "generated",
+  const scope = userScope();
+  const requestKey = scopedRequestKey(key);
+  const hashPayload = (payload: typeof input) =>
+    createHash("sha256")
+      .update(
+        JSON.stringify({
+          title: payload.title,
+          mode: payload.mode,
+          text: payload.text,
+          sourceUrl: payload.sourceUrl || null,
+          // PostgreSQL JSONB can reorder object keys. Rebuild the schema order
+          // before comparing a pre-invitation article with the submitted data.
+          settings: {
+            retention: payload.settings?.retention,
+            level: payload.settings?.level,
+            minutes: payload.settings?.minutes,
+            newWordCount: payload.settings?.newWordCount,
+            topic: payload.settings?.topic,
+            requestedWords: payload.settings?.requestedWords,
+            reviewOnly: payload.settings?.reviewOnly,
+          },
+        }),
+      )
+      .digest("hex");
+  const requestHash = hashPayload(input);
+  const sourceBlocks = json(parseSource(input.text));
+  return db.$transaction(
+    async (tx) => {
+      // Serialize duplicate submissions and quota checks for this owner only.
+      // An idempotent retry remains valid even when the library is now full.
+      await lockArticleOwner(tx);
+      const previous = await tx.article.findUnique({ where: { requestKey } });
+      if (previous) {
+        if (
+          previous.ownerId !== scope.ownerId ||
+          previous.requestHash !== requestHash
+        )
+          throw new AppError(
+            "该请求标识已用于其他内容，请重新提交新文章。",
+            409,
+          );
+        return previous;
+      }
+      if (scope.ownerId === "personal") {
+        const legacy = await tx.article.findFirst({
+          where: { requestKey: key, ...scope },
+        });
+        if (legacy) {
+          const legacyHash =
+            legacy.requestHash ??
+            hashPayload({
+              title: legacy.title,
+              mode: legacy.mode,
+              text: legacy.sourceText,
+              sourceUrl: legacy.sourceUrl ?? undefined,
+              settings: legacy.draftSettings as Settings,
+            });
+          if (legacyHash !== requestHash)
+            throw new AppError(
+              "该请求标识已用于其他内容，请重新提交新文章。",
+              409,
+            );
+          return tx.article.update({
+            where: { id: legacy.id, ...scope },
+            data: { requestKey, requestHash },
+          });
+        }
+      }
+      await assertArticleQuota(tx);
+      const article = await tx.article.create({
+        data: {
+          ...scope,
+          requestKey,
+          requestHash,
+          draftSettings: json(input.settings),
+          title: input.title,
+          mode: input.mode,
+          language,
+          sourceText: input.text,
+          sourceBlocks,
+          sourceUrl: input.sourceUrl || null,
+          origin: input.text ? "imported" : "generated",
+        },
+      });
+      await tx.languagePreference.upsert({
+        where: { ownerId_language: { ...scope, language } },
+        create: { ...scope, language, settings: json(input.settings) },
+        update: { settings: json(input.settings) },
+      });
+      return article;
     },
-    skipDuplicates: true,
-  });
-  const article = await db.article.findUniqueOrThrow({
-    where: { requestKey: key },
-  });
-  await db.languagePreference.createMany({
-    data: { ...userScope(), language, settings: json(input.settings) },
-    skipDuplicates: true,
-  });
-  await db.languagePreference.update({
-    where: { ownerId_language: { ...userScope(), language } },
-    data: { settings: json(input.settings) },
-  });
-  return article;
+    { timeout: 15000 },
+  );
 }
 export async function getReviewTargets(language = "de") {
   const words = await db.userVocabulary.findMany({
     where: {
       ...userScope(),
-      vocabulary: { language },
+      vocabulary: { language, ...userScope() },
       status: { in: ["LEARNING", "KNOWN"] },
       dueAt: { lte: new Date() },
     },
@@ -160,7 +336,7 @@ export async function getReviewTargets(language = "de") {
 }
 export async function getKnownWords(language: string) {
   return db.userVocabulary.findMany({
-    where: { ...userScope(), vocabulary: { language } },
+    where: { ...userScope(), vocabulary: { language, ...userScope() } },
     include: {
       vocabulary: {
         select: { lemma: true, meaning: true, partOfSpeech: true },
@@ -170,16 +346,22 @@ export async function getKnownWords(language: string) {
   });
 }
 function vocabularyKey(language: string, t: Term) {
-  return createHash("sha256")
-    .update(
-      [
-        language,
-        normalizeLemma(t.lemma, language),
-        t.partOfSpeech,
-        t.meaning.normalize("NFKC").trim(),
-      ].join("|"),
-    )
-    .digest("hex");
+  const { ownerId } = userScope();
+  const original = [
+    language,
+    normalizeLemma(t.lemma, language),
+    t.partOfSpeech,
+    t.meaning.normalize("NFKC").trim(),
+  ].join("|");
+  return (
+    createHash("sha256")
+      // Preserve existing personal dictionaries while separating every invitee's
+      // context-specific examples and explanations from other owners.
+      .update(
+        ownerId === "personal" ? original : JSON.stringify([ownerId, original]),
+      )
+      .digest("hex")
+  );
 }
 export async function saveVersion(
   articleId: string,
@@ -211,11 +393,26 @@ export async function saveVersion(
           ? targets.find((r) => r.id === t.reviewVocabularyId)
           : undefined;
         let vocabularyId: string;
-        if (matched) vocabularyId = matched.id;
-        else {
+        if (t.reviewVocabularyId) {
+          const owned =
+            matched &&
+            (await tx.vocabularyItem.findFirst({
+              where: {
+                id: matched.id,
+                ...userScope(),
+                language: a.language,
+                users: { some: userScope() },
+              },
+              select: { id: true },
+            }));
+          if (!owned)
+            throw new AppError("复习词不属于当前学习空间，已拒绝保存。", 409);
+          vocabularyId = owned.id;
+        } else {
           const v = await tx.vocabularyItem.upsert({
             where: { key: vocabularyKey(a.language, t) },
             create: {
+              ...userScope(),
               key: vocabularyKey(a.language, t),
               language: a.language,
               lemma: t.lemma,
@@ -228,6 +425,8 @@ export async function saveVersion(
             },
             update: {},
           });
+          if (v.ownerId !== userScope().ownerId)
+            throw new AppError("词条不属于当前学习空间，已拒绝保存。", 409);
           vocabularyId = v.id;
         }
         termMap.set(t.id, vocabularyId);
@@ -293,6 +492,7 @@ export async function saveVersion(
           generationToken: null,
           generationStartedAt: null,
           generationError: null,
+          generationProgress: Prisma.DbNull,
           ...(!a.sourceText
             ? {
                 sourceText: generatedSource,
@@ -369,8 +569,8 @@ export async function updateWord(
     category?: string;
   },
 ) {
-  const existing = await db.userVocabulary.findUnique({
-    where: { ownerId_vocabularyId: { ...userScope(), vocabularyId } },
+  const existing = await db.userVocabulary.findFirst({
+    where: { ...userScope(), vocabularyId, vocabulary: userScope() },
   });
   if (!existing) throw new AppError("词条不存在", 404);
   return db.userVocabulary.update({
@@ -398,13 +598,13 @@ export async function listVocabulary(
   language?: string,
   status?: string,
   favorite = false,
-) {
+): Promise<(VocabularyView & { user: UserWord })[]> {
   const rows = await db.userVocabulary.findMany({
     where: {
       ...userScope(),
       ...(status ? { status } : {}),
       ...(favorite ? { favorite: true } : {}),
-      vocabulary: { ...(language ? { language } : {}) },
+      vocabulary: { ...userScope(), ...(language ? { language } : {}) },
     },
     include: {
       vocabulary: {
@@ -437,9 +637,8 @@ export async function listVocabulary(
         sourceId: o.sourceId,
       }));
     return {
-      ...u.vocabulary,
-      occurrences: undefined,
-      user: { ...u, vocabulary: undefined },
+      ...publicWord(u.vocabulary, u),
+      user: publicUserWord(u)!,
       appearances,
     };
   });

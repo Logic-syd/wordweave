@@ -1,6 +1,8 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import styles from "@/app/login/login.module.css";
 import {
   BookOpen,
   Library,
@@ -8,6 +10,7 @@ import {
   ArrowUpRight,
   Layers,
   Puzzle,
+  LogOut,
 } from "lucide-react";
 const nav = [
   { href: "/", label: "开始阅读", icon: BookOpen },
@@ -18,6 +21,52 @@ const nav = [
 export function Shell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const reading = path.startsWith("/read/");
+  const login = path === "/login";
+  const [session, setSession] = useState<{
+    authenticated: boolean;
+    enabled: boolean;
+    ownerId?: string;
+  } | null>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
+  const logoutPending = useRef(false);
+
+  useEffect(() => {
+    if (login) return;
+    const controller = new AbortController();
+    void fetch("/api/auth/session", {
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (response.ok) setSession(await response.json());
+      })
+      .catch(() => {
+        /* The page handles access errors; no user content is fetched here. */
+      });
+    return () => controller.abort();
+  }, [login]);
+
+  async function logout() {
+    if (logoutPending.current) return;
+    logoutPending.current = true;
+    setLoggingOut(true);
+    setLogoutError("");
+    try {
+      const response = await fetch("/api/auth/logout", { method: "POST" });
+      const data = await response.json();
+      if (!response.ok || data.ok !== true) throw new Error("logout failed");
+      // A document navigation clears the previous user's in-memory page state.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+      window.location.assign("/login");
+    } catch {
+      setLogoutError("退出失败，请检查网络后重试。");
+      logoutPending.current = false;
+      setLoggingOut(false);
+    }
+  }
+
+  if (login) return <>{children}</>;
   return (
     <div className={reading ? "app reading-app" : "app"}>
       <aside className="sidebar">
@@ -64,6 +113,29 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </Link>
           <span className="eyebrow">在语境里，慢慢学会</span>
         </header>
+        {session?.enabled && session.authenticated && (
+          <div className={styles.sessionBar}>
+            {session.ownerId && (
+              <span className={styles.sessionOwner} title={session.ownerId}>
+                当前空间：{session.ownerId}
+              </span>
+            )}
+            <button
+              type="button"
+              className={styles.logout}
+              onClick={logout}
+              disabled={loggingOut}
+            >
+              <LogOut size={14} aria-hidden="true" />
+              {loggingOut ? "正在退出…" : "退出登录"}
+            </button>
+            {logoutError && (
+              <p className={styles.logoutError} role="alert">
+                {logoutError}
+              </p>
+            )}
+          </div>
+        )}
         {children}
       </div>
       <nav className="mobile-nav" aria-label="主导航">
