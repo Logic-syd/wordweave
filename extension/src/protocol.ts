@@ -1,22 +1,46 @@
-import type { ArticleDetail, UserWord } from "../../src/lib/types";
+import type {
+  ArticleDetail,
+  UserWord,
+  VocabularyView,
+} from "../../src/lib/types";
 
 export type { ArticleDetail, UserWord };
 
 export type Retention = "low" | "medium" | "high";
 export type GlossMode = "all" | "first" | "click";
-export type ExtensionPreferences = { retention: Retention; glossMode: GlossMode };
+export type TranslationMode = "free" | "ai";
+export type ExtensionPreferences = {
+  retention: Retention;
+  glossMode: GlossMode;
+  translationMode?: TranslationMode;
+  localOnly?: boolean;
+};
 export type ExtensionConfig = ExtensionPreferences & {
+  translationMode: TranslationMode;
+  aiBaseUrl: string;
+  aiApiKey: string;
+  aiModel: string;
+  /** Old installations may retain these fields; local translation never uses them. */
   serverUrl: string;
   accessToken: string;
 };
 export type ExtensionResponse<T = unknown> =
-  | { ok: true; data: T }
-  | { ok: false; error: string; status?: number };
+  { ok: true; data: T } | { ok: false; error: string; status?: number };
 export type JobRecord = {
   id: string;
   status: "pending" | "running" | "succeeded" | "failed";
   error?: string;
   article?: ArticleDetail;
+  progress?: { stage: string; completed: number; total: number };
+  translationMode?: TranslationMode;
+  title?: string;
+  sourceUrl?: string;
+};
+export type LibrarySnapshot = {
+  articles: ArticleDetail[];
+  words: VocabularyView[];
+  jobs: JobRecord[];
+  localOnly: true;
 };
 export type ArticleInput = {
   title: string;
@@ -32,24 +56,60 @@ export type ExtensionMessage =
   | { type: "ww:config:get" }
   | { type: "ww:config:set"; config: ExtensionConfig }
   | { type: "ww:status" }
+  | { type: "ww:models:list" }
+  | { type: "ww:library:get" }
+  | { type: "ww:library:delete"; id: string }
+  | { type: "ww:library:open" }
   | { type: "ww:preferences:get" }
   | { type: "ww:preferences:set"; retention?: Retention; glossMode?: GlossMode }
-  | { type: "ww:job:start"; input: ArticleInput; retention: Retention }
+  | {
+      type: "ww:job:start";
+      input: ArticleInput;
+      retention: Retention;
+      translationMode?: TranslationMode;
+    }
   | { type: "ww:job:get"; id: string }
   | { type: "ww:job:retry"; id: string }
   | { type: "ww:word:update"; id: string; patch: WordPatch }
   | { type: "ww:reader:open"; id: string }
   | { type: "ww:cache:clear" };
 export type ContentMessage =
-  | { type: "ww:open"; scope: "article" | "selection" }
-  | { type: "ww:restore" };
+  { type: "ww:open"; scope: "article" | "selection" } | { type: "ww:restore" };
 
 export const DEFAULT_CONFIG: ExtensionConfig = {
+  translationMode: "free",
+  aiBaseUrl: "https://api.deepseek.com/v1",
+  aiApiKey: "",
+  aiModel: "",
   serverUrl: "https://wordweave-production.up.railway.app",
   accessToken: "",
   retention: "medium",
   glossMode: "first",
 };
+
+export function normalizeAIBaseUrl(value: string): string {
+  let url: URL;
+  try {
+    url = new URL(value.trim());
+  } catch {
+    throw new Error("请输入完整的 AI Base URL。");
+  }
+  const local = ["localhost", "127.0.0.1"].includes(url.hostname);
+  if (url.protocol !== "https:" && !(url.protocol === "http:" && local))
+    throw new Error("AI 地址必须使用 HTTPS；本机调试可使用 http://localhost。");
+  if (url.username || url.password || url.search || url.hash)
+    throw new Error("AI Base URL 不能包含账号、密码、查询参数或片段。");
+  if (/\/(?:chat\/completions|models)\/?$/.test(url.pathname))
+    throw new Error(
+      "请填写 API Base URL（例如 /v1），不要填写具体的模型或聊天接口。",
+    );
+  return `${url.origin}${url.pathname.replace(/\/+$/, "")}`;
+}
+
+export function aiPermissionPattern(value: string): string {
+  const url = new URL(normalizeAIBaseUrl(value));
+  return `${url.protocol}//${url.hostname}/*`;
+}
 
 /** Only a server origin is configurable; request paths remain fixed in the worker. */
 export function normalizeServerUrl(value: string): string {
@@ -57,13 +117,23 @@ export function normalizeServerUrl(value: string): string {
   try {
     url = new URL(value.trim());
   } catch {
-    throw new Error("请输入完整的网站地址，例如 https://wordweave-production.up.railway.app");
+    throw new Error(
+      "请输入完整的网站地址，例如 https://wordweave-production.up.railway.app",
+    );
   }
   const local = ["localhost", "127.0.0.1"].includes(url.hostname);
   if (url.protocol !== "https:" && !(url.protocol === "http:" && local)) {
-    throw new Error("服务器地址必须使用 HTTPS；本机调试可使用 http://localhost。");
+    throw new Error(
+      "服务器地址必须使用 HTTPS；本机调试可使用 http://localhost。",
+    );
   }
-  if (url.username || url.password || url.search || url.hash || !/^\/*$/.test(url.pathname)) {
+  if (
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash ||
+    !/^\/*$/.test(url.pathname)
+  ) {
     throw new Error("请仅填写网站地址，不要添加账号、路径或查询参数。");
   }
   return url.origin;
@@ -76,9 +146,15 @@ export function permissionPattern(serverUrl: string): string {
 }
 
 export async function sendMessage<T>(message: ExtensionMessage): Promise<T> {
-  const response = (await chrome.runtime.sendMessage(message)) as ExtensionResponse<T>;
+  const response = (await chrome.runtime.sendMessage(
+    message,
+  )) as ExtensionResponse<T>;
   if (!response || !response.ok) {
-    throw new Error(response && !response.ok ? response.error : "插件连接中断，请刷新网页后重试。");
+    throw new Error(
+      response && !response.ok
+        ? response.error
+        : "插件连接中断，请刷新网页后重试。",
+    );
   }
   return response.data;
 }

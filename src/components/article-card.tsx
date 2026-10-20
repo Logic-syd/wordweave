@@ -1,10 +1,5 @@
 import Link from "next/link";
-import {
-  ArrowUpRight,
-  Coffee,
-  Check,
-  ChevronRight,
-} from "lucide-react";
+import { ArrowUpRight, Coffee, Check, ChevronRight } from "lucide-react";
 import { SpriteIcon } from "@/components/sprite-icon";
 import type { LibraryArticle } from "@/lib/types";
 export function ArticleCard({
@@ -28,11 +23,13 @@ export function ArticleCard({
           <span>{de ? `德语 · ${a.level ?? "A2"}` : "技术英语"}</span>
           <span className="meta-dot">·</span>
           <span>
-            {a.origin.startsWith("demo")
-              ? "演示文章"
-              : a.origin === "generated"
-                ? "生成短文"
-                : "导入文章"}
+            {a.id.startsWith("sample-")
+              ? "免费范文"
+              : a.origin.startsWith("demo")
+                ? "演示文章"
+                : a.origin === "generated"
+                  ? "生成短文"
+                  : "导入文章"}
           </span>
         </div>
         <h3>{a.title}</h3>

@@ -8,16 +8,36 @@
     <script src="popup.js" type="module"></script>
   </head>
   <body class="popup">
-    <header class="brand"><img src="icons/icon-48.png" width="42" height="42" alt="" /><div><h1>语境</h1><p>在正在读的文章里，学会一点。</p></div></header>
-    <p id="page-title" class="page-title">正在读取当前网页…</p>
-    <div class="field inline-field"><label for="retention">英文保留量</label><select id="retention"><option value="low">少</option><option value="medium">中</option><option value="high">多</option></select></div>
+    <header class="brand">
+      <img src="icons/icon-48.png" width="44" height="44" alt="" />
+      <div>
+        <h1>语境</h1>
+        <p>边读，边学一点英文。</p>
+      </div>
+      <span id="mode-badge" class="badge">免费翻译</span>
+    </header>
+    <p id="page-title" class="page-title">当前网页</p>
+    <div class="field inline-field">
+      <label for="retention">保留多少英文</label
+      ><select id="retention">
+        <option value="low">少一点</option>
+        <option value="medium" selected>适中</option>
+        <option value="high">多一点</option>
+      </select>
+    </div>
     <div class="actions">
-      <button id="convert-article" class="primary" type="button">转换当前文章 <span aria-hidden="true">→</span></button>
-      <button id="convert-selection" type="button">只转换选中段落</button>
+      <button id="convert-article" class="primary" type="button">
+        翻译本页 <span aria-hidden="true">→</span>
+      </button>
+      <button id="convert-selection" type="button">划词翻译</button>
+      <p class="selection-hint">先划选英文，再翻译所在段落。</p>
       <button id="restore" class="subtle" type="button">恢复原文</button>
     </div>
     <p id="status" class="status" role="status" aria-live="polite"></p>
-    <p class="privacy">点击转换后，才会把提取到的正文发送到你配置的网站与模型服务。不会自动读取浏览记录。</p>
-    <footer><span>支持普通英文文章网页</span><button id="settings" class="text-button" type="button">插件设置</button></footer>
+    <p id="privacy" class="privacy">点击翻译才会发送正文给免费翻译服务。</p>
+    <footer>
+      <button id="library" class="text-button" type="button">文章与收藏</button
+      ><button id="settings" class="text-button" type="button">设置</button>
+    </footer>
   </body>
 </html>

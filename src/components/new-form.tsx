@@ -14,16 +14,19 @@ import { MAX_INPUT, settingsSchema, type Settings } from "@/lib/schemas";
 import { useHydrated } from "./use-hydrated";
 import { SettingsFields } from "./settings-fields";
 import { SpriteIcon } from "./sprite-icon";
+import { InvitationPrompt } from "./invitation-prompt";
 export function NewForm({
   mode,
   configured,
   initialSettings,
   dueWords,
+  authorized = true,
 }: {
   mode: "tech" | "german";
   configured: boolean;
   initialSettings: Settings;
   dueWords: string[];
+  authorized?: boolean;
 }) {
   const router = useRouter();
   const hydrated = useHydrated();
@@ -34,6 +37,9 @@ export function NewForm({
   const [importGerman, setImportGerman] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [canCreate, setCanCreate] = useState(authorized);
+  const [invite, setInvite] = useState(false);
+  const [inviteMessage, setInviteMessage] = useState("");
   const submitting = useRef(false);
   const key = useRef(crypto.randomUUID());
   const upload = useRef<HTMLInputElement>(null);
@@ -48,6 +54,10 @@ export function NewForm({
     }
     if (text.length > MAX_INPUT) {
       setError("正文最多 40,000 个字符，请拆分成独立文章。");
+      return;
+    }
+    if (!canCreate) {
+      setInvite(true);
       return;
     }
     if (settings.reviewOnly && !dueWords.length) {
@@ -82,6 +92,13 @@ export function NewForm({
         }),
       });
       const data = await response.json();
+      if (response.status === 401) {
+        setCanCreate(false);
+        setInvite(true);
+        submitting.current = false;
+        setBusy(false);
+        return;
+      }
       if (!response.ok) throw new Error(data.error);
       router.push(`/read/${data.id}${configured ? "?generate=1" : ""}`);
     } catch (e) {
@@ -142,7 +159,7 @@ export function NewForm({
           ? "中文帮你理解，英文带你学会表达。标题、列表、链接与代码都会保留。"
           : "在中文故事里遇见德语词，也可以对照阅读自然的德语全文。"}
       </p>
-      {!configured && (
+      {canCreate && !configured && (
         <div className="notice">
           <Info size={19} />
           <div>
@@ -220,7 +237,9 @@ export function NewForm({
                   type="button"
                   className="text-button"
                   disabled={busy || !hydrated}
-                  onClick={() => upload.current?.click()}
+                  onClick={() =>
+                    canCreate ? upload.current?.click() : setInvite(true)
+                  }
                 >
                   <Upload size={15} />
                   上传 TXT / Markdown
@@ -296,26 +315,30 @@ export function NewForm({
           )}
           <div className="generation-note">
             <Sparkles size={16} />
-            <p>
-              生成会调用你的模型
-              API。语言内容可能有误，请结合原文判断；调整设置后可重新生成。
-            </p>
+            <p>网站生成会调用模型。语言内容可能有误，可以对照原文阅读。</p>
           </div>
           {error && (
             <div className="error-box" role="alert">
               {error}
             </div>
           )}
+          {inviteMessage && (
+            <p role="status" className="field-hint">
+              {inviteMessage}
+            </p>
+          )}
           <button
             className="button primary full"
             type="submit"
             disabled={
-              busy || !hydrated || (!configured && !tech && !importGerman)
+              busy ||
+              !hydrated ||
+              (canCreate && !configured && !tech && !importGerman)
             }
           >
             {busy ? (
               "正在保存…"
-            ) : configured ? (
+            ) : configured || !canCreate ? (
               <>
                 {tech || importGerman ? "保存并生成学习版" : "生成我的故事"}
                 <ArrowRight size={17} />
@@ -328,6 +351,18 @@ export function NewForm({
           </button>
         </aside>
       </form>
+      {invite && (
+        <InvitationPrompt
+          onClose={() => setInvite(false)}
+          onSuccess={() => {
+            setCanCreate(true);
+            setInvite(false);
+            setInviteMessage("已验证，可以继续上传或生成。");
+            window.dispatchEvent(new Event("wordweave:session"));
+            router.refresh();
+          }}
+        />
+      )}
     </main>
   );
 }

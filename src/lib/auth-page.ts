@@ -1,7 +1,23 @@
 import { headers } from "next/headers";
 import { redirect, notFound } from "next/navigation";
 import { runAsOwner } from "./auth-context";
-import { resolveRequestOwner, requireAdministrator } from "./auth-identity";
+import {
+  resolveRequestOwner,
+  requireAdministrator,
+  optionalRequestOwner,
+} from "./auth-identity";
+
+/** Public pages may load private data only inside a verified owner scope. */
+export async function withOptionalPageOwner<T>(
+  action: (owner: string | null) => Promise<T>,
+): Promise<T> {
+  const owner = await optionalRequestOwner(
+    new Request("http://internal.invalid", {
+      headers: new Headers(await headers()),
+    }),
+  );
+  return owner ? runAsOwner(owner, () => action(owner)) : action(null);
+}
 
 export async function withPageOwner<T>(
   action: () => Promise<T>,

@@ -3,26 +3,123 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>语境 · 插件设置</title>
+    <title>语境 · 设置</title>
     <link rel="stylesheet" href="ui.css" />
     <script src="options.js" type="module"></script>
   </head>
   <body class="options">
     <main class="settings-card">
-      <header class="brand"><img src="icons/icon-48.png" width="46" height="46" alt="" /><div><h1>连接你的语境</h1><p>网页负责阅读，语境保存你的词卡。</p></div></header>
-      <form id="config-form">
-        <div class="field"><label for="server-url">网站地址</label><input id="server-url" type="url" required spellcheck="false" placeholder="https://wordweave-production.up.railway.app" /><p class="help">填写你部署的语境网址。保存时仅请求连接这个网站的权限。</p></div>
-        <div class="field"><label for="access-token">插件访问令牌</label><input id="access-token" type="password" required minlength="32" maxlength="512" autocomplete="off" spellcheck="false" placeholder="至少 32 个字符" /><p class="help">填写你登录语境网站时使用的个人邀请码。每人使用自己的邀请码；请勿填写 DeepSeek API Key。</p></div>
-        <div class="preferences-grid">
-          <div class="field"><label for="retention">默认英文保留量</label><select id="retention"><option value="low">少</option><option value="medium">中</option><option value="high">多</option></select></div>
-          <div class="field"><label for="gloss-mode">中文释义</label><select id="gloss-mode"><option value="all">全部显示</option><option value="first">每个词首次显示</option><option value="click">点击词语查看</option></select></div>
+      <header class="brand">
+        <img src="icons/icon-48.png" width="48" height="48" alt="" />
+        <div>
+          <h1>想怎么翻译？</h1>
+          <p>默认免费，装好就能用。</p>
         </div>
-        <div class="button-row"><button class="primary" type="submit" id="save">保存并授权连接</button><button id="test" type="button">测试连接</button></div>
+      </header>
+      <form id="config-form">
+        <fieldset class="mode-picker">
+          <legend class="sr-only">翻译方式</legend>
+          <label
+            ><input
+              type="radio"
+              name="translation-mode"
+              value="free"
+              checked
+            /><span
+              ><strong>免费翻译</strong><small>不用登录，不用 Key</small></span
+            ></label
+          >
+          <label
+            ><input type="radio" name="translation-mode" value="ai" /><span
+              ><strong>AI 翻译</strong><small>用自己的 Key</small></span
+            ></label
+          >
+        </fieldset>
+        <p id="free-description" class="mode-description">
+          先免费读起来。英文表达由规则挑选，中文由翻译服务提供。
+        </p>
+        <section id="ai-settings" hidden>
+          <div class="field">
+            <label for="ai-key">你的 DeepSeek API Key</label
+            ><input
+              id="ai-key"
+              type="password"
+              autocomplete="off"
+              spellcheck="false"
+              maxlength="512"
+              placeholder="把 Key 粘贴在这里"
+            />
+            <p class="help">
+              只保存在这个浏览器。AI 费用由你自己的服务商收取。
+            </p>
+          </div>
+          <details class="advanced">
+            <summary>高级设置 · 其他 AI 服务 / 模型</summary>
+            <div class="advanced-body">
+              <div class="field">
+                <label for="ai-base-url">API 地址（Base URL）</label
+                ><input
+                  id="ai-base-url"
+                  type="url"
+                  value="https://api.deepseek.com/v1"
+                  spellcheck="false"
+                />
+                <p class="help">支持兼容 OpenAI 格式的服务。</p>
+              </div>
+              <div class="field">
+                <label for="ai-model">模型名称</label
+                ><input
+                  id="ai-model"
+                  type="text"
+                  list="model-list"
+                  maxlength="200"
+                  placeholder="留空，自动选择"
+                  spellcheck="false"
+                /><datalist id="model-list"></datalist>
+                <p class="help">一般不用填写。测试连接后也可以从列表选择。</p>
+              </div>
+            </div>
+          </details>
+        </section>
+        <div class="preferences-grid">
+          <div class="field">
+            <label for="retention">保留多少英文</label
+            ><select id="retention">
+              <option value="low">少一点</option>
+              <option value="medium" selected>适中</option>
+              <option value="high">多一点</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="gloss-mode">中文释义</label
+            ><select id="gloss-mode">
+              <option value="all">全部显示</option>
+              <option value="first" selected>每个词首次显示</option>
+              <option value="click">点击词语查看</option>
+            </select>
+          </div>
+        </div>
+        <div class="button-row">
+          <button class="primary" type="submit" id="save" disabled>
+            使用免费翻译</button
+          ><button id="test" type="button" hidden>测试连接</button>
+        </div>
       </form>
       <p id="status" class="status" role="status" aria-live="polite"></p>
-      <section class="note"><h2>使用方式</h2><p>打开英文文章，点击浏览器工具栏的语境小精灵，选择转换整篇或选中段落。生成时可以关闭弹窗；词卡收藏会保存到网站生词本。</p><p>模型转换需要网站已配置模型 API。第一次使用先选一小段试试；相同内容和保留量会复用任务。</p></section>
-      <section class="cache"><h2>任务缓存</h2><p>插件仅保存最近 100 个任务的编号与摘要，不在本地长期缓存正文。清除后，相同文章再次转换可能产生模型费用；网站中的文章和收藏会保留。</p><button id="clear-cache" type="button">清除任务缓存</button></section>
-      <p class="privacy">插件只在你主动点击转换时读取正文。插件访问令牌只保存在浏览器扩展的本地存储中，不提供给网页脚本；模型 API Key 留在网站服务端。</p>
+      <footer class="settings-footer">
+        <p>文章和收藏存在本机，不会同步到网站。</p>
+        <button id="library" class="text-button" type="button">
+          打开文章与收藏 →
+        </button>
+      </footer>
+      <details class="advanced privacy-details">
+        <summary>正文和 Key 会发到哪里？</summary>
+        <p class="help">
+          只有点击翻译才会发送选定正文。免费模式发给免费翻译服务；AI
+          模式直接发给你设置的 AI 服务。Key
+          不会交给正在阅读的网页，也不会上传到语境网站。清除浏览器插件数据或卸载插件会删除本机记录。
+        </p>
+      </details>
     </main>
   </body>
 </html>

@@ -1,10 +1,11 @@
 {
   "manifest_version": 3,
   "name": "语境 · 在网页里学英语",
-  "version": "0.1.1",
-  "description": "主动将英文文章或选中段落转换为中文嵌入英文表达的学习版，保留代码，并把词卡收藏同步到你的语境。",
+  "version": "0.2.0",
+  "description": "默认免费翻译英文网页并保留学习表达；可选使用自己的 AI Key，文章和收藏保存在当前浏览器。",
   "minimum_chrome_version": "116",
   "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": ["https://translate.googleapis.com/*"],
   "optional_host_permissions": [
     "https://*/*",
     "http://localhost/*",

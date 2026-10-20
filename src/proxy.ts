@@ -32,6 +32,10 @@ export async function proxy(request: NextRequest) {
     assertSameOrigin(request);
     if (path === "/api/health" || path.startsWith("/api/auth/"))
       return secure(NextResponse.next());
+    // Browsing is public. Private APIs and invitation management still require
+    // identity; public sample readers never use a shared database owner.
+    if (!path.startsWith("/api/") && !path.startsWith("/invites"))
+      return secure(NextResponse.next());
     const owner = await resolveRequestOwner(request);
     if (
       (path === "/invites" || path.startsWith("/invites/")) &&

@@ -1,57 +1,178 @@
-import { normalizeServerUrl, permissionPattern, sendMessage, type ExtensionConfig, type GlossMode, type Retention } from "./protocol";
+import {
+  aiPermissionPattern,
+  DEFAULT_CONFIG,
+  normalizeAIBaseUrl,
+  sendMessage,
+  type ExtensionConfig,
+  type GlossMode,
+  type Retention,
+  type TranslationMode,
+} from "./protocol";
 
-const server = document.querySelector<HTMLInputElement>("#server-url")!;
-const token = document.querySelector<HTMLInputElement>("#access-token")!;
+const form = document.querySelector<HTMLFormElement>("#config-form")!;
+const key = document.querySelector<HTMLInputElement>("#ai-key")!;
+const base = document.querySelector<HTMLInputElement>("#ai-base-url")!;
+const model = document.querySelector<HTMLInputElement>("#ai-model")!;
 const level = document.querySelector<HTMLSelectElement>("#retention")!;
 const gloss = document.querySelector<HTMLSelectElement>("#gloss-mode")!;
 const status = document.querySelector<HTMLParagraphElement>("#status")!;
-const form = document.querySelector<HTMLFormElement>("#config-form")!;
 const save = document.querySelector<HTMLButtonElement>("#save")!;
 const test = document.querySelector<HTMLButtonElement>("#test")!;
-let savedConfig: ExtensionConfig | undefined;
-function show(message: string, error = false) { status.textContent = message; status.classList.toggle("error", error); }
-function values(): ExtensionConfig {
-  return { serverUrl: normalizeServerUrl(server.value), accessToken: token.value.trim(), retention: level.value as Retention, glossMode: gloss.value as GlossMode };
+const modes = [
+  ...document.querySelectorAll<HTMLInputElement>(
+    'input[name="translation-mode"]',
+  ),
+];
+let savedConfig: ExtensionConfig = { ...DEFAULT_CONFIG };
+let ready = false;
+function show(message: string, error = false) {
+  status.textContent = message;
+  status.classList.toggle("error", error);
 }
-void sendMessage<ExtensionConfig>({ type: "ww:config:get" }).then((config) => {
-  savedConfig = config;
-  server.value = config.serverUrl;
-  token.value = config.accessToken;
-  level.value = config.retention;
-  gloss.value = config.glossMode;
-}).catch((error: unknown) => show(error instanceof Error ? error.message : "无法读取设置。", true));
-
+function selectedMode(): TranslationMode {
+  return modes.find((radio) => radio.checked)?.value === "ai" ? "ai" : "free";
+}
+function updateMode() {
+  const ai = selectedMode() === "ai";
+  document.querySelector<HTMLElement>("#ai-settings")!.hidden = !ai;
+  document.querySelector<HTMLElement>("#free-description")!.hidden = ai;
+  key.required = ai;
+  base.required = ai;
+  key.disabled = !ai;
+  base.disabled = !ai;
+  model.disabled = !ai;
+  test.hidden = !ai;
+  save.textContent = ai ? "保存 AI 设置" : "使用免费翻译";
+}
+function values(): ExtensionConfig {
+  const ai = selectedMode() === "ai";
+  return {
+    ...savedConfig,
+    translationMode: selectedMode(),
+    aiBaseUrl: ai ? normalizeAIBaseUrl(base.value) : savedConfig.aiBaseUrl,
+    aiApiKey: ai ? key.value.trim() : savedConfig.aiApiKey,
+    aiModel: ai ? model.value.trim() : savedConfig.aiModel,
+    retention: level.value as Retention,
+    glossMode: gloss.value as GlossMode,
+  };
+}
+modes.forEach((radio) =>
+  radio.addEventListener("change", () => {
+    updateMode();
+    show("");
+  }),
+);
+void sendMessage<ExtensionConfig>({ type: "ww:config:get" })
+  .then((config) => {
+    savedConfig = config;
+    modes.forEach((radio) => {
+      radio.checked = radio.value === config.translationMode;
+    });
+    key.value = config.aiApiKey;
+    base.value = config.aiBaseUrl;
+    model.value = config.aiModel;
+    level.value = config.retention;
+    gloss.value = config.glossMode;
+    ready = true;
+    save.disabled = false;
+    updateMode();
+  })
+  .catch((error: unknown) =>
+    show(
+      error instanceof Error ? error.message : "无法读取设置，请重新打开。",
+      true,
+    ),
+  );
 form.addEventListener("submit", (event) => {
   event.preventDefault();
-  if (!form.reportValidity()) return;
+  if (!ready || !form.reportValidity()) return;
   let next: ExtensionConfig;
-  try { next = values(); } catch (error) { show(error instanceof Error ? error.message : "网站地址无效。", true); return; }
-  if (next.accessToken.length < 32 || next.accessToken.length > 512 || /\s/.test(next.accessToken)) {
-    show("访问令牌需为 32–512 个非空白字符。", true); return;
+  try {
+    next = values();
+  } catch (error) {
+    show(error instanceof Error ? error.message : "请检查 AI 地址。", true);
+    return;
+  }
+  if (
+    next.translationMode === "ai" &&
+    (!next.aiApiKey || /\s/.test(next.aiApiKey))
+  ) {
+    show("请填入自己的 API Key，不要包含空格。", true);
+    key.focus();
+    return;
   }
   save.disabled = true;
-  // Call directly inside the click/submit gesture, before any asynchronous work.
-  void chrome.permissions.request({ origins: [permissionPattern(next.serverUrl)] }).then(async (granted) => {
-    if (!granted) throw new Error("尚未授权连接服务器，设置未保存。可以重新点击保存。");
-    await sendMessage({ type: "ww:config:set", config: next });
-    savedConfig = next;
-    server.value = next.serverUrl;
-    show("设置已保存。点击「测试连接」确认后，就可以打开文章开始阅读。");
-  }).catch((error: unknown) => show(error instanceof Error ? error.message : "设置保存失败。", true))
-    .finally(() => { save.disabled = false; });
+  // Host access must be requested directly in this user gesture, before any await.
+  const permission =
+    next.translationMode === "ai"
+      ? chrome.permissions.request({
+          origins: [aiPermissionPattern(next.aiBaseUrl)],
+        })
+      : Promise.resolve(true);
+  void permission
+    .then(async (granted) => {
+      if (!granted)
+        throw new Error(
+          "需要允许连接你的 AI 服务，才能保存。也可以使用免费翻译。",
+        );
+      await sendMessage({ type: "ww:config:set", config: next });
+      savedConfig = next;
+      base.value = next.aiBaseUrl;
+      show(
+        next.translationMode === "free"
+          ? "已保存。打开英文网页，点小精灵就能翻译。"
+          : "已保存。可以测试连接，或打开英文网页开始翻译。",
+      );
+    })
+    .catch((error: unknown) =>
+      show(error instanceof Error ? error.message : "保存失败，请重试。", true),
+    )
+    .finally(() => {
+      save.disabled = false;
+    });
 });
 test.addEventListener("click", () => {
   let current: ExtensionConfig;
-  try { current = values(); } catch (error) { show(error instanceof Error ? error.message : "请先保存设置。", true); return; }
-  if (JSON.stringify(current) !== JSON.stringify(savedConfig)) { show("设置有修改，请先保存再测试连接。", true); return; }
+  try {
+    current = values();
+  } catch (error) {
+    show(error instanceof Error ? error.message : "请先保存设置。", true);
+    return;
+  }
+  if (JSON.stringify(current) !== JSON.stringify(savedConfig)) {
+    show("请先保存修改，再测试连接。", true);
+    return;
+  }
   test.disabled = true;
-  show("正在连接你的语境网站…");
-  void sendMessage<{ ok: true; modelConfigured: boolean }>({ type: "ww:status" }).then((result) => {
-    show(result.modelConfigured ? "连接成功，模型服务已配置。打开英文文章就能开始转换。" : "网站连接成功。网站尚未配置模型 API，配置后才能生成学习版。", !result.modelConfigured);
-  }).catch((error: unknown) => show(error instanceof Error ? error.message : "连接失败。", true))
-    .finally(() => { test.disabled = false; });
+  show("正在检查 AI 连接…");
+  void sendMessage<{ models: string[] }>({ type: "ww:models:list" })
+    .then(({ models }) => {
+      const list = document.querySelector<HTMLDataListElement>("#model-list")!;
+      list.replaceChildren(
+        ...models.map((name) => {
+          const option = document.createElement("option");
+          option.value = name;
+          return option;
+        }),
+      );
+      show(
+        models.length
+          ? `连接成功。${current.aiModel ? "将使用你指定的模型。" : "翻译时会自动选择可用模型。"}`
+          : "服务已响应，但没有返回可用模型。请在高级设置中填写服务支持的模型名称。",
+        !models.length,
+      );
+    })
+    .catch((error: unknown) =>
+      show(
+        error instanceof Error ? error.message : "连接失败，请检查 Key。",
+        true,
+      ),
+    )
+    .finally(() => {
+      test.disabled = false;
+    });
 });
-document.querySelector<HTMLButtonElement>("#clear-cache")!.addEventListener("click", () => {
-  void sendMessage({ type: "ww:cache:clear" }).then(() => show("任务缓存已清除。网站中的文章和收藏仍保留。"))
-    .catch((error: unknown) => show(error instanceof Error ? error.message : "清除失败。", true));
+document.querySelector("#library")!.addEventListener("click", () => {
+  void sendMessage({ type: "ww:library:open" });
 });
+updateMode();

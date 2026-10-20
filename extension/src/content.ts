@@ -25,6 +25,7 @@ class ContentController {
   private minimize: HTMLButtonElement;
   private message = ui("p", "", "message");
   private prefs: ExtensionPreferences = {
+    translationMode: "free",
     retention: "medium",
     glossMode: "first",
   };
@@ -102,9 +103,13 @@ class ContentController {
     try {
       this.extraction = extractPage(scope);
       // Capture selection before asynchronous messaging can shift focus.
-      this.prefs = await sendMessage<ExtensionPreferences>({
+      const preferences = await sendMessage<ExtensionPreferences>({
         type: "ww:preferences:get",
       });
+      this.prefs = {
+        ...preferences,
+        translationMode: preferences.translationMode ?? "free",
+      };
       this.failed = false;
       this.jobId = null;
       this.articleId = null;
@@ -130,7 +135,7 @@ class ContentController {
         "p",
         skipped
           ? `已恢复未变化的段落。${skipped} 段已被网页更新，语境没有覆盖这些内容。`
-          : "已恢复原文。文章和收藏仍保存在语境。",
+          : "已恢复原文。文章和收藏仍保存在本机插件中。",
         "notice",
       ),
     );
@@ -202,7 +207,7 @@ class ContentController {
       label.append(select);
       const actions = ui("div", undefined, "row");
       actions.append(
-        button("在语境中阅读", () => {
+        button("打开我的文章", () => {
           if (this.articleId)
             void sendMessage({
               type: "ww:reader:open",
@@ -216,7 +221,7 @@ class ContentController {
         label,
         ui(
           "p",
-          `已转换 ${this.replacement.count} 段。每段末尾可查看原文，点击英文查看词卡。${this.replacement.skipped ? ` ${this.replacement.skipped} 段因网页变化跳过。` : ""}`,
+          `${this.prefs.translationMode === "ai" ? "AI 翻译" : "免费翻译"} · ${this.replacement.count} 段。点英文看释义。${this.replacement.skipped ? ` ${this.replacement.skipped} 段已变化，保留原文。` : ""}`,
           "muted",
         ),
         actions,
@@ -224,11 +229,10 @@ class ContentController {
       );
       return;
     }
-    this.title.textContent = this.busy ? "语境 · 正在生成" : "语境 · 网页学习";
+    this.title.textContent = this.busy ? "语境 · 正在翻译" : "语境 · 网页学习";
     if (!this.extraction) return;
     const { blocks, characters, scope } = this.extraction;
     this.body.append(
-      ui("p", `正文预览 · 将发送全部 ${blocks.length} 段`, "muted"),
       ui(
         "p",
         `找到 ${blocks.length} 段 · ${characters.toLocaleString()} 个字符`,
@@ -239,14 +243,12 @@ class ContentController {
       this.body.append(
         ui(
           "p",
-          `另有 ${this.extraction.skippedMultilineCode} 段含多行行内代码，已保留原样，不会发送。`,
+          `${this.extraction.skippedMultilineCode} 段包含复杂代码，保留原文。`,
           "muted",
         ),
       );
     if (scope === "selection")
-      this.body.append(
-        ui("p", "将转换选区所在的完整段落，以保留上下文。", "muted"),
-      );
+      this.body.append(ui("p", "只翻译选中的完整段落。", "muted"));
     this.body.append(
       ui(
         "p",
@@ -284,24 +286,29 @@ class ContentController {
       label,
       ui(
         "p",
-        "点击后会把以上正文、标题和来源网址发送到你配置的语境服务，并调用模型生成学习版。代码块保留原样；生成内容可能有误，可逐段查看原文。",
+        this.prefs.translationMode === "ai"
+          ? "正文交给你选的 AI，使用自己的 Key 计费。"
+          : "正文交给 Google 免费翻译，代码保持原样。",
         "notice",
       ),
     );
     const start = button(
       this.busy
-        ? "生成中，请稍候…"
+        ? "翻译中…"
         : this.failed
-          ? "重新生成（调用模型）"
-          : "生成学习版",
+          ? this.prefs.translationMode === "ai"
+            ? "重试 AI 翻译"
+            : "重试免费翻译"
+          : this.prefs.translationMode === "ai"
+            ? "开始 AI 翻译"
+            : "开始免费翻译",
       () => void this.start(),
       "primary",
     );
     start.disabled = this.busy;
     this.body.append(start, this.message);
     if (this.busy)
-      this.message.textContent =
-        "可以收起面板继续浏览。关闭这个标签页后，也可在语境文章库找到已保存的文章。";
+      this.message.textContent = "可以收起面板，结果会保存在本机插件中。";
   }
   private async start() {
     if (this.busy || !this.extraction) return;
@@ -333,6 +340,7 @@ class ContentController {
             })
           : await sendMessage<JobRecord>({
               type: "ww:job:start",
+              translationMode: this.prefs.translationMode ?? "free",
               input: {
                 title: this.extraction.title,
                 sourceUrl: this.extraction.sourceUrl,
@@ -367,9 +375,7 @@ class ContentController {
         if (this.pageUrl !== location.href) {
           this.render();
           this.showError(
-            new Error(
-              "网页地址已改变，学习版已保存在语境文章库；当前页面没有改写。",
-            ),
+            new Error("网页已切换。翻译结果已保存在插件的「我的文章」里。"),
           );
           return;
         }
@@ -387,23 +393,25 @@ class ContentController {
         // A compact controller leaves room for the actual article.
         this.collapse(true);
       } else if (job.status === "succeeded") {
-        throw new Error(
-          "任务已完成，但未返回学习版本。可在语境文章库查看，或重新查询结果。",
-        );
+        throw new Error("未找到翻译结果，请重新查询。");
       } else if (job.status === "failed") {
         this.busy = false;
         this.failed = true;
         this.render();
         this.showError(
-          new Error(job.error || "生成失败。原文保持不变，可以重新生成。"),
+          new Error(job.error || "翻译失败，原文已保留。请重试。"),
         );
-      } else this.timer = setTimeout(() => void this.poll(), 2000);
+      } else {
+        if (job.progress?.total)
+          this.message.textContent = `已处理 ${job.progress.completed} / ${job.progress.total} 段`;
+        this.timer = setTimeout(() => void this.poll(), 1000);
+      }
     } catch (error) {
       this.busy = false;
       this.render();
       this.showError(error);
       // Polling can be resumed explicitly without starting another paid generation.
-      const resume = button("重新查询生成结果", () => {
+      const resume = button("重新查询结果", () => {
         this.busy = true;
         this.render();
         void this.poll();

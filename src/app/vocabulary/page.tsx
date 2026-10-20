@@ -1,13 +1,16 @@
-import { withPageOwner } from "@/lib/auth-page";
+import { withOptionalPageOwner } from "@/lib/auth-page";
 import { listVocabulary } from "@/lib/repository";
-import { Vocabulary } from "@/components/vocabulary";
+import { SampleVocabulary } from "@/components/sample-vocabulary";
 export const dynamic = "force-dynamic";
 export default async function VocabularyPage() {
-  return withPageOwner(async () => {
+  return withOptionalPageOwner(async (owner) => {
     return (
-      <Vocabulary
-        initial={JSON.parse(JSON.stringify(await listVocabulary()))}
+      <SampleVocabulary
+        key={owner ?? "guest"}
+        personal={
+          owner ? JSON.parse(JSON.stringify(await listVocabulary())) : []
+        }
       />
     );
-  }, "/vocabulary");
+  });
 }

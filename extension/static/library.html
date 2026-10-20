@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>语境 · 文章与收藏</title>
+    <link rel="stylesheet" href="ui.css" />
+    <script src="library.js" type="module"></script>
+  </head>
+  <body class="library-page">
+    <header class="library-header">
+      <a class="brand" href="library.html"
+        ><img src="icons/icon-48.png" width="44" height="44" alt="" />
+        <div>
+          <h1>文章与收藏</h1>
+          <p>存在这个浏览器里，随时回来读。</p>
+        </div></a
+      ><button id="settings" class="subtle" type="button">设置</button>
+    </header>
+    <main class="library-main">
+      <nav id="library-nav" class="library-tabs" aria-label="我的内容">
+        <button
+          id="tab-articles"
+          class="selected"
+          aria-pressed="true"
+          type="button"
+        >
+          文章</button
+        ><button id="tab-words" aria-pressed="false" type="button">
+          收藏词
+        </button>
+      </nav>
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+      <div id="library-content"><p class="empty">正在打开本机记录…</p></div>
+    </main>
+    <dialog
+      id="word-dialog"
+      class="local-word-card"
+      aria-labelledby="word-title"
+    >
+      <div id="word-content"></div>
+    </dialog>
+  </body>
+</html>

@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { Layers } from "lucide-react";
 import { LoginForm } from "./login-form";
 import styles from "./login.module.css";
+import Link from "next/link";
 
 export const metadata: Metadata = { title: "进入学习空间" };
 
@@ -21,7 +22,7 @@ export default function LoginPage() {
         <p className={styles.eyebrow}>一点一点，读懂更多</p>
         <h1 id="login-title">进入你的学习空间</h1>
         <p className={styles.intro}>
-          用专属邀请码开始阅读，文章、词卡和学习进度会保存在你的空间里。
+          邀请码用于上传、生成文章和访问私人记录。范文与插件无需登录。
         </p>
         <Suspense
           fallback={
@@ -32,6 +33,7 @@ export default function LoginPage() {
         >
           <LoginForm />
         </Suspense>
+        <Link href="/library">不登录，先读范文 →</Link>
       </section>
       <p className={styles.footer}>让语言回到故事里。</p>
     </main>

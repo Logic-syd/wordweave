@@ -12,6 +12,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
+import { checkPublicBrowsing } from "./public-browsing.browser.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const databaseName = `wordweave_auth_test_${randomUUID().replaceAll("-", "")}`;
@@ -337,6 +338,21 @@ try {
     "Alice private HTTP fixture",
   );
   const bobId = await createArticle(bobCookie, "Bob private HTTP fixture");
+  for (const route of ["/", "/library", "/vocabulary", "/new?mode=tech", "/extension", "/read/sample-react-state-v1"]) {
+    const result = await request(route);
+    assert.equal(result.response.status, 200, route);
+    assert.ok(!String(result.data).includes("Alice private HTTP fixture"));
+    assert.ok(!String(result.data).includes("Bob private HTTP fixture"));
+  }
+  assert.equal((await request(`/api/articles/${aliceId}`)).response.status, 401);
+  assert.equal((await request("/api/articles", { method: "POST", body: {} })).response.status, 401);
+  assert.equal((await request("/api/articles/sample-react-state-v1/generate", { method: "POST", body: {} })).response.status, 401);
+  const missingSample = await request("/read/sample-unknown");
+  // Next may have started streaming the layout before notFound() is reached.
+  assert.ok([200, 404].includes(missingSample.response.status));
+  assert.ok(String(missingSample.data).includes("这篇文章不在这里了"));
+  report("Public pages and fixed samples are readable without a code; private content and all create/generate APIs stay protected");
+  report(await checkPublicBrowsing(appUrl, aliceToken));
   const aliceList = (await request("/api/articles", { cookie: aliceCookie }))
     .data;
   const bobList = (await request("/api/articles", { cookie: bobCookie })).data;
@@ -1041,7 +1057,9 @@ try {
       .response.status,
     503,
   );
-  report("Production with no configured administrator credential fails closed");
+  assert.equal((await request("/", { base: closedUrl })).response.status, 200);
+  assert.equal((await request("/read/sample-cafe-v1", { base: closedUrl })).response.status, 200);
+  report("Production with no administrator still serves public samples while private APIs and generation fail closed");
   await mkdir(path.join(root, "test-results/auth"), { recursive: true });
   await writeFile(
     path.join(root, "test-results/auth/summary.json"),
@@ -1052,7 +1070,7 @@ try {
         modelCalls,
         limitations: [
           "Real HTTP/PostgreSQL ownership checks; local mocked model output does not assess translation quality.",
-          "Cookie handling is tested through HTTP; browser login UI is covered separately.",
+          "Public browsing and the inline invitation dialog use a real Chromium browser and production cookie authentication.",
         ],
       },
       null,

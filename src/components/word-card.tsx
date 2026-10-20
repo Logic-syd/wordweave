@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Bookmark, Check, Heart, Volume2, X, ChevronDown } from "lucide-react";
 import type { Word, UserWord } from "@/lib/types";
+import { saveSampleWord } from "@/lib/sample-storage";
 export const statusLabels: Record<string, string> = {
   NEW: "初次遇见",
   LEARNING: "想学",
@@ -44,6 +45,11 @@ export function WordCard({
     setBusy(true);
     setMessage("");
     try {
+      if (word.id.startsWith("sample-")) {
+        onUpdate(saveSampleWord(word.id, data));
+        setMessage("已保存在这个浏览器");
+        return;
+      }
       const response = await fetch(`/api/vocabulary/${word.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },

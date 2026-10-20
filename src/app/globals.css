@@ -2447,6 +2447,24 @@ legend {
   margin-top: 14px;
   border-top: 1px dashed #e3e9da;
 }
+.invite-prompt {
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 28px;
+  border: 1px solid #e9d9df;
+  border-radius: 22px;
+  color: #343735;
+  background: #fffdfc;
+  box-shadow: 0 20px 80px #382a3130;
+}
+.invite-prompt::backdrop { background: #29232a55; }
+.invite-prompt h2 { margin: 0 0 12px; font-size: 23px; }
+.invite-prompt p { line-height: 1.7; }
+.invite-prompt form { display: grid; gap: 12px; margin: 22px 0; }
+.invite-prompt input { width: 100%; min-width: 0; padding: 12px; border: 1px solid #d7c6cc; border-radius: 10px; }
+.invite-prompt-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+.invite-prompt > a { color: #965c78; }
 .page-subtitle,
 .article-card p {
   color: #777f73;

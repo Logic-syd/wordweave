@@ -1,4 +1,4 @@
-import { withPageOwner } from "@/lib/auth-page";
+import { withOptionalPageOwner } from "@/lib/auth-page";
 import Link from "next/link";
 import { ArrowRight, Sprout, BookOpen, CircleHelp } from "lucide-react";
 import { listArticles } from "@/lib/repository";
@@ -7,13 +7,14 @@ import { ArticleCard } from "@/components/article-card";
 import { SpriteIcon } from "@/components/sprite-icon";
 import { LearningResources } from "@/components/learning-resources";
 import type { LibraryArticle } from "@/lib/types";
+import { listSamples } from "@/lib/samples";
 export const dynamic = "force-dynamic";
 export default async function Home() {
-  return withPageOwner(async () => {
-    const articles = JSON.parse(
-      JSON.stringify(await listArticles()),
-    ) as LibraryArticle[];
-    const recent = articles.slice(0, 4);
+  return withOptionalPageOwner(async (owner) => {
+    const articles = owner
+      ? (JSON.parse(JSON.stringify(await listArticles())) as LibraryArticle[])
+      : [];
+    const recent = [...articles.slice(0, 2), ...listSamples()];
     const hasAPI = modelConfigured();
     return (
       <main className="page home-page">
@@ -21,7 +22,7 @@ export default async function Home() {
           <span className="eyebrow">少一点死记硬背，多一点上下文</span>
           <span className="personal-label">
             <span className="tiny-dot" />
-            个人学习空间
+            {owner ? "我的学习空间" : "免费阅读 · 无需登录"}
           </span>
         </div>
         <div className="page-heading">
@@ -31,7 +32,7 @@ export default async function Home() {
           <p>读懂技术，也让一门新语言慢慢融入日常。</p>
         </div>
         <div className="mode-grid">
-          <Link href="/new?mode=tech" className="mode-card tech-mode">
+          <Link href="/library?mode=tech" className="mode-card tech-mode">
             <div className="mode-top">
               <span className="mode-icon">
                 <SpriteIcon size={28} />
@@ -48,13 +49,13 @@ export default async function Home() {
               </p>
             </div>
             <div className="mode-bottom">
-              <span>导入一篇文章</span>
+              <span>挑一篇直接读</span>
               <span className="circle-arrow">
                 <ArrowRight size={19} />
               </span>
             </div>
           </Link>
-          <Link href="/new?mode=german" className="mode-card german-mode">
+          <Link href="/library?mode=german" className="mode-card german-mode">
             <div className="mode-top">
               <span className="mode-icon">
                 <Sprout size={26} />
@@ -71,14 +72,14 @@ export default async function Home() {
               </p>
             </div>
             <div className="mode-bottom">
-              <span>开启一段故事</span>
+              <span>挑一个故事开始</span>
               <span className="circle-arrow">
                 <ArrowRight size={19} />
               </span>
             </div>
           </Link>
         </div>
-        {!hasAPI && (
+        {owner && !hasAPI && (
           <div className="notice demo-notice">
             <CircleHelp size={18} />
             <div>
@@ -126,5 +127,5 @@ export default async function Home() {
         </div>
       </main>
     );
-  }, "/");
+  });
 }

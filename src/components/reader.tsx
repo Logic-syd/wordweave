@@ -28,6 +28,7 @@ import { settingsSchema, type Settings, type Segment } from "@/lib/schemas";
 import { useHydrated } from "./use-hydrated";
 import { WordCard } from "./word-card";
 import { SettingsFields } from "./settings-fields";
+import { saveSampleProgress } from "@/lib/sample-storage";
 type SavedSegment = Segment & { occurrenceId?: string };
 const markdownPlugins = [remarkGfm];
 const EMPTY_OCCURRENCES: OccurrenceView[] = [];
@@ -140,11 +141,13 @@ export function Reader({
   configured,
   autoGenerate,
   initialSettings,
+  local = false,
 }: {
   initial: ArticleDetail;
   configured: boolean;
   autoGenerate: boolean;
   initialSettings: Settings;
+  local?: boolean;
 }) {
   const hydrated = useHydrated();
   const [article, setArticle] = useState(initial);
@@ -190,6 +193,15 @@ export function Reader({
   const pending = hasGeneration && !staleGeneration;
   const persist = useCallback(
     (data: Record<string, unknown>) => {
+      if (local) {
+        try {
+          saveSampleProgress(initial.id, data);
+          setSaveState("进度保存在这个浏览器");
+        } catch (error) {
+          setSaveState(error instanceof Error ? error.message : "保存失败");
+        }
+        return;
+      }
       pendingProgress.current = { ...pendingProgress.current, ...data };
       if (progressTimer.current) clearTimeout(progressTimer.current);
       progressTimer.current = setTimeout(() => {
@@ -207,7 +219,7 @@ export function Reader({
           .catch(() => setSaveState("进度保存失败，请检查连接"));
       }, 400);
     },
-    [initial.id],
+    [initial.id, local],
   );
   useEffect(
     () => () => {
@@ -520,14 +532,23 @@ export function Reader({
               ? "演示文章"
               : "导入文章"}
         </span>
-        <button
-          className={`icon-button ${showSettings ? "selected" : ""}`}
-          aria-label="生成设置"
-          aria-expanded={showSettings}
-          onClick={() => setShowSettings(!showSettings)}
-        >
-          <Settings2 size={20} />
-        </button>
+        {local ? (
+          <Link
+            href={`/new?mode=${de ? "german" : "tech"}`}
+            className="text-button"
+          >
+            创建自己的文章
+          </Link>
+        ) : (
+          <button
+            className={`icon-button ${showSettings ? "selected" : ""}`}
+            aria-label="生成设置"
+            aria-expanded={showSettings}
+            onClick={() => setShowSettings(!showSettings)}
+          >
+            <Settings2 size={20} />
+          </button>
+        )}
       </div>
       <div className="reader-toolbar">
         <div className="segmented reader-views">
@@ -560,7 +581,7 @@ export function Reader({
           </select>
         </label>
       </div>
-      {showSettings && (
+      {showSettings && !local && (
         <section className="reader-settings">
           <div className="section-heading">
             <h3>调整这篇学习材料</h3>
@@ -729,7 +750,11 @@ export function Reader({
           <h1>{article.title}</h1>
           <div className="reading-meta">
             <span>
-              {article.origin.startsWith("demo") ? "结构化演示 · " : ""}
+              {local
+                ? "公开范文 · "
+                : article.origin.startsWith("demo")
+                  ? "结构化演示 · "
+                  : ""}
               {article.origin.includes("generated")
                 ? "生成短文"
                 : de
@@ -878,7 +903,10 @@ export function Reader({
           </details>
         )}
         <div className="reader-save-state" role="status">
-          {saveState || "进度与偏好会自动保存"}
+          {saveState ||
+            (local
+              ? "范文免费阅读，收藏与进度保存在这个浏览器"
+              : "进度与偏好会自动保存")}
         </div>
       </article>
       {selected && (

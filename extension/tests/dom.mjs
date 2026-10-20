@@ -77,7 +77,7 @@ try {
                 ok: true,
                 data:
                   message.type === "ww:preferences:get"
-                    ? { retention: "medium", glossMode: "first" }
+                    ? { retention: "medium", glossMode: "first", translationMode: "free" }
                     : { id: "job", status: "pending" },
               };
             },
@@ -94,7 +94,7 @@ try {
       );
       assert.equal(
         await page
-          .getByRole("button", { name: "生成学习版", exact: true })
+          .getByRole("button", { name: "开始免费翻译", exact: true })
           .count(),
         0,
       );
@@ -106,7 +106,7 @@ try {
         ),
       );
       const generate = page.getByRole("button", {
-        name: "生成学习版",
+        name: "开始免费翻译",
         exact: true,
       });
       await generate.waitFor();

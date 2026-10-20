@@ -36,17 +36,23 @@ export function Shell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (login) return;
     const controller = new AbortController();
-    void fetch("/api/auth/session", {
-      cache: "no-store",
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        if (response.ok) setSession(await response.json());
+    const load = () =>
+      void fetch("/api/auth/session", {
+        cache: "no-store",
+        signal: controller.signal,
       })
-      .catch(() => {
-        /* The page handles access errors; no user content is fetched here. */
-      });
-    return () => controller.abort();
+        .then(async (response) => {
+          if (response.ok) setSession(await response.json());
+        })
+        .catch(() => {
+          /* The page handles access errors; no user content is fetched here. */
+        });
+    load();
+    window.addEventListener("wordweave:session", load);
+    return () => {
+      controller.abort();
+      window.removeEventListener("wordweave:session", load);
+    };
   }, [login]);
 
   async function logout() {
@@ -60,7 +66,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       if (!response.ok || data.ok !== true) throw new Error("logout failed");
       // A document navigation clears the previous user's in-memory page state.
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-      window.location.assign("/login");
+      window.location.assign("/");
     } catch {
       setLogoutError("退出失败，请检查网络后重试。");
       logoutPending.current = false;
@@ -80,7 +86,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             语境<small>WORDS IN CONTEXT</small>
           </span>
         </Link>
-        <div className="nav-label">你的学习空间</div>
+        <div className="nav-label">读一点，学一点</div>
         <nav>
           {nav.map(({ href, label, icon: Icon }) => (
             <Link
@@ -113,6 +119,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <Link className="new-article-link" href="/new?mode=tech">
           添加一篇文章 <ArrowUpRight size={17} />
         </Link>
+        {session && !session.authenticated && (
+          <Link className="new-article-link" href="/login">
+            我的私人空间 <ArrowUpRight size={17} />
+          </Link>
+        )}
       </aside>
       <div className="main-shell">
         <header className="mobile-header">

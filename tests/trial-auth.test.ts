@@ -95,7 +95,7 @@ describe("trial identities and signed sessions", () => {
       ),
     ).toBe("personal");
   });
-  it("fails closed in production without trusted owner credentials, while supporting existing owner tokens", async () => {
+  it("keeps private APIs closed without owner credentials while allowing public browsing", async () => {
     expect(
       ownerForToken(personal, {
         NODE_ENV: "production",
@@ -137,10 +137,23 @@ describe("trial identities and signed sessions", () => {
       new NextRequest("https://example.test/api/articles"),
     );
     expect(denied.status).toBe(503);
+    for (const path of [
+      "/",
+      "/library",
+      "/new",
+      "/read/sample-react-state-v1",
+      "/vocabulary",
+    ]) {
+      const publicPage = await proxy(
+        new NextRequest(`https://example.test${path}`),
+      );
+      expect(publicPage.status).toBe(200);
+      expect(publicPage.headers.get("location")).toBeNull();
+    }
     expect(
-      (await proxy(new NextRequest("https://example.test/"))).headers.get(
-        "location",
-      ),
+      (
+        await proxy(new NextRequest("https://example.test/invites"))
+      ).headers.get("location"),
     ).toContain("/login");
   });
 

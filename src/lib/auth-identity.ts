@@ -19,6 +19,18 @@ const invitationCookie = /^ses_[A-Za-z0-9_-]{43}$/;
 const invalidAccess = () =>
   new AppError("邀请码无效或已撤销，请重新登录或更新插件设置。", 401);
 
+export async function optionalRequestOwner(
+  request: Request,
+): Promise<string | null> {
+  try {
+    return await resolveRequestOwner(request);
+  } catch (error) {
+    if (error instanceof AppError && [401, 503].includes(error.status))
+      return null;
+    throw error;
+  }
+}
+
 /** Resolve every request against the current credential and invitation state. */
 export async function resolveRequestOwner(
   request: Request,

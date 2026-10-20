@@ -138,7 +138,7 @@ export class WordCard {
       actions,
       ui(
         "p",
-        `当前状态：${statusNames[word.user?.status ?? "NEW"] ?? "初次遇见"} · 修改会同步到语境生词本`,
+        `${statusNames[word.user?.status ?? "NEW"] ?? "初次遇见"} · 保存在本机插件`,
         "saved",
       ),
       feedback,
@@ -178,7 +178,7 @@ export class WordCard {
         );
         nextFocus?.focus({ preventScroll: true });
         const message = this.node?.querySelector<HTMLElement>(".message");
-        if (message) message.textContent = "已保存到语境生词本。";
+        if (message) message.textContent = "已保存到本机收藏。";
       }
     } catch (error) {
       feedback.textContent =

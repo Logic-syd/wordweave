@@ -4,9 +4,15 @@ import { useState } from "react";
 import { BookOpen, Plus, Search, Trash2 } from "lucide-react";
 import type { LibraryArticle } from "@/lib/types";
 import { ArticleCard } from "./article-card";
-export function Library({ initial }: { initial: LibraryArticle[] }) {
+export function Library({
+  initial,
+  initialMode = "all",
+}: {
+  initial: LibraryArticle[];
+  initialMode?: string;
+}) {
   const [articles, setArticles] = useState(initial);
-  const [mode, setMode] = useState("all");
+  const [mode, setMode] = useState(initialMode);
   const [query, setQuery] = useState("");
   const [confirm, setConfirm] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -36,7 +42,9 @@ export function Library({ initial }: { initial: LibraryArticle[] }) {
         <div>
           <span className="eyebrow">YOUR READING SHELF</span>
           <h1>每一篇，都是新的语境。</h1>
-          <p className="page-subtitle">读过的、没读完的，都在这里。</p>
+          <p className="page-subtitle">
+            范文直接读。范文的收藏和进度保存在这个浏览器。
+          </p>
         </div>
         <Link href="/new?mode=tech" className="button primary">
           <Plus size={17} />
@@ -91,13 +99,15 @@ export function Library({ initial }: { initial: LibraryArticle[] }) {
                       : "未开始"}{" "}
                   · {new Date(a.createdAt).toLocaleDateString("zh-CN")}
                 </span>
-                <button
-                  className="icon-button"
-                  aria-label={`删除文章：${a.title}`}
-                  onClick={() => setConfirm(a.id)}
-                >
-                  <Trash2 size={16} />
-                </button>
+                {!a.id.startsWith("sample-") && (
+                  <button
+                    className="icon-button"
+                    aria-label={`删除文章：${a.title}`}
+                    onClick={() => setConfirm(a.id)}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
               </div>
               {confirm === a.id && (
                 <div className="inline-confirm">
