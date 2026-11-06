@@ -31,14 +31,14 @@ AI 模式直接连接使用者选择的 OpenAI 兼容服务，生成中文与英
 <summary>隐私与限制</summary>
 
 - 只有主动点击翻译才发送选定正文；免费模式发给 Google，AI 模式发给所选模型服务。代码块保留，行内代码与链接受保护。
-- API Key 仅保存在扩展的受信任本地存储中，翻译时用于直连所选模型服务；不会发给语境服务器、内容脚本或网页。
+- API Key 仅保存在扩展的受信任本地存储中，翻译时用于直连所选模型服务；不会发给语境服务器、内容脚本或网页。设置页可删除已保存的 Key 并切回免费模式，保留文章和收藏；已发出的请求无法撤回。
 - 支持普通网页正文；PDF、浏览器内部页面、iframe、Shadow DOM 和复杂交互应用不在本版范围。最多 80 段、20,000 字符，超限请选一节正文。
 - 相同正文、设置和模型配置复用本机结果；失败需要手动重试。后台被浏览器中断时不会自动重新调用收费 API。
 - 原文与翻译安全渲染，模型没有执行工具。译文与语言讲解仍可能不准确，可以逐段对照原文。
 
 </details>
 
-隐私说明见网站 `/extension/privacy`；维护者的[上架准备清单](../docs/extension-release.md)单独保存，不增加普通用户安装步骤。
+设置页和弹窗均可打开离线隐私说明；公开版见网站 `/extension/privacy`；维护者的[上架准备清单](../docs/extension-release.md)单独保存，不增加普通用户安装步骤。
 
 ## 开发与验证
 
@@ -52,6 +52,8 @@ npm run test:extension:dom
 npm run test:extension:ui
 npm run test:extension -- --content-harness
 ```
+
+`npm run extension:release` 会额外检查权限、离线隐私说明、图标、依赖许可证和包内文件，生成 `extension/release/v0.2.1/` 下的候选 ZIP 与校验值，不上传或提交商店。
 
 构建输出 `extension/dist/` 与 `public/downloads/wordweave-extension.zip`。网站 `npm run build` 会同时打包插件。
 

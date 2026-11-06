@@ -30,7 +30,7 @@ const initialized = Promise.all([
   document.querySelector("#privacy")!.textContent =
     config.translationMode === "ai"
       ? "点击翻译才会发送正文给你的 AI 服务，按服务商价格计费。"
-      : "点击翻译才会发送正文给免费翻译服务。";
+      : "点击翻译会将待译正文发给 Google。";
 });
 void initialized.catch((error: unknown) =>
   show(

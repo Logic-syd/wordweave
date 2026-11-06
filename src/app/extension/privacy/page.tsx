@@ -8,7 +8,7 @@ export default function ExtensionPrivacyPage() {
     <main className="page" style={{ maxWidth: 760, lineHeight: 1.9 }}>
       <Link href="/extension">← 浏览器插件</Link>
       <h1>语境插件隐私说明</h1>
-      <p>适用于插件 0.2.0，更新于 2026 年 11 月 6 日。</p>
+      <p>适用于插件 0.2.1，更新于 2026 年 11 月 6 日。</p>
       <h2>翻译时，正文会发给谁？</h2>
       <p>
         你主动点击翻译后，插件读取当前网页正文或选中的段落。免费模式将待翻译文字发送到
@@ -38,6 +38,11 @@ export default function ExtensionPrivacyPage() {
         HTTP。
       </p>
       <h2>如何删除？</h2>
+      <p>
+        在插件设置中点击「删除已保存的
+        Key」会清除保存的凭据并切回免费翻译，文章和收藏保留。
+        已经进行的请求可能仍会完成；要使 Key 失效，请到模型服务商控制台撤销它。
+      </p>
       <p>
         在「我的文章与收藏」中删除文章或取消收藏。卸载插件会删除其全部本机数据（包括
         API Key）。 如需使 Key

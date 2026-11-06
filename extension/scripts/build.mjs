@@ -10,7 +10,8 @@ await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
 await cp(path.join(root, "static"), dist, { recursive: true });
 await cp(path.join(root, "manifest.json"), path.join(dist, "manifest.json"));
-await build({
+const bundle = await build({
+  absWorkingDir: path.resolve(root, ".."),
   entryPoints: ["background", "popup", "options", "content", "library"].map(
     (file) => path.join(root, "src", `${file}.ts`),
   ),
@@ -25,7 +26,44 @@ await build({
   sourcemap: false,
   minify: true,
   legalComments: "none",
+  metafile: true,
 });
+// Distribute licenses for the packages actually bundled, not the entire website.
+const packageRoots = new Set();
+for (const input of Object.keys(bundle.metafile.inputs)) {
+  const marker = input.lastIndexOf("node_modules/");
+  if (marker < 0) continue;
+  const parts = input.slice(marker + "node_modules/".length).split("/");
+  const name = parts[0].startsWith("@")
+    ? parts.slice(0, 2).join("/")
+    : parts[0];
+  packageRoots.add(
+    path.resolve(root, "..", input.slice(0, marker), "node_modules", name),
+  );
+}
+const notices = [];
+for (const directory of [...packageRoots].sort()) {
+  const pkg = JSON.parse(
+    await readFile(path.join(directory, "package.json"), "utf8"),
+  );
+  const licenseFiles = (await readdir(directory)).filter((file) =>
+    /^(?:licen[cs]e|copying)(?:\.(?:md|txt))?$/i.test(file),
+  );
+  if (!licenseFiles.length)
+    throw new Error(`Missing bundled license text: ${pkg.name}`);
+  const texts = await Promise.all(
+    licenseFiles
+      .sort()
+      .map((file) => readFile(path.join(directory, file), "utf8")),
+  );
+  notices.push(
+    `${pkg.name} ${pkg.version}\nLicense: ${pkg.license ?? "See text below"}\n${texts.join("\n")}`,
+  );
+}
+await writeFile(
+  path.join(dist, "THIRD_PARTY_NOTICES.txt"),
+  notices.join("\n\n========================================\n\n"),
+);
 const files = {};
 async function collect(directory, prefix = "") {
   const entries = await readdir(directory, { withFileTypes: true });

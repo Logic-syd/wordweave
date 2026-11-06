@@ -11,3 +11,4 @@ coverage/
 .local/
 extension/dist/
 public/downloads/wordweave-extension.zip
+extension/release/

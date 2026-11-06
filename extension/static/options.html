@@ -13,7 +13,7 @@
         <img src="icons/icon-48.png" width="48" height="48" alt="" />
         <div>
           <h1>想怎么翻译？</h1>
-          <p>默认免费，装好就能用。</p>
+          <p>默认免费，无需账号。</p>
         </div>
       </header>
       <form id="config-form">
@@ -36,7 +36,9 @@
           >
         </fieldset>
         <p id="free-description" class="mode-description">
-          先免费读起来。英文表达由规则挑选，中文由翻译服务提供。
+          由 Google
+          提供普通翻译，再按规则保留英文表达。服务不可用时会提示，不会自动切换到付费
+          AI。
         </p>
         <section id="ai-settings" hidden>
           <div class="field">
@@ -106,6 +108,11 @@
         </div>
       </form>
       <p id="status" class="status" role="status" aria-live="polite"></p>
+      <div class="credential-actions">
+        <button id="forget-key" class="text-button" type="button" hidden>
+          删除已保存的 Key
+        </button>
+      </div>
       <footer class="settings-footer">
         <p>文章和收藏存在本机，不会同步到网站。</p>
         <button id="library" class="text-button" type="button">
@@ -115,11 +122,20 @@
       <details class="advanced privacy-details">
         <summary>正文和 Key 会发到哪里？</summary>
         <p class="help">
-          只有点击翻译才会发送选定正文。免费模式发给免费翻译服务；AI
-          模式直接发给你设置的 AI 服务。Key
+          点击翻译会发送待译正文。免费模式发给 Google；AI 模式直接发给你设置的
+          AI 服务。Key
           不会交给正在阅读的网页，也不会上传到语境网站。清除浏览器插件数据或卸载插件会删除本机记录。
         </p>
       </details>
+      <p class="privacy-link">
+        <a href="privacy.html" target="_blank" rel="noopener">隐私说明</a> ·
+        <a
+          href="https://github.com/Logic-syd/wordweave/issues"
+          target="_blank"
+          rel="noopener noreferrer"
+          >反馈问题</a
+        >
+      </p>
     </main>
   </body>
 </html>

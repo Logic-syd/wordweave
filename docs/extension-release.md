@@ -1,6 +1,8 @@
 # 语境插件：发布准备
 
-**现在没有上架，也没有提交审核。** 先准备 Chrome Web Store，之后再考虑 Edge；继续放在这个仓库的 `extension/`，不用新建仓库。
+**已确定先上 Chrome Web Store；当前 0.2.1 是候选版，尚未上传或提交审核。** 开发者账号待本人注册。插件继续放在这个仓库的 `extension/`，不用新建仓库。
+
+直接使用：[首次提交步骤](../extension/store/chrome/submission.md) · [可复制的商品文案](../extension/store/chrome/listing.txt)。运行 `npm run extension:release` 生成带版本号的 ZIP、SHA-256 与检查报告。
 
 ## 这个项目是什么
 
@@ -49,7 +51,7 @@
 
 ```bash
 npm ci
-npm run build
+npm run extension:release
 npm run typecheck
 npm run lint
 npm run test:unit
@@ -59,8 +61,10 @@ npm run test:extension -- --content-harness
 ```
 
 - 加载测试目录：`extension/dist/`
-- 待审核 ZIP：`public/downloads/wordweave-extension.zip`（manifest 在 ZIP 根目录）
+- 候选 ZIP：`extension/release/v0.2.1/wordweave-chrome-0.2.1.zip`（manifest 在 ZIP 根目录）
+- SHA-256 与检查结果：同目录 `SHA256SUMS.txt`、`checks.json`
+- 网站下载副本：`public/downloads/wordweave-extension.zip`
 - 隐私说明源码：`src/app/extension/privacy/page.tsx`
-- 提交前：递增 `extension/manifest.json` 的版本、重新构建并检查 ZIP 无 `.env`、Key、测试结果或开发文件。当前仍为 0.2.0，不表示已审核。
+- 提交前：递增 `extension/manifest.json` 的版本、重新构建并检查 ZIP 无 `.env`、Key、测试结果或开发文件。当前为 0.2.1 候选版，不表示已审核。
 
 这些命令不会发布到商店。自动化夹具只验证程序行为，不代表真实翻译服务可用或译文正确。网页个人版修改也需另行部署才在 Railway 生效。

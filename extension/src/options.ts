@@ -25,6 +25,17 @@ const modes = [
 ];
 let savedConfig: ExtensionConfig = { ...DEFAULT_CONFIG };
 let ready = false;
+let busy = false;
+const forget = document.querySelector<HTMLButtonElement>("#forget-key")!;
+function updateForget() {
+  forget.hidden = !savedConfig.aiApiKey && !savedConfig.accessToken;
+}
+function setBusy(value: boolean) {
+  busy = value;
+  save.disabled = value || !ready;
+  test.disabled = value;
+  forget.disabled = value;
+}
 function show(message: string, error = false) {
   status.textContent = message;
   status.classList.toggle("error", error);
@@ -75,6 +86,7 @@ void sendMessage<ExtensionConfig>({ type: "ww:config:get" })
     gloss.value = config.glossMode;
     ready = true;
     save.disabled = false;
+    updateForget();
     updateMode();
   })
   .catch((error: unknown) =>
@@ -85,7 +97,7 @@ void sendMessage<ExtensionConfig>({ type: "ww:config:get" })
   );
 form.addEventListener("submit", (event) => {
   event.preventDefault();
-  if (!ready || !form.reportValidity()) return;
+  if (!ready || busy || !form.reportValidity()) return;
   let next: ExtensionConfig;
   try {
     next = values();
@@ -101,7 +113,7 @@ form.addEventListener("submit", (event) => {
     key.focus();
     return;
   }
-  save.disabled = true;
+  setBusy(true);
   // Host access must be requested directly in this user gesture, before any await.
   const permission =
     next.translationMode === "ai"
@@ -117,6 +129,7 @@ form.addEventListener("submit", (event) => {
         );
       await sendMessage({ type: "ww:config:set", config: next });
       savedConfig = next;
+      updateForget();
       base.value = next.aiBaseUrl;
       show(
         next.translationMode === "free"
@@ -128,10 +141,11 @@ form.addEventListener("submit", (event) => {
       show(error instanceof Error ? error.message : "保存失败，请重试。", true),
     )
     .finally(() => {
-      save.disabled = false;
+      setBusy(false);
     });
 });
 test.addEventListener("click", () => {
+  if (!ready || busy) return;
   let current: ExtensionConfig;
   try {
     current = values();
@@ -143,7 +157,7 @@ test.addEventListener("click", () => {
     show("请先保存修改，再测试连接。", true);
     return;
   }
-  test.disabled = true;
+  setBusy(true);
   show("正在检查 AI 连接…");
   void sendMessage<{ models: string[] }>({ type: "ww:models:list" })
     .then(({ models }) => {
@@ -169,10 +183,43 @@ test.addEventListener("click", () => {
       ),
     )
     .finally(() => {
-      test.disabled = false;
+      setBusy(false);
     });
 });
 document.querySelector("#library")!.addEventListener("click", () => {
   void sendMessage({ type: "ww:library:open" });
 });
 updateMode();
+
+forget.addEventListener("click", () => {
+  if (
+    !ready ||
+    busy ||
+    !window.confirm("删除已保存的 Key 并切回免费翻译？文章和收藏会保留。")
+  )
+    return;
+  setBusy(true);
+  const next: ExtensionConfig = {
+    ...savedConfig,
+    translationMode: "free",
+    aiApiKey: "",
+    accessToken: "",
+  };
+  void sendMessage({ type: "ww:config:set", config: next })
+    .then(() => {
+      savedConfig = next;
+      key.value = "";
+      modes.forEach((radio) => {
+        radio.checked = radio.value === "free";
+      });
+      updateMode();
+      updateForget();
+      show(
+        "已删除保存的 Key，已切回免费翻译。正在进行的请求可能仍会完成；要停用 Key，请到服务商控制台撤销。",
+      );
+    })
+    .catch((error: unknown) => {
+      show(error instanceof Error ? error.message : "删除失败，请重试。", true);
+    })
+    .finally(() => setBusy(false));
+});

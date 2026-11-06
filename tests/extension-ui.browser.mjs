@@ -112,6 +112,18 @@ try {
     platform: "browser",
     format: "iife",
     define: { "process.env.NODE_ENV": '"development"' },
+    // Standalone component fixture has no Next router; exercise links as anchors.
+    plugins: [{
+      name: "next-link-component-fixture",
+      setup(bundler) {
+        bundler.onResolve({ filter: /^next\/link$/ }, () => ({ path: "next-link-fixture", namespace: "fixture" }));
+        bundler.onLoad({ filter: /.*/, namespace: "fixture" }, () => ({
+          contents: 'import { createElement } from "react"; export default function Link(props) { return createElement("a", props); }',
+          resolveDir: repository,
+          loader: "js",
+        }));
+      },
+    }],
   });
   const globalsPath = join(repository, "src/app/globals.css");
   const globals = await postcss([tailwindcss()]).process(await readFile(globalsPath, "utf8"), { from: globalsPath });
@@ -132,7 +144,10 @@ try {
       const file = resolve(staticDirectory, `.${pathname}`);
       if (!file.startsWith(`${staticDirectory}/`)) throw new Error("Invalid fixture path");
       const content = await readFile(file);
-      response.writeHead(200, { "Content-Type": contentTypes[extname(file)] || "application/octet-stream" }).end(content);
+      response.writeHead(200, {
+        "Content-Type": contentTypes[extname(file)] || "application/octet-stream",
+        "Content-Security-Policy": "script-src 'self'; object-src 'none'; base-uri 'none'",
+      }).end(content);
     } catch {
       response.writeHead(404).end("Fixture asset not found");
     }
@@ -154,7 +169,7 @@ try {
     const page = await context.newPage();
     const errors = [];
     const externalRequests = [];
-    page.on("pageerror", (error) => errors.push(error.message));
+    page.on("pageerror", (error) => { errors.push(error.message); console.error("UI fixture error:", error.message); });
     await page.route("**/*", (route) => {
       if (new URL(route.request().url()).origin !== baseURL) {
         externalRequests.push(route.request().url());
@@ -320,6 +335,43 @@ try {
     assert.equal(state.messages.filter((message) => message.type === "ww:models:list").length, 1);
     await expect(page.locator("#model-list option")).toHaveAttribute("value", "fixture-model");
     await page.screenshot({ path: join(screenshots, "options-ai.png"), fullPage: true });
+    assert.deepEqual(errors, []);
+    assert.deepEqual(externalRequests, []);
+  });
+
+  await check("saved keys can be removed after confirmation without deleting local articles or making network requests", async () => {
+    const { page, errors, externalRequests } = await fixture("/options.html", { config: {
+      ...defaults, translationMode: "ai", aiApiKey: "fixture-only-saved-key", accessToken: "fixture-old-owner-token",
+    } });
+    await expect(page.locator("#forget-key")).toBeVisible();
+    page.once("dialog", (dialog) => dialog.dismiss());
+    await page.locator("#forget-key").click();
+    let state = await page.evaluate(() => window.__extensionUIFixture);
+    assert.equal(state.config.aiApiKey, "fixture-only-saved-key");
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.locator("#forget-key").click();
+    await expect(page.locator("#status")).toContainText("已删除保存的 Key");
+    await expect(page.locator("#forget-key")).toBeHidden();
+    await expect(page.locator('input[name="translation-mode"][value="free"]')).toBeChecked();
+    state = await page.evaluate(() => window.__extensionUIFixture);
+    assert.equal(state.config.aiApiKey, "");
+    assert.equal(state.config.accessToken, "");
+    assert.deepEqual(state.library, fixtureLibrary);
+    assert.deepEqual(state.permissionRequests, []);
+    assert.deepEqual(errors, []);
+    assert.deepEqual(externalRequests, []);
+  });
+
+  await check("privacy is available in the packaged popup/settings without a website or account", async () => {
+    for (const filename of ["popup.html", "options.html"]) {
+      const { page } = await fixture(`/${filename}`);
+      await expect(page.getByRole("link", { name: "隐私说明", exact: true })).toHaveAttribute("href", "privacy.html");
+    }
+    const { page, errors, externalRequests } = await fixture("/privacy.html");
+    await expect(page.getByRole("heading", { name: "语境插件隐私说明", exact: true })).toBeVisible();
+    await expect(page.getByText(/translate\.googleapis\.com/)).toBeVisible();
+    await page.setViewportSize({ width: 390, height: 844 });
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     assert.deepEqual(errors, []);
     assert.deepEqual(externalRequests, []);
   });

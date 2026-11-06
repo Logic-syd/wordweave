@@ -437,6 +437,41 @@ describe("local worker transport and authorization", () => {
     expect(worker.fetch).not.toHaveBeenCalled();
   });
 
+  it("removes saved credentials through trusted settings and preserves the library across restart", async () => {
+    const worker = createWorker({
+      store: { [configKey]: aiConfig },
+      granted: ["https://api.deepseek.com/*"],
+    });
+    await startAndComplete(worker, { ...startMessage, translationMode: "ai" });
+    const savedLibrary = structuredClone(worker.store[libraryKey]);
+    const cleared = {
+      ...aiConfig,
+      translationMode: "free",
+      aiApiKey: "",
+      accessToken: "",
+    };
+    expect(
+      await worker.send({ type: "ww:config:set", config: cleared }),
+    ).toMatchObject({ ok: false, status: 403 });
+    expect(
+      await worker.send({ type: "ww:config:set", config: cleared }, uiSender),
+    ).toMatchObject({ ok: true });
+    expect(worker.store[libraryKey]).toEqual(savedLibrary);
+    const restarted = createWorker({ store: worker.store });
+    expect(
+      await restarted.send({ type: "ww:config:get" }, uiSender),
+    ).toMatchObject({
+      ok: true,
+      data: { aiApiKey: "", accessToken: "", translationMode: "free" },
+    });
+    expect(
+      await restarted.send({ type: "ww:models:list" }, uiSender),
+    ).toMatchObject({ ok: false });
+    expect(restarted.store[libraryKey]).toEqual(savedLibrary);
+    expect(restarted.discoverModels).not.toHaveBeenCalled();
+    expect(restarted.fetch).not.toHaveBeenCalled();
+  });
+
   it("requires AI permission and valid settings, and rejects stale free-mode consent", async () => {
     const worker = createWorker();
     expect(
