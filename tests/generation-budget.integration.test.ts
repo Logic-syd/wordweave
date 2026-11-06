@@ -16,7 +16,11 @@ import {
   it,
   vi,
 } from "vitest";
-import { acquireGenerationPermit } from "../src/lib/generation-budget";
+import {
+  acquireGenerationPermit,
+  getGenerationBudget,
+  reserveModelRequest,
+} from "../src/lib/generation-budget";
 
 const isolated = vi.hoisted(() => ({ db: null as unknown as PrismaClient }));
 vi.mock("../src/lib/db", () => ({
@@ -33,6 +37,7 @@ const config = {
   GENERATION_GLOBAL_DAILY_LIMIT: "100",
   GENERATION_GLOBAL_DAILY_CHAR_LIMIT: "600000",
   GENERATION_MAX_CONCURRENT: "2",
+  GENERATION_DAILY_MODEL_CALL_LIMIT: "100",
 };
 function input(ownerId = "alice", inputChars = 100) {
   return { ownerId, articleId: randomUUID(), token: randomUUID(), inputChars };
@@ -106,6 +111,74 @@ afterAll(async () => {
 }, 20000);
 
 describe("persistent generation quotas and concurrent PostgreSQL leases", () => {
+  it("caps parallel model attempts before dispatch, retains charges after release and denies new work", async () => {
+    vi.stubEnv("GENERATION_DAILY_MODEL_CALL_LIMIT", "3");
+    const claim = input();
+    const release = await acquireGenerationPermit(claim);
+    const results = await Promise.allSettled(
+      Array.from({ length: 8 }, () => reserveModelRequest(claim)),
+    );
+    expect(
+      results.filter((result) => result.status === "fulfilled"),
+    ).toHaveLength(3);
+    for (const result of results)
+      if (result.status === "rejected")
+        expect(result.reason).toMatchObject({ status: 429 });
+    await release();
+    expect(await usage("alice")).toMatchObject({ count: 1, modelCalls: 3 });
+    expect(await usage("$global")).toMatchObject({ modelCalls: 3 });
+    const view = await getGenerationBudget("alice");
+    expect(view.modelRequests).toEqual({ used: 3, limit: 3, remaining: 0 });
+    expect(view.generations).toEqual({ used: 1, limit: 20, remaining: 19 });
+    await expect(acquireGenerationPermit(input())).rejects.toMatchObject({
+      status: 429,
+    });
+    expect(await usage("alice")).toMatchObject({ count: 1 });
+    // A fresh Prisma connection models a process restart; quota is in PostgreSQL.
+    await isolated.db.$disconnect();
+    expect((await getGenerationBudget("alice")).modelRequests.remaining).toBe(
+      0,
+    );
+    await expect(reserveModelRequest(claim)).rejects.toMatchObject({
+      status: 409,
+    });
+  });
+
+  it("requires a live matching generation claim and counts model calls against the current UTC day", async () => {
+    const claim = input();
+    await expect(reserveModelRequest(claim)).rejects.toMatchObject({
+      status: 409,
+    });
+    const release = await acquireGenerationPermit(claim);
+    await expect(
+      reserveModelRequest({ ...claim, ownerId: "bob" }),
+    ).rejects.toMatchObject({ status: 409 });
+    await expect(
+      reserveModelRequest({ ...claim, articleId: "another" }),
+    ).rejects.toMatchObject({ status: 409 });
+    await isolated.db.generationUsage.create({
+      data: {
+        ownerId: "$global",
+        day: "2000-01-01",
+        modelCalls: 100,
+      },
+    });
+    await reserveModelRequest(claim);
+    expect((await getGenerationBudget("alice")).modelRequests.used).toBe(1);
+    expect(await usage("$global", "2000-01-01")).toMatchObject({
+      modelCalls: 100,
+    });
+    await isolated.db.generationPermit.update({
+      where: { token: claim.token },
+      data: { expiresAt: new Date(0) },
+    });
+    await expect(reserveModelRequest(claim)).rejects.toMatchObject({
+      status: 409,
+    });
+    await release();
+    expect((await getGenerationBudget("alice")).modelRequests.used).toBe(1);
+  });
+
   it("atomically permits one job per person and two site-wide across concurrent transactions", async () => {
     const attempts = await Promise.allSettled(
       Array.from({ length: 8 }, () => acquireGenerationPermit(input())),

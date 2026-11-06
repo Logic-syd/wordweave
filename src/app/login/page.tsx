@@ -22,7 +22,7 @@ export default function LoginPage() {
         <p className={styles.eyebrow}>一点一点，读懂更多</p>
         <h1 id="login-title">进入你的学习空间</h1>
         <p className={styles.intro}>
-          邀请码用于上传、生成文章和访问私人记录。范文与插件无需登录。
+          这是你的个人网页版。登录后上传、生成文章，查看私人学习记录。
         </p>
         <Suspense
           fallback={

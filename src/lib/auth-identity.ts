@@ -1,12 +1,6 @@
 import { AppError } from "./errors";
 import { currentOwnerId } from "./auth-context";
 import {
-  createInvitationSession,
-  findInvitationOwner,
-  findInvitationSessionOwner,
-  revokeInvitationSession,
-} from "./invitations";
-import {
   cookieValue,
   createSession,
   ownerForSession,
@@ -14,10 +8,8 @@ import {
   trialConfiguration,
 } from "./trial-auth";
 
-const invitationToken = /^inv_[A-Za-z0-9_-]{43}$/;
-const invitationCookie = /^ses_[A-Za-z0-9_-]{43}$/;
 const invalidAccess = () =>
-  new AppError("邀请码无效或已撤销，请重新登录或更新插件设置。", 401);
+  new AppError("访问密码无效，请使用自己的个人访问密码。", 401);
 
 export async function optionalRequestOwner(
   request: Request,
@@ -31,7 +23,7 @@ export async function optionalRequestOwner(
   }
 }
 
-/** Resolve every request against the current credential and invitation state. */
+/** Resolve every request against the owner credential; historical friend credentials never grant access. */
 export async function resolveRequestOwner(
   request: Request,
   bearerOnly = false,
@@ -40,23 +32,15 @@ export async function resolveRequestOwner(
   const authorization = request.headers.get("authorization");
   if (authorization !== null || bearerOnly) {
     if (!config.enabled && bearerOnly)
-      throw new AppError("服务端尚未配置有效的站主凭据或邀请码。", 503);
+      throw new AppError("服务端尚未配置个人访问密码。", 503);
     const token = authorization?.match(/^Bearer (\S+)$/i)?.[1];
-    const owner =
-      ownerForToken(token) ??
-      (token && invitationToken.test(token)
-        ? await findInvitationOwner(token)
-        : null);
-    if (!owner) throw invalidAccess();
+    const owner = ownerForToken(token);
+    if (owner !== "personal") throw invalidAccess();
     return owner;
   }
   if (!config.enabled) return "personal";
-  const cookie = cookieValue(request.headers);
-  const owner =
-    cookie && invitationCookie.test(cookie)
-      ? await findInvitationSessionOwner(cookie)
-      : ownerForSession(cookie);
-  if (!owner) throw new AppError("请先使用自己的邀请码登录。", 401);
+  const owner = ownerForSession(cookieValue(request.headers));
+  if (owner !== "personal") throw new AppError("请先登录个人空间。", 401);
   return owner;
 }
 
@@ -67,23 +51,13 @@ export async function loginIdentity(token: string) {
   if (!config.enabled)
     return { ownerId: "personal", cookie: null, isAdmin: false };
   const ownerId = ownerForToken(token);
-  if (ownerId)
+  if (ownerId === "personal")
     return {
       ownerId,
       cookie: createSession(ownerId),
       isAdmin: ownerId === "personal",
     };
-  const session = invitationToken.test(token)
-    ? await createInvitationSession(token)
-    : null;
-  if (!session) throw invalidAccess();
-  return { ...session, isAdmin: false };
-}
-
-export async function logoutIdentity(request: Request) {
-  const cookie = cookieValue(request.headers);
-  if (cookie && invitationCookie.test(cookie))
-    await revokeInvitationSession(cookie);
+  throw invalidAccess();
 }
 
 export function requireAdministrator() {

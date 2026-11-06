@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
-export function InvitationPrompt({
+export function PersonalLoginPrompt({
   onClose,
   onSuccess,
 }: {
@@ -55,18 +55,18 @@ export function InvitationPrompt({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <h2 id="invite-prompt-title">创建文章需要邀请码</h2>
-      <p>读范文、用插件都不需要。向站主领取邀请码后，就能上传和生成文章。</p>
+      <h2 id="invite-prompt-title">登录个人空间</h2>
+      <p>网页版供你自己使用。登录后可以上传、生成文章，继续上次的学习。</p>
       <form onSubmit={login}>
-        <label htmlFor="upload-invite">邀请码</label>
+        <label htmlFor="upload-invite">访问密码</label>
         <input
           id="upload-invite"
           type="password"
-          autoComplete="off"
+          autoComplete="current-password"
           required
           value={token}
           onChange={(e) => setToken(e.target.value)}
-          placeholder="粘贴邀请码"
+          placeholder="粘贴访问密码"
           maxLength={512}
         />
         {error && (

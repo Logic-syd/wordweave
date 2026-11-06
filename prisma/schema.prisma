@@ -37,6 +37,7 @@ model GenerationUsage {
   day String
   count Int @default(0)
   inputChars Int @default(0)
+  modelCalls Int @default(0)
   @@unique([ownerId, day])
 }
 model GenerationPermit {

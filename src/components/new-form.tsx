@@ -14,7 +14,8 @@ import { MAX_INPUT, settingsSchema, type Settings } from "@/lib/schemas";
 import { useHydrated } from "./use-hydrated";
 import { SettingsFields } from "./settings-fields";
 import { SpriteIcon } from "./sprite-icon";
-import { InvitationPrompt } from "./invitation-prompt";
+import { PersonalLoginPrompt } from "./personal-login-prompt";
+import { GenerationAllowance } from "./generation-allowance";
 export function NewForm({
   mode,
   configured,
@@ -38,8 +39,8 @@ export function NewForm({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [canCreate, setCanCreate] = useState(authorized);
-  const [invite, setInvite] = useState(false);
-  const [inviteMessage, setInviteMessage] = useState("");
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [loginMessage, setLoginMessage] = useState("");
   const submitting = useRef(false);
   const key = useRef(crypto.randomUUID());
   const upload = useRef<HTMLInputElement>(null);
@@ -57,7 +58,7 @@ export function NewForm({
       return;
     }
     if (!canCreate) {
-      setInvite(true);
+      setLoginOpen(true);
       return;
     }
     if (settings.reviewOnly && !dueWords.length) {
@@ -94,7 +95,7 @@ export function NewForm({
       const data = await response.json();
       if (response.status === 401) {
         setCanCreate(false);
-        setInvite(true);
+        setLoginOpen(true);
         submitting.current = false;
         setBusy(false);
         return;
@@ -238,7 +239,7 @@ export function NewForm({
                   className="text-button"
                   disabled={busy || !hydrated}
                   onClick={() =>
-                    canCreate ? upload.current?.click() : setInvite(true)
+                    canCreate ? upload.current?.click() : setLoginOpen(true)
                   }
                 >
                   <Upload size={15} />
@@ -322,9 +323,10 @@ export function NewForm({
               {error}
             </div>
           )}
-          {inviteMessage && (
+          {canCreate && configured && <GenerationAllowance />}
+          {loginMessage && (
             <p role="status" className="field-hint">
-              {inviteMessage}
+              {loginMessage}
             </p>
           )}
           <button
@@ -351,13 +353,13 @@ export function NewForm({
           </button>
         </aside>
       </form>
-      {invite && (
-        <InvitationPrompt
-          onClose={() => setInvite(false)}
+      {loginOpen && (
+        <PersonalLoginPrompt
+          onClose={() => setLoginOpen(false)}
           onSuccess={() => {
             setCanCreate(true);
-            setInvite(false);
-            setInviteMessage("已验证，可以继续上传或生成。");
+            setLoginOpen(false);
+            setLoginMessage("已验证，可以继续上传或生成。");
             window.dispatchEvent(new Event("wordweave:session"));
             router.refresh();
           }}

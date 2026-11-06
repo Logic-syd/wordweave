@@ -43,7 +43,7 @@ describe("extension authentication boundary", () => {
     expect(JSON.stringify(await denied.json())).not.toContain(token);
     await expect(
       requireExtensionAuth(request(undefined, { authorization: "" })),
-    ).rejects.toThrow(/邀请码无效/);
+    ).rejects.toThrow(/访问密码无效/);
   });
 
   it("allows extension preflight without weakening ordinary API origin checks", async () => {

@@ -2469,3 +2469,7 @@ legend {
 .article-card p {
   color: #777f73;
 }
+
+.generation-allowance { margin: 16px 0; color: #62685f; font-size: 13px; line-height: 1.7; }
+.generation-allowance summary { cursor: pointer; }
+.generation-allowance p { margin: 8px 0 0; }

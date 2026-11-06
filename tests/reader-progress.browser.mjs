@@ -157,6 +157,12 @@ try {
         state.remoteRequests.push(request.url());
         return route.abort();
       }
+      if (url.pathname === "/api/generation/budget") return route.fulfill({ json: {
+        generations: { used: 1, limit: 20, remaining: 19 },
+        inputCharacters: { used: 100, limit: 120000, remaining: 119900 },
+        modelRequests: { used: 1, limit: 100, remaining: 99 },
+        paused: false, resetsAt: Date.now() + 86400000,
+      } });
       if (url.pathname === `/api/articles/${articleId}/generate`) {
         assert.equal(request.method(), "POST");
         state.posts++;

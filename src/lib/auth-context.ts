@@ -20,7 +20,7 @@ export function currentOwnerId() {
     !process.env.EXTENSION_ACCESS_TOKEN
   )
     return "personal";
-  throw new AppError("请先使用自己的邀请码登录。", 401);
+  throw new AppError("请先登录个人空间。", 401);
 }
 
 export function captureOwnerCallback<T>(action: () => T): () => T {

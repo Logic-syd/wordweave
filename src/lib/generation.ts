@@ -20,7 +20,10 @@ import {
 } from "./repository";
 import { normalizeLemma } from "./review";
 import type { Coverage } from "./types";
-import { acquireGenerationPermit } from "./generation-budget";
+import {
+  acquireGenerationPermit,
+  reserveModelRequest,
+} from "./generation-budget";
 import {
   compactVocabularyContext,
   generationLimits,
@@ -63,6 +66,7 @@ async function modelCall(
   data: unknown,
   signal?: AbortSignal,
   validationFeedback?: string,
+  beforeModelCall?: () => Promise<void>,
 ): Promise<Generation> {
   const base = process.env.LLM_BASE_URL!;
   let url: URL;
@@ -83,6 +87,9 @@ async function modelCall(
     throw new AppError("模型服务必须使用 HTTPS（本地开发服务除外）", 503);
   const limits = generationLimits();
   try {
+    signal?.throwIfAborted();
+    await beforeModelCall?.();
+    signal?.throwIfAborted();
     const response = await fetch(url, {
       method: "POST",
       cache: "no-store",
@@ -175,12 +182,15 @@ async function validatedModel(
   budget: GenerationRetryBudget,
   signal?: AbortSignal,
   onRetry?: () => Promise<void> | void,
+  beforeModelCall?: () => Promise<void>,
 ) {
   let feedback: string | undefined;
   for (let attempt = 0; attempt < 2; attempt++) {
     signal?.throwIfAborted();
     try {
-      return validate(await modelCall(instruction, data, signal, feedback));
+      return validate(
+        await modelCall(instruction, data, signal, feedback, beforeModelCall),
+      );
     } catch (error) {
       if (signal?.aborted)
         throw new AppError(
@@ -190,7 +200,8 @@ async function validatedModel(
       feedback = validationMessage(error);
       if (
         (error instanceof ModelRequestError && !error.retryable) ||
-        (error instanceof AppError && [409, 503, 504].includes(error.status)) ||
+        (error instanceof AppError &&
+          [409, 429, 503, 504].includes(error.status)) ||
         feedback.includes("超过大小上限") ||
         attempt === 1 ||
         !budget.take()
@@ -220,6 +231,7 @@ export async function generateTranslated(
     onProgress?: ProgressCallback;
     retryBudget?: GenerationRetryBudget;
     validate?: (result: Generation) => Generation;
+    beforeModelCall?: () => Promise<void>;
   } = {},
 ): Promise<Generation> {
   const all: Generation = { title: "学习文章", terms: [], paragraphs: [] };
@@ -293,6 +305,7 @@ export async function generateTranslated(
               total: chunks.length,
               message: "正在重试未通过校验的分块，已完成部分会保留",
             }),
+          options.beforeModelCall,
         );
       }
       completed++;
@@ -515,6 +528,12 @@ export async function generateArticle(
       503,
     );
   const token = preclaimedToken ?? randomUUID();
+  const beforeModelCall = () =>
+    reserveModelRequest({
+      ownerId: userScope().ownerId,
+      articleId: id,
+      token,
+    });
   const startedAt = new Date().toISOString();
   if (preclaimedToken) {
     if (article.generationToken !== preclaimedToken)
@@ -631,7 +650,7 @@ export async function generateArticle(
         article.mode,
         context,
         signal,
-        { onProgress: progress, retryBudget, validate },
+        { onProgress: progress, retryBudget, validate, beforeModelCall },
       );
     else {
       await progress({
@@ -653,6 +672,7 @@ export async function generateArticle(
             total: 1,
             message: "正在修正未通过校验的德语短文",
           }),
+        beforeModelCall,
       );
     }
     const total =

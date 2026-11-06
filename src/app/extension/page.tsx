@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Download, ExternalLink } from "lucide-react";
 import { SpriteIcon } from "@/components/sprite-icon";
 import { ExtensionSetup } from "@/components/extension-setup";
@@ -79,6 +80,9 @@ export default function ExtensionPage() {
           打开一篇英文文章 <ExternalLink size={16} />
         </a>
       </section>
+      <p>
+        <Link href="/extension/privacy">插件隐私说明</Link>
+      </p>
       <div className={styles.faq}>
         <details>
           <summary>没找到「开发者模式」？</summary>

@@ -29,6 +29,111 @@ function limit(name: string, fallback: number, maximum: number): number {
   return value;
 }
 
+function budgetLimits() {
+  return {
+    personalCount: limit("GENERATION_DAILY_LIMIT", 20, 1000),
+    personalChars: limit("GENERATION_DAILY_CHAR_LIMIT", 120000, 10_000_000),
+    globalCount: limit("GENERATION_GLOBAL_DAILY_LIMIT", 100, 10000),
+    globalChars: limit(
+      "GENERATION_GLOBAL_DAILY_CHAR_LIMIT",
+      600000,
+      100_000_000,
+    ),
+    globalConcurrent: limit("GENERATION_MAX_CONCURRENT", 2, 20),
+    modelCalls: limit("GENERATION_DAILY_MODEL_CALL_LIMIT", 100, 10000),
+  };
+}
+
+/** Read-only display; reservations below remain the authoritative limit checks. */
+export async function getGenerationBudget(ownerId: string) {
+  const limits = budgetLimits();
+  const now = new Date();
+  const day = now.toISOString().slice(0, 10);
+  const rows = await db.generationUsage.findMany({
+    where: { day, ownerId: { in: [ownerId, GLOBAL_OWNER] } },
+  });
+  const personal = rows.find((row) => row.ownerId === ownerId);
+  const global = rows.find((row) => row.ownerId === GLOBAL_OWNER);
+  return {
+    generations: {
+      used: personal?.count ?? 0,
+      limit: limits.personalCount,
+      remaining: Math.max(
+        0,
+        Math.min(
+          limits.personalCount - (personal?.count ?? 0),
+          limits.globalCount - (global?.count ?? 0),
+        ),
+      ),
+    },
+    inputCharacters: {
+      used: personal?.inputChars ?? 0,
+      limit: limits.personalChars,
+      remaining: Math.max(
+        0,
+        Math.min(
+          limits.personalChars - (personal?.inputChars ?? 0),
+          limits.globalChars - (global?.inputChars ?? 0),
+        ),
+      ),
+    },
+    modelRequests: {
+      used: global?.modelCalls ?? 0,
+      limit: limits.modelCalls,
+      remaining: Math.max(0, limits.modelCalls - (global?.modelCalls ?? 0)),
+    },
+    paused: Object.values(limits).some((value) => value === 0),
+    resetsAt: new Date(`${day}T00:00:00.000Z`).getTime() + 86400000,
+  };
+}
+
+export type GenerationBudget = Awaited<ReturnType<typeof getGenerationBudget>>;
+
+/** Reserve each outgoing provider attempt, including chunks and retries.
+ * No refund on errors: an interrupted request may already have been billed.
+ */
+export async function reserveModelRequest({
+  ownerId,
+  articleId,
+  token,
+}: Omit<PermitInput, "inputChars">) {
+  const limits = budgetLimits();
+  if (Object.values(limits).some((value) => value === 0))
+    throw new AppError("生成服务已暂停，已有文章仍可阅读。", 429);
+  await db.$transaction(
+    async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${BUDGET_LOCK})`;
+      const now = new Date();
+      const permit = await tx.generationPermit.findUnique({ where: { token } });
+      if (
+        !permit ||
+        permit.ownerId !== ownerId ||
+        permit.articleId !== articleId ||
+        permit.releasedAt ||
+        permit.expiresAt <= now
+      )
+        throw new AppError("生成许可已结束，请重新发起生成。", 409);
+      const day = now.toISOString().slice(0, 10);
+      const global = await tx.generationUsage.findUnique({
+        where: { ownerId_day: { ownerId: GLOBAL_OWNER, day } },
+      });
+      if ((global?.modelCalls ?? 0) >= limits.modelCalls)
+        throw new AppError(
+          `今日 ${limits.modelCalls} 次模型请求额度已用完，请在 UTC 次日再试。长文分块和重试均计入请求次数。`,
+          429,
+        );
+      for (const bucket of [ownerId, GLOBAL_OWNER]) {
+        await tx.generationUsage.upsert({
+          where: { ownerId_day: { ownerId: bucket, day } },
+          create: { ownerId: bucket, day, modelCalls: 1 },
+          update: { modelCalls: { increment: 1 } },
+        });
+      }
+    },
+    { timeout: 15000, maxWait: 15000 },
+  );
+}
+
 /** A generation reserves capacity before any provider request, including retries.
  * Counts are input-work limits, not a promise about a provider's dollar charges.
  * Failed generations keep their reservation because a provider may have billed.
@@ -53,17 +158,7 @@ export async function acquireGenerationPermit({
   ) {
     throw new AppError("生成额度参数无效，请重新发起生成。", 400);
   }
-  const limits = {
-    personalCount: limit("GENERATION_DAILY_LIMIT", 20, 1000),
-    personalChars: limit("GENERATION_DAILY_CHAR_LIMIT", 120000, 10_000_000),
-    globalCount: limit("GENERATION_GLOBAL_DAILY_LIMIT", 100, 10000),
-    globalChars: limit(
-      "GENERATION_GLOBAL_DAILY_CHAR_LIMIT",
-      600000,
-      100_000_000,
-    ),
-    globalConcurrent: limit("GENERATION_MAX_CONCURRENT", 2, 20),
-  };
+  const limits = budgetLimits();
   if (Object.values(limits).some((value) => value === 0))
     throw new AppError(
       "生成服务已暂时停用，请联系网站维护者。已有文章仍可阅读。",
@@ -110,6 +205,11 @@ export async function acquireGenerationPermit({
           where: { ownerId_day: { ownerId: GLOBAL_OWNER, day } },
         }),
       ]);
+      if ((global?.modelCalls ?? 0) >= limits.modelCalls)
+        throw new AppError(
+          `今日 ${limits.modelCalls} 次模型请求额度已用完，请在 UTC 次日再试。`,
+          429,
+        );
       if ((personal?.count ?? 0) >= limits.personalCount)
         throw new AppError(
           `你今日的 ${limits.personalCount} 次生成额度已用完，请在 UTC 次日再试。失败的生成也可能计入额度。`,

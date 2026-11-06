@@ -28,6 +28,7 @@ import { settingsSchema, type Settings, type Segment } from "@/lib/schemas";
 import { useHydrated } from "./use-hydrated";
 import { WordCard } from "./word-card";
 import { SettingsFields } from "./settings-fields";
+import { GenerationAllowance } from "./generation-allowance";
 import { saveSampleProgress } from "@/lib/sample-storage";
 type SavedSegment = Segment & { occurrenceId?: string };
 const markdownPlugins = [remarkGfm];
@@ -272,6 +273,7 @@ export function Reader({
       return undefined;
     } finally {
       clearTimeout(timeout);
+      window.dispatchEvent(new Event("wordweave:generation-budget"));
     }
   }, [initial.id]);
   const runGeneration = useCallback(async () => {
@@ -344,6 +346,7 @@ export function Reader({
       }
     } finally {
       clearTimeout(timeout);
+      window.dispatchEvent(new Event("wordweave:generation-budget"));
       generationRequest.current = null;
       genLock.current = false;
       setGenerating(false);
@@ -723,6 +726,7 @@ export function Reader({
           </p>
         </section>
       )}
+      {!local && configured && <GenerationAllowance />}
       {(error || article.generationError) && (
         <div className="error-box reader-error" role="alert">
           <AlertCircle size={17} />

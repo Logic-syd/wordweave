@@ -86,13 +86,15 @@ export async function checkPublicBrowsing(baseURL, ownerToken) {
       .fill("React batches state updates to avoid unnecessary re-renders.");
     await page.getByRole("button", { name: "保存并生成学习版" }).click();
     await expect(
-      page.getByRole("dialog", { name: "创建文章需要邀请码" }),
+      page.getByRole("dialog", { name: "登录个人空间" }),
     ).toBeVisible();
     assert.equal(privateWrites.length, 0, "Prompt must precede any upload");
-    await page.getByLabel("邀请码", { exact: true }).fill("invalid-test-token");
+    await page
+      .getByLabel("访问密码", { exact: true })
+      .fill("invalid-test-token");
     await page.getByRole("button", { name: "验证并继续" }).click();
-    await expect(page.getByRole("alert")).toBeVisible();
-    await page.getByLabel("邀请码", { exact: true }).fill(ownerToken);
+    await expect(page.getByRole("dialog").getByRole("alert")).toBeVisible();
+    await page.getByLabel("访问密码", { exact: true }).fill(ownerToken);
     await page.getByRole("button", { name: "验证并继续" }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(page.getByLabel("英文正文", { exact: true })).toHaveValue(
@@ -104,6 +106,16 @@ export async function checkPublicBrowsing(baseURL, ownerToken) {
       0,
       "Authentication must not silently submit or charge",
     );
+
+    await page.goto("/library");
+    await expect(page.getByRole("link", { name: /邀请朋友/ })).toHaveCount(0);
+    await page.goto("/login#invite=obsolete-friend-code");
+    await expect(page).not.toHaveURL(/#invite=/);
+
+    await page.goto("/new?mode=tech");
+    await expect(page.getByText(/今日已生成 \d+ \/ 20 次/)).toBeVisible();
+    await page.getByText(/今日已生成 \d+ \/ 20 次/).click();
+    await expect(page.getByText(/^模型请求 \d+ \/ 100 次/)).toBeVisible();
 
     const visitor = await browser.newContext({
       baseURL,
@@ -130,7 +142,7 @@ export async function checkPublicBrowsing(baseURL, ownerToken) {
     await mobile.goto("/new?mode=tech");
     await mobile.getByRole("button", { name: /上传/ }).click();
     await expect(
-      mobile.getByRole("dialog", { name: "创建文章需要邀请码" }),
+      mobile.getByRole("dialog", { name: "登录个人空间" }),
     ).toBeVisible();
     assert.ok(
       await mobile.evaluate(
@@ -138,7 +150,7 @@ export async function checkPublicBrowsing(baseURL, ownerToken) {
       ),
     );
     await mobile.screenshot({
-      path: `${screenshots}/upload-invite-mobile.png`,
+      path: `${screenshots}/upload-login-mobile.png`,
       fullPage: false,
     });
     await mobile.getByRole("button", { name: "暂时不用" }).click();
@@ -147,9 +159,18 @@ export async function checkPublicBrowsing(baseURL, ownerToken) {
     await expect(
       mobile.getByRole("heading", { name: "把小精灵装进浏览器" }),
     ).toBeVisible();
+    await mobile.getByRole("link", { name: "插件隐私说明" }).click();
+    await expect(
+      mobile.getByRole("heading", { name: "语境插件隐私说明", exact: true }),
+    ).toBeVisible();
+    assert.ok(
+      await mobile.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    );
     await visitor.close();
     assert.deepEqual(errors, []);
-    return "Public browser: eight samples, mode filter, local favorites/progress, isolated visitors, upload-only invitation prompt, invalid/valid login preserving input, mobile reader and plugin install page";
+    return "Public browser: eight samples, mode filter, local favorites/progress, isolated visitors, personal login prompt, invalid/valid login preserving input, mobile reader and plugin install page";
   } finally {
     await context.close();
     await browser.close();

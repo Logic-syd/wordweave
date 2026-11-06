@@ -1,10 +1,5 @@
-import type { Metadata } from "next";
-import { withAdminPage } from "@/lib/auth-page";
-import { Invitations } from "./invitations";
+import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "邀请朋友" };
-
-export default async function InvitesPage() {
-  return withAdminPage(async () => <Invitations />, "/invites");
+export default function InvitesPage() {
+  redirect("/");
 }

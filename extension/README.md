@@ -38,6 +38,8 @@ AI 模式直接连接使用者选择的 OpenAI 兼容服务，生成中文与英
 
 </details>
 
+隐私说明见网站 `/extension/privacy`；维护者的[上架准备清单](../docs/extension-release.md)单独保存，不增加普通用户安装步骤。
+
 ## 开发与验证
 
 ```bash

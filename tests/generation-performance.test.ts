@@ -9,6 +9,7 @@ import {
 } from "../src/lib/generation-limits";
 import { parseSource } from "../src/lib/markdown";
 import { settingsSchema, termSchema } from "../src/lib/schemas";
+import { AppError } from "../src/lib/errors";
 
 const settings = settingsSchema.parse({});
 function source(count: number) {
@@ -62,6 +63,29 @@ afterEach(() => {
 });
 
 describe("bounded generation pipeline", () => {
+  it("reserves every chunk/retry and stops provider traffic when the daily request budget is exhausted", async () => {
+    vi.stubEnv("LLM_CHUNK_CONCURRENCY", "1");
+    let attempts = 0;
+    const beforeModelCall = vi.fn(async () => {
+      if (++attempts > 2) throw new AppError("今日模型请求额度已用完", 429);
+    });
+    const fetcher = vi.fn(async (_url: URL, init: RequestInit) => {
+      expect(beforeModelCall).toHaveBeenCalledTimes(fetcher.mock.calls.length);
+      // First provider attempt fails; its retry must reserve another request.
+      if (fetcher.mock.calls.length === 1)
+        return new Response("unavailable", { status: 500 });
+      return response(requestData(init).input);
+    });
+    vi.stubGlobal("fetch", fetcher);
+    await expect(
+      generateTranslated(source(3), settings, "tech", {}, undefined, {
+        beforeModelCall,
+      }),
+    ).rejects.toMatchObject({ status: 429 });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(beforeModelCall).toHaveBeenCalledTimes(3); // denied attempt is not retried
+  });
+
   it("runs four equally delayed chunks in two waves, preserving source order and progress", async () => {
     vi.useFakeTimers();
     const blocks = source(4);

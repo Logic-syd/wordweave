@@ -70,16 +70,33 @@ describe("trial identities and signed sessions", () => {
     });
   });
 
-  it("keeps the old signed sessions compatible and requires a verified personal identity to manage invitations", async () => {
+  it("rejects historical friend tokens and sessions while preserving the owner credential", async () => {
     configured();
     const cookie = createSession("friend_anna");
-    expect(
-      await resolveRequestOwner(
+    await expect(
+      resolveRequestOwner(
         new Request("https://app.test", {
           headers: { cookie: `${SESSION_COOKIE}=${cookie}` },
         }),
       ),
-    ).toBe("friend_anna");
+    ).rejects.toMatchObject({ status: 401 });
+    for (const token of [friend, `inv_${"a".repeat(64)}`]) {
+      await expect(loginIdentity(token)).rejects.toMatchObject({ status: 401 });
+      await expect(
+        resolveRequestOwner(
+          new Request("https://app.test", {
+            headers: { authorization: `Bearer ${token}` },
+          }),
+        ),
+      ).rejects.toMatchObject({ status: 401 });
+    }
+    await expect(
+      resolveRequestOwner(
+        new Request("https://app.test", {
+          headers: { cookie: `${SESSION_COOKIE}=ses_${"b".repeat(64)}` },
+        }),
+      ),
+    ).rejects.toMatchObject({ status: 401 });
     expect(() => runAsOwner("friend_anna", requireAdministrator)).toThrow(
       /只有站主/,
     );
@@ -151,10 +168,8 @@ describe("trial identities and signed sessions", () => {
       expect(publicPage.headers.get("location")).toBeNull();
     }
     expect(
-      (
-        await proxy(new NextRequest("https://example.test/invites"))
-      ).headers.get("location"),
-    ).toContain("/login");
+      (await proxy(new NextRequest("https://example.test/invites"))).status,
+    ).toBe(200);
   });
 
   it("maps separate tokens to separate owners and keeps legacy personal aliases bounded by active configuration", () => {
@@ -228,7 +243,7 @@ describe("trial identities and signed sessions", () => {
         "x-owner-id": "personal",
       },
     });
-    expect(requireRequestOwner(request)).toBe("friend_anna");
+    expect(() => requireRequestOwner(request)).toThrow();
     await expect(requireExtensionAuth(request)).rejects.toThrow();
     const bearer = new Request(request.url, {
       headers: {
@@ -240,7 +255,17 @@ describe("trial identities and signed sessions", () => {
     const response = await extensionHandler(bearer, async () =>
       NextResponse.json({ owner: currentOwnerId() }),
     );
-    expect(await response.json()).toEqual({ owner: "friend_anna" });
+    expect(response.status).toBe(401);
+    const ownerResponse = await extensionHandler(
+      new Request(request.url, {
+        headers: {
+          authorization: `Bearer ${personal}`,
+          "x-owner-id": "friend_anna",
+        },
+      }),
+      async () => NextResponse.json({ owner: currentOwnerId() }),
+    );
+    expect(await ownerResponse.json()).toEqual({ owner: "personal" });
     expect(response.headers.get("Cache-Control")).toBe("no-store");
     expect(() => currentOwnerId()).toThrow();
   });

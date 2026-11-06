@@ -181,22 +181,19 @@ export function requireRequestOwner(
   const config = trialConfiguration(env);
   const authorization = request.headers.get("authorization");
   if (bearerOnly && !config.enabled && !config.legacyToken)
-    throw new AppError("服务端尚未配置有效的邀请码或插件访问令牌。", 503);
+    throw new AppError("服务端尚未配置个人访问密码。", 503);
   if (authorization !== null || bearerOnly) {
     const owner = ownerForToken(
       authorization?.match(/^Bearer (\S+)$/i)?.[1],
       env,
     );
-    if (!owner)
-      throw new AppError(
-        "邀请码或插件令牌无效或已撤销，请重新登录或更新插件设置。",
-        401,
-      );
+    if (owner !== "personal")
+      throw new AppError("访问密码无效，请使用自己的个人访问密码。", 401);
     return owner;
   }
   if (!config.enabled) return "personal";
   const owner = ownerForSession(cookieValue(request.headers), env);
-  if (!owner) throw new AppError("请先使用自己的邀请码登录。", 401);
+  if (owner !== "personal") throw new AppError("请先登录个人空间。", 401);
   return owner;
 }
 
