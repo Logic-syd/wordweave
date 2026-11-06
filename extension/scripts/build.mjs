@@ -3,6 +3,7 @@ import { zipSync } from "fflate";
 import { cp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { makeChromeStoreKit } from "./store-kit.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const dist = path.join(root, "dist");
@@ -81,9 +82,11 @@ async function collect(directory, prefix = "") {
 await collect(dist);
 const downloads = path.resolve(root, "../public/downloads");
 await mkdir(downloads, { recursive: true });
+const archive = zipSync(files, { level: 9 });
+await writeFile(path.join(downloads, "wordweave-extension.zip"), archive);
 await writeFile(
-  path.join(downloads, "wordweave-extension.zip"),
-  zipSync(files, { level: 9 }),
+  path.join(downloads, "wordweave-chrome-store-kit.zip"),
+  await makeChromeStoreKit(archive),
 );
 console.log(
   "语境插件已构建：extension/dist；下载包：public/downloads/wordweave-extension.zip",

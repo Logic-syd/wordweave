@@ -1,0 +1,15 @@
+{
+  "version": "0.2.1",
+  "settingsScreenshot": "Shipped options.html, options.js and ui.css. Initial config read bridged to DEFAULT_CONFIG. No translation results, credentials or account data. This is a settings UI preview, not native-extension or provider verification.",
+  "promo": "Existing project sprite and factual product copy rendered locally.",
+  "sizes": {
+    "settings-1280x800.png": [
+      1280,
+      800
+    ],
+    "promo-440x280.png": [
+      440,
+      280
+    ]
+  }
+}

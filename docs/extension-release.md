@@ -1,8 +1,8 @@
 # 语境插件：发布准备
 
-**已确定先上 Chrome Web Store；当前 0.2.1 是候选版，尚未上传或提交审核。** 开发者账号待本人注册。插件继续放在这个仓库的 `extension/`，不用新建仓库。
+**先免费上 Chrome Web Store；当前 0.2.1 已备好提交资料，尚未上传或提交审核。** 插件继续放在这个仓库的 `extension/`，不用新建仓库。暂不做订阅、付费墙或邀请码。
 
-直接使用：[首次提交步骤](../extension/store/chrome/submission.md) · [可复制的商品文案](../extension/store/chrome/listing.txt)。运行 `npm run extension:release` 生成带版本号的 ZIP、SHA-256 与检查报告。
+直接使用：[三步上传](../extension/store/chrome/START-HERE.txt) · [填表参考](../extension/store/chrome/submission.md) · [商品文案](../extension/store/chrome/listing.txt)。运行 `npm run extension:release` 生成安装 ZIP、完整资料包、SHA-256 与检查报告。部署后可从 [网站下载资料包](https://wordweave-production.up.railway.app/downloads/wordweave-chrome-store-kit.zip)。
 
 ## 这个项目是什么
 
@@ -14,9 +14,9 @@
 
 1. **确认免费翻译能长期提供。** 当前调用 Google 公开网页翻译接口，并非有服务承诺的官方付费 API。需核对使用条款、目标地区连通性与限流；不能把「永久免费、无限次」写进商品页。云环境尚未通过真实 Google 连通性验证。这是当前主要阻碍，必要时更换合规稳定的提供方式。
 2. **在自己的 Chrome 真装真用。** 加载 `extension/dist/`：测试免费翻译、选段、保留代码、恢复原文、收藏、重启浏览器后恢复；再测试自带 Key、权限拒绝、无效 Key、超时、后台休眠后重试以及升级保留数据。当前自动化使用明确的插件测试框架，不能代替真实 MV3 安装。
-3. **准备商店材料。** 现有 128px 图标可用作素材起点；用真实网页拍摄翻译前后、词卡和收藏截图，发布前核对商店当前尺寸与授权要求。避免截图包含 Key 或私人文章。不要把模拟翻译截图当真实效果。
+3. **上传现成商店材料。** 资料包包含 128px 图标、1280×800 设置界面截图与 440×280 宣传图。截图展示发布包的实际设置 UI，没有模拟译文或凭据。后续可补实机翻译效果；素材格式以提交后台为准。
 4. **部署隐私说明并复核。** 本仓库已准备 `/extension/privacy`。部署后确认该公开地址无需登录、内容与实际版本一致。按真实数据流填写商店隐私披露：正文发送给 Google/用户模型服务，本机保存文章、网址、收藏与 Key。确认 GitHub Issues 联系渠道可用。
-5. **最后再提交。** 到官方开发者后台注册/验证账户，按当时要求缴费（如有）；上传 ZIP、填写说明与权限用途，检查预览。等你明确决定发布时才提交审核，审核通过时间不能保证。
+5. **提交审核。** 到官方开发者后台注册/验证账户，按当时要求缴费（如有）；上传 ZIP、填写说明与权限用途，检查预览后提交。账号注册、法律身份声明、付款和后台提交由本人完成，审核通过时间不能保证。
 
 官方入口：[Chrome 发布说明](https://developer.chrome.com/docs/webstore/publish/)、[商店政策](https://developer.chrome.com/docs/webstore/program-policies/)。注册要求、费用和素材规格以提交时官方后台为准。
 
@@ -62,6 +62,8 @@ npm run test:extension -- --content-harness
 
 - 加载测试目录：`extension/dist/`
 - 候选 ZIP：`extension/release/v0.2.1/wordweave-chrome-0.2.1.zip`（manifest 在 ZIP 根目录）
+- 全部提交资料：同目录 `wordweave-chrome-store-kit.zip`；其中的插件 ZIP 才用于「新建项目」上传。
+- 商店素材源码：`extension/store/chrome/`。更新界面或版本后运行 `node extension/scripts/store-assets.mjs` 重新截图，再运行发布检查。
 - SHA-256 与检查结果：同目录 `SHA256SUMS.txt`、`checks.json`
 - 网站下载副本：`public/downloads/wordweave-extension.zip`
 - 隐私说明源码：`src/app/extension/privacy/page.tsx`

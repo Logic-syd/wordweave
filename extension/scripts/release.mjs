@@ -99,6 +99,18 @@ const directory = path.join(root, "release", `v${manifest.version}`);
 await mkdir(directory, { recursive: true });
 const filename = `wordweave-chrome-${manifest.version}.zip`;
 await writeFile(path.join(directory, filename), archive);
+const storeKit = await readFile(
+  path.resolve(root, "../public/downloads/wordweave-chrome-store-kit.zip"),
+);
+assert.deepEqual(
+  Buffer.from(unzipSync(storeKit)[filename]),
+  archive,
+  "Store kit must include this exact candidate",
+);
+await writeFile(
+  path.join(directory, "wordweave-chrome-store-kit.zip"),
+  storeKit,
+);
 await writeFile(
   path.join(directory, "SHA256SUMS.txt"),
   `${sha256}  ${filename}\n`,
@@ -116,7 +128,7 @@ await writeFile(
       outstanding: [
         "Confirm the free translation provider's terms, availability and rate limits.",
         "Test native Chrome MV3 install, permissions, worker suspension and upgrades.",
-        "Capture genuine screenshots, verify the public privacy URL and complete developer registration.",
+        "Settings UI screenshot and promo image are prepared; verify the public privacy URL and complete developer registration.",
       ],
     },
     null,
@@ -128,5 +140,5 @@ console.log(
 );
 console.log(`SHA-256: ${sha256}`);
 console.log(
-  "尚未提交商店；真实翻译服务、Chrome 原生安装和上架材料仍需完成验证。",
+  "安装包、文案、图标与商店图片已打包；尚未提交商店，真实翻译服务和 Chrome 原生安装待实机确认。",
 );
