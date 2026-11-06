@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { generateTranslated } from "../src/lib/generation";
+import {
+  generateTranslated,
+  validateArticleOutput,
+} from "../src/lib/generation";
+import samples from "../scripts/eval/samples.json";
 import {
   compactVocabularyContext,
   GenerationRetryBudget,
@@ -239,6 +243,56 @@ describe("bounded generation pipeline", () => {
     expect(body.model).toBe("configured-fixture-model");
     expect(body.messages[0].content).not.toContain(marker);
     expect(body.messages[1].content).toContain(marker);
+  });
+  it("sends the GPT-5.4 mini token limit and excludes other providers' switches", async () => {
+    vi.stubEnv("LLM_BASE_URL", "https://api.openai.com/v1");
+    vi.stubEnv("LLM_MODEL", "gpt-5.4-mini-2026-03-17");
+    vi.stubEnv("LLM_MAX_OUTPUT_TOKENS", "3072");
+    vi.stubEnv("LLM_THINKING", "enabled");
+    const transport = vi.fn(async (_url: URL, init: RequestInit) =>
+      response(requestData(init).input),
+    );
+    vi.stubGlobal("fetch", transport);
+    await generateTranslated(
+      parseSource("An English paragraph."),
+      settings,
+      "tech",
+      {},
+    );
+    const [url, init] = transport.mock.calls[0];
+    expect(url.href).toBe("https://api.openai.com/v1/chat/completions");
+    const { body } = requestData(init);
+    expect(body).toMatchObject({
+      response_format: { type: "json_object" },
+      max_completion_tokens: 3072,
+      reasoning_effort: "none",
+      service_tier: "default",
+    });
+    for (const key of ["max_tokens", "thinking", "temperature"])
+      expect(body).not.toHaveProperty(key);
+  });
+  it("applies the website's noun normalization before checking imported German targets", async () => {
+    const sample = samples.find((s) => s.mode === "german")!;
+    const fixture = structuredClone(sample.fixture);
+    const ticket = fixture.terms.find((t) => t.lemma === "Fahrkarte")!;
+    ticket.lemma = "die Fahrkarte";
+    vi.stubGlobal("fetch", async () =>
+      Response.json({
+        choices: [{ message: { content: JSON.stringify(fixture) } }],
+      }),
+    );
+    const settings = settingsSchema.parse(sample.settings);
+    const result = await generateTranslated(
+      parseSource(sample.source),
+      settings,
+      "german",
+      {},
+      undefined,
+      {
+        validate: (r) => validateArticleOutput(r, settings, "german", [], []),
+      },
+    );
+    expect(result.terms.map((t) => t.lemma)).toContain("Fahrkarte");
   });
   it("does not leak German word-count or topic settings into technical translation prompts", async () => {
     const fetchMock = vi.fn(async (_url: URL, init: RequestInit) =>

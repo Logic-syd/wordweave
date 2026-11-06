@@ -14,6 +14,7 @@
     "test:extension:dom": "node extension/tests/dom.mjs",
     "test:extension:ui": "node tests/extension-ui.browser.mjs",
     "test": "vitest run",
+    "eval:materials": "node --env-file-if-exists=.env.eval.local --import tsx scripts/eval/materials.ts",
     "test:e2e": "playwright test",
     "db:generate": "prisma generate",
     "db:check": "tsx scripts/check-database.ts",

@@ -86,6 +86,9 @@ async function modelCall(
   )
     throw new AppError("模型服务必须使用 HTTPS（本地开发服务除外）", 503);
   const limits = generationLimits();
+  const openAiMini =
+    url.origin === "https://api.openai.com" &&
+    /^gpt-5\.4-mini(?:-\d{4}-\d{2}-\d{2})?$/.test(process.env.LLM_MODEL ?? "");
   try {
     signal?.throwIfAborted();
     await beforeModelCall?.();
@@ -114,9 +117,17 @@ async function modelCall(
           },
         ],
         response_format: { type: "json_object" },
-        temperature: 0.5,
-        max_tokens: limits.outputTokens,
-        ...thinkingOptions(url),
+        ...(openAiMini
+          ? {
+              max_completion_tokens: limits.outputTokens,
+              reasoning_effort: "none",
+              service_tier: "default",
+            }
+          : {
+              temperature: 0.5,
+              max_tokens: limits.outputTokens,
+              ...thinkingOptions(url),
+            }),
       }),
     });
     if (!response.ok) {
@@ -516,6 +527,28 @@ function validateTechnicalProse(
       );
   }
 }
+/** Run the same content checks before accepting an import or a generated story. */
+export function validateArticleOutput(
+  result: Generation,
+  settings: Settings,
+  mode: string,
+  targets: { id: string; lemma: string }[],
+  known: { lemma: string }[],
+  generatedSource = false,
+) {
+  if (mode === "german")
+    result.terms = result.terms.map((term) => ({
+      ...term,
+      lemma:
+        term.partOfSpeech === "noun"
+          ? term.lemma.replace(/^(der|die|das)\s+/i, "")
+          : term.lemma,
+    }));
+  if (generatedSource) validateNewGerman(result);
+  validateTargets(result, settings, mode, targets, known);
+  validateSourceSentences(result);
+  return result;
+}
 export async function generateArticle(
   id: string,
   settings: Settings,
@@ -622,26 +655,15 @@ export async function generateArticle(
     };
     const signal = AbortSignal.timeout(240000);
     const retryBudget = new GenerationRetryBudget();
-    const validate = (result: Generation) => {
-      if (article.mode === "german")
-        result.terms = result.terms.map((term) => ({
-          ...term,
-          lemma:
-            term.partOfSpeech === "noun"
-              ? term.lemma.replace(/^(der|die|das)\s+/i, "")
-              : term.lemma,
-        }));
-      if (!article.sourceText) validateNewGerman(result);
-      validateTargets(
+    const validate = (result: Generation) =>
+      validateArticleOutput(
         result,
         settings,
         article.mode,
         targets,
         known.map((word) => word.vocabulary),
+        !article.sourceText,
       );
-      validateSourceSentences(result);
-      return result;
-    };
     let result: Generation;
     if (article.sourceText)
       result = await generateTranslated(

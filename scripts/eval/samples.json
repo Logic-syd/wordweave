@@ -1,0 +1,226 @@
+[
+  {
+    "name": "react-typescript",
+    "mode": "tech",
+    "settings": {
+      "retention": "medium"
+    },
+    "source": "React queues state updates until the event handler finishes. A state setter does not change the value in the current render.\n\nWhen the next value depends on the previous one, pass an updater function to `setCount`. TypeScript infers the parameter type from the state type. See the [React reference](https://react.dev/reference/react/useState).\n\n```tsx\nconst [count, setCount] = useState<number>(0);\nsetCount(previous => previous + 1);\n```",
+    "review": [
+      "两段中文是否保留「事件处理函数结束」和「当前这次渲染的值不会改变」？",
+      "保留使用 updater 的条件：下一个值依赖前一个值。TypeScript 从状态类型推断参数类型。",
+      "选有上下文的表达，例如 queues state updates 或 depends on the previous one；孤立词和产品名价值较低。"
+    ],
+    "fixture": {
+      "title": "React 状态更新",
+      "terms": [
+        {
+          "id": "queue",
+          "lemma": "queue state updates",
+          "partOfSpeech": "phrase",
+          "meaning": "将状态更新加入队列",
+          "grammar": {
+            "note": "主语 React 视为单数，queue 加 -s。"
+          },
+          "explanation": "更新先排队，等事件处理函数结束后再处理。",
+          "example": "React queues state updates until the event handler finishes.",
+          "exampleTranslation": "React 会把状态更新排队，直到事件处理函数结束。",
+          "category": "technical"
+        },
+        {
+          "id": "updater",
+          "lemma": "pass an updater function",
+          "partOfSpeech": "phrase",
+          "meaning": "传入一个更新函数",
+          "grammar": {},
+          "explanation": "函数接收前一个值，再计算下一个值。",
+          "example": "Pass an updater function when the next value depends on the previous one.",
+          "exampleTranslation": "当下一个值依赖前一个值时，传入一个更新函数。",
+          "category": "technical"
+        }
+      ],
+      "paragraphs": [
+        {
+          "id": "p0001",
+          "segments": [
+            {
+              "type": "text",
+              "text": "React 会 "
+            },
+            {
+              "type": "term",
+              "text": "queues state updates",
+              "termId": "queue",
+              "meaning": "将状态更新加入队列",
+              "sentence": "React queues state updates until the event handler finishes."
+            },
+            {
+              "type": "text",
+              "text": "，直到事件处理函数结束。调用状态设置函数不会改变当前这次渲染中的值。"
+            }
+          ]
+        },
+        {
+          "id": "p0002",
+          "segments": [
+            {
+              "type": "text",
+              "text": "当下一个值依赖前一个值时，可以向 ⟦PROTECTED_1_0⟧ "
+            },
+            {
+              "type": "term",
+              "text": "pass an updater function",
+              "termId": "updater",
+              "meaning": "传入一个更新函数",
+              "sentence": "When the next value depends on the previous one, pass an updater function to ⟦PROTECTED_1_0⟧."
+            },
+            {
+              "type": "text",
+              "text": "。TypeScript 根据状态类型推断参数类型。参见 ⟦PROTECTED_1_1⟧。"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "german-a2",
+    "mode": "german",
+    "settings": {
+      "level": "A2",
+      "newWordCount": 3,
+      "requestedWords": "Fahrkarte, abfahren",
+      "topic": "坐火车去见朋友"
+    },
+    "source": "Am Samstag fährt Mia mit dem Bus zum Bahnhof. An der Haltestelle kauft sie eine Fahrkarte.\n\nDer Zug fährt um zehn Uhr ab. Mia wartet auf den Zug, weil er heute später kommt.\n\nAm Abend zeigt sie ihrer Freundin die Fahrkarte. Dann fahren sie zusammen nach Hause.",
+    "review": [
+      "Fahrkarte 是阴性，复数 die Fahrkarten；eine Fahrkarte 作 kaufen 的第四格宾语。",
+      "abfahren 在第二段写作 fährt … ab；fährt 是第三人称单数，ab 在主句句末。",
+      "第三个新词由模型自选；检查其语境价值、原形和搭配。若解释 warten auf，宾语是第四格 den Zug；weil 从句的 kommt 在末尾。",
+      "原文是在公交站买票、等晚点的火车、晚上给朋友看车票；核对中文主体、动作、例句及译文。"
+    ],
+    "fixture": {
+      "title": "米娅坐火车",
+      "terms": [
+        {
+          "id": "ticket",
+          "lemma": "Fahrkarte",
+          "partOfSpeech": "noun",
+          "meaning": "车票",
+          "grammar": {
+            "article": "die",
+            "plural": "die Fahrkarten",
+            "note": "eine Fahrkarte 作 kauft 的第四格宾语。"
+          },
+          "explanation": "乘车时使用的票。阴性单数的第四格不定冠词是 eine。",
+          "example": "Mia kauft eine Fahrkarte.",
+          "exampleTranslation": "米娅买了一张车票。"
+        },
+        {
+          "id": "stop",
+          "lemma": "Haltestelle",
+          "partOfSpeech": "noun",
+          "meaning": "公交站",
+          "grammar": {
+            "article": "die",
+            "plural": "die Haltestellen",
+            "note": "an der Haltestelle 表示地点，an 后用第三格。"
+          },
+          "explanation": "这里指公交车停靠的站点。",
+          "example": "Mia wartet an der Haltestelle.",
+          "exampleTranslation": "米娅在公交站等候。"
+        },
+        {
+          "id": "depart",
+          "lemma": "abfahren",
+          "partOfSpeech": "verb",
+          "meaning": "发车",
+          "grammar": {
+            "infinitive": "abfahren",
+            "currentForm": "fährt … ab",
+            "note": "可分动词。主语 der Zug 是第三人称单数，主句中 fährt 在第二位，ab 放在句末。"
+          },
+          "explanation": "说火车出发时，可以用 abfahren。",
+          "example": "Der Bus fährt jetzt ab.",
+          "exampleTranslation": "公交车现在发车。"
+        }
+      ],
+      "paragraphs": [
+        {
+          "id": "p0001",
+          "segments": [
+            {
+              "type": "text",
+              "text": "周六米娅坐公交车去火车站。她在 "
+            },
+            {
+              "type": "term",
+              "text": "Haltestelle",
+              "termId": "stop",
+              "meaning": "公交站",
+              "sentence": "An der Haltestelle kauft sie eine Fahrkarte."
+            },
+            {
+              "type": "text",
+              "text": " 买了一张 "
+            },
+            {
+              "type": "term",
+              "text": "Fahrkarte",
+              "termId": "ticket",
+              "meaning": "车票",
+              "sentence": "An der Haltestelle kauft sie eine Fahrkarte.",
+              "grammarNote": "eine Fahrkarte 作 kaufen 的第四格宾语。"
+            },
+            {
+              "type": "text",
+              "text": "。"
+            }
+          ]
+        },
+        {
+          "id": "p0002",
+          "segments": [
+            {
+              "type": "text",
+              "text": "火车十点 "
+            },
+            {
+              "type": "term",
+              "text": "fährt … ab",
+              "termId": "depart",
+              "meaning": "发车",
+              "sentence": "Der Zug fährt um zehn Uhr ab.",
+              "grammarNote": "第三人称单数 fährt，前缀 ab 在主句末尾。"
+            },
+            {
+              "type": "text",
+              "text": "。米娅在等火车，因为它今天来得晚些。"
+            }
+          ]
+        },
+        {
+          "id": "p0003",
+          "segments": [
+            {
+              "type": "text",
+              "text": "晚上，她把 "
+            },
+            {
+              "type": "term",
+              "text": "Fahrkarte",
+              "termId": "ticket",
+              "meaning": "车票",
+              "sentence": "Am Abend zeigt sie ihrer Freundin die Fahrkarte.",
+              "grammarNote": "die Fahrkarte 在这里是第四格，接收者 ihrer Freundin 用第三格。"
+            },
+            {
+              "type": "text",
+              "text": " 给她的朋友看。然后她们一起回家。"
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

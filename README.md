@@ -57,6 +57,8 @@ docker compose exec -T db pg_restore --clean --if-exists --no-owner --no-privile
 
 ## 启用真实生成
 
+用两篇固定样文检验 OpenAI 或 DeepSeek 的站内生成、词卡与调用成本，见[模型对照测试](docs/model-eval.md)。
+
 三项均为**服务端**变量，在 `.env` 或托管环境的安全变量设置中填写：
 
 ```dotenv
