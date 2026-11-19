@@ -2,6 +2,7 @@ import {groupUnits} from './learning.js';
 import {importLinks,isLinkInput,pasteArticleParts} from './readalong-import.js';
 const $=id=>document.getElementById(id), synth=window.speechSynthesis;
 let sourceUrl='',prepared=null,busy=false;
+let centerFrame=0;
 const vocabularyPending=new Set();
 let hiddenArticles=new Set();try{hiddenArticles=new Set(JSON.parse(localStorage.getItem('readalong.hidden')||'[]'))}catch{}
 let articles=[], current=null, sentences=[], index=0, playing=false, timer=null, token=0, voices=[], utterance=null;
@@ -31,11 +32,33 @@ function updateVocabularyStatus(message){
   $('vocabulary').textContent=pending?'正在精选…':count?'已标注 '+count+' 个重点词':'AI 标注重点词';
   $('vocabulary-status').textContent=message||(count?'点击原文标记看中文释义':'每篇 3–5 个 · 点击原文标记看释义');
 }
-function highlight(){[...$('sentences').children].forEach((b,i)=>b.classList.toggle('active',i===index));$('progress').max=sentences.length||1;$('progress').value=index; if(current){current.index=index;save()}}
+// Scroll only the article pane; never move the surrounding page or controls.
+function centerCurrentSentence(){
+  cancelAnimationFrame(centerFrame);
+  centerFrame=requestAnimationFrame(()=>{
+    const root=$('sentences'),row=root.children[index];
+    if(!row||!sentences.length)return;
+    const pane=root.getBoundingClientRect(),sentence=row.getBoundingClientRect();
+    const toolbar=document.querySelector('.practice-toolbar').getBoundingClientRect();
+    const top=Math.max(pane.top+root.clientTop,toolbar.bottom,0);
+    const bottom=Math.min(pane.top+root.clientTop+root.clientHeight,window.innerHeight);
+    if(bottom<=top)return;
+    // Oversized sentences start at the top; first/last sentences stop at the boundaries.
+    const offset=sentence.height>bottom-top?sentence.top-top:(sentence.top+sentence.bottom-top-bottom)/2;
+    const target=Math.max(0,Math.min(root.scrollHeight-root.clientHeight,root.scrollTop+offset));
+    root.scrollTo({top:target,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
+  });
+}
+function highlight(){
+  [...$('sentences').children].forEach((b,i)=>b.classList.toggle('active',i===index));
+  $('progress').max=sentences.length||1;$('progress').value=index;
+  if(current){current.index=index;save()}
+  centerCurrentSentence();
+}
 function library(){let root=$('library');root.replaceChildren();if(!articles.length){root.textContent='保存的文章会出现在这里。';return}articles.forEach(a=>{let row=document.createElement('div');row.className='library-row';let open=document.createElement('button');open.textContent=a.title;open.onclick=()=>load(a);let del=document.createElement('button');del.textContent='×';del.setAttribute('aria-label','删除 '+a.title);del.onclick=()=>{if(!confirm('删除这篇文章？'))return;hiddenArticles.add(a.id);try{localStorage.setItem('readalong.hidden',JSON.stringify([...hiddenArticles]))}catch{}articles=articles.filter(x=>x.id!==a.id);if(current?.id===a.id){stop();current=null;$('status').textContent='文章已从收藏删除。'}save();library()};row.append(open,del);root.append(row)})}
 function load(a){stop();$('import-status').textContent='';$('ai-status').textContent='';current=a;$('title').value=a.title;$('text').value=a.text;sourceUrl=a.source||'';prepared=a.help?{text:a.text,paragraphs:a.help}:null;showHelp(a.help);refreshLinks();sentences=split(a.text);index=Math.min(a.index||0,Math.max(0,sentences.length-1));$('practiceTitle').textContent=a.title;render();$('status').textContent='已准备好，点击开始跟读。'}
 function start(){if(!sentences.length){$('status').textContent='请先粘贴文章并生成练习。';return}if(!synth||!voices.length){$('status').textContent='没有可用英语声音，请在设备设置中安装英语语音，或更换浏览器。';return}playing=true;$('play').textContent='停止 / 休息';speak(token)}
-function speak(run){if(!playing||run!==token)return;highlight();$('sentences').children[index]?.scrollIntoView({behavior:'smooth',block:'nearest'});utterance=new SpeechSynthesisUtterance(sentences[index]);utterance.voice=voices.find(v=>v.voiceURI===$('voice').value)||voices[0];utterance.lang=utterance.voice.lang;utterance.rate=Number($('rate').value);let startTime=performance.now();$('status').textContent=`正在听 · 第 ${index+1} / ${sentences.length} 句`;utterance.onend=()=>{if(!playing||run!==token)return;const mode=$('mode').value;const gap=mode==='listen'?350:Math.max(2000,(performance.now()-startTime)*Number($('gap').value));$('status').textContent=mode==='listen'?'准备下一句…':'轮到你了 · 跟着说一遍';timer=setTimeout(()=>{if(run!==token||!playing)return;if(mode!=='loop')index++;if(index>=sentences.length){index=0;stop();$('progress').value=sentences.length;$('status').textContent='这一篇练完了。再读一轮，或换一篇。';if(current){current.index=0;save()}return}speak(run)},gap)};utterance.onerror=e=>{if(run!==token)return;stop();$('status').textContent='朗读未完成，请重试或切换声音。'};synth.speak(utterance)}
+function speak(run){if(!playing||run!==token)return;highlight();utterance=new SpeechSynthesisUtterance(sentences[index]);utterance.voice=voices.find(v=>v.voiceURI===$('voice').value)||voices[0];utterance.lang=utterance.voice.lang;utterance.rate=Number($('rate').value);let startTime=performance.now();$('status').textContent=`正在听 · 第 ${index+1} / ${sentences.length} 句`;utterance.onend=()=>{if(!playing||run!==token)return;const mode=$('mode').value;const gap=mode==='listen'?350:Math.max(2000,(performance.now()-startTime)*Number($('gap').value));$('status').textContent=mode==='listen'?'准备下一句…':'轮到你了 · 跟着说一遍';timer=setTimeout(()=>{if(run!==token||!playing)return;if(mode!=='loop')index++;if(index>=sentences.length){index=0;stop();$('progress').value=sentences.length;$('status').textContent='这一篇练完了。再读一轮，或换一篇。';if(current){current.index=0;save()}return}speak(run)},gap)};utterance.onerror=e=>{if(run!==token)return;stop();$('status').textContent='朗读未完成，请重试或切换声音。'};synth.speak(utterance)}
 function getVoices(){if(!synth){$('status').textContent='此浏览器不支持朗读，请使用支持语音合成的浏览器。';return}const old=$('voice').value;voices=synth.getVoices().filter(v=>/^en([_-]|$)/i.test(v.lang));$('voice').replaceChildren();voices.forEach(v=>{let o=document.createElement('option');o.value=v.voiceURI;o.textContent=v.name+' · '+v.lang;$('voice').append(o)});if(voices.some(v=>v.voiceURI===old))$('voice').value=old;if(!voices.length){let o=document.createElement('option');o.textContent='暂无英语声音';$('voice').append(o)}}
 function generate(){let text=$('text').value.trim();if(!text){$('status').textContent='请先粘贴英文正文。';$('text').focus();return}let title=$('title').value.trim()||'未命名文章 · '+new Date().toLocaleDateString();let a={id:current?.id||Date.now().toString(),title,text,index:0,source:sourceUrl,help:prepared?.text===text?prepared.paragraphs:null,vocabulary:current?.text===text?current.vocabulary:null};articles=articles.filter(x=>x.id!==a.id);articles.unshift(a);save();library();load(a)};
 $('play').onclick=()=>{if(playing){stop();$('status').textContent='已停止，再次开始将重读当前句。'}else start()};

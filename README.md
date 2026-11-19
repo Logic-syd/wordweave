@@ -12,9 +12,15 @@
 
 [Wordweave 听说工作台](workbench/) 是可独立运行的第二个工具。用自己的材料做 5 或 20 分钟练习，逐词核对听写，按要点批改回答，并把漏听的表达排进复习。运行方法和个人 API 配置见工作台目录。
 
-## 阅读与跟读工作台
+## 阅读与跟读工作台 · Reading and shadowing
 
 [Read Along 阅读工作台](reading/) 是独立入口，支持正文与链接导入、逐句跟读和每篇 3–5 个 AI 重点词释义。进入该目录后 `npm run dev` 即可本地运行，无需安装依赖。
+
+阅读工具的完整中英双语说明见 [Read Along README](reading/README.md)。项目学习目标覆盖英语与德语，后续再按语言配置扩展；各工具保持独立，写作模块暂不加入。Read Along 主页目前仍为英语设置，具体语言范围见其 README。
+
+[Read Along](reading/) is a standalone reading and shadowing tool with text/link import, a compact player, automatic active-sentence centering, and 3–5 AI vocabulary notes per article. Run `npm run dev` from that directory; no dependency installation is required. Its [bilingual README](reading/README.md#english) covers setup, data storage, and current language limitations.
+
+Wordweave targets English and German learning, with additional languages planned through language-specific configuration. Each tool remains independently usable. Writing practice is outside the current scope; the Read Along homepage still uses English settings.
 
 `v1.0.0-listening-speaking-reading` 标记「第一版听说读」：保留原阅读器、`workbench/` 听说工具与 `reading/` 阅读跟读工具的独立使用方式。版本范围与启动方式见 [版本说明](docs/releases/v1.0.0-listening-speaking-reading.md)。
 
