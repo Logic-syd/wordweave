@@ -313,7 +313,7 @@ try {
   await check("a temporary polling failure shows a connection hint and recovers automatically", async () => {
     const { page, state } = await fixture(activeArticle());
     state.failGet = true;
-    const connection = page.getByText(/^暂时无法更新进度/);
+    const connection = page.getByText(/^暂时无法读取最新生成进度/);
     await expect(connection).toBeVisible();
     state.failGet = false;
     state.article = activeArticle(8_000, 2);
@@ -361,6 +361,37 @@ try {
     await expect(page.getByText("[图片：架构示意图]", { exact: true })).toBeVisible();
     await expect(page.locator("img")).toHaveCount(0);
     assert.deepEqual(state.remoteRequests, []);
+    assert.deepEqual(state.errors, []);
+  });
+
+  await check("partial translations retain original text and distinguish refusal from unattempted content after reload", async () => {
+    const sources = [paragraph, "Provider-refused fixture text.", "Content not yet isolated."];
+    const initial = article({
+      sourceText: sources.join("\n\n"),
+      sourceBlocks: sources.map((text, i) => ({ id: `p000${i + 1}`, kind: "paragraph", original: text, masked: text, protected: {} })),
+      version: {
+        id: "partial-version", settings, createdAt: new Date().toISOString(), occurrences: [],
+        coverage: { newWords: [], reviewWords: [], requestedNew: 0, requestedReview: 0, missing: [], untranslated: [
+          { sourceId: "p0002", reason: "content_refused" }, { sourceId: "p0003", reason: "recovery_limit" },
+        ] },
+        paragraphs: sources.map((text, i) => ({ id: `paragraph-${i}`, sourceId: `p000${i + 1}`, position: i,
+          original: text, segments: [{ type: "text", text: i ? text : "React 会批量处理状态更新。" }],
+        })),
+      },
+    });
+    const { page, state, mount } = await fixture(initial);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.getByRole("status", { name: "翻译完成情况" })).toContainText("2 段保留原文");
+    await expect(page.locator("#p0002")).toContainText("模型拒绝翻译本段，已保留原文。");
+    await expect(page.locator("#p0002")).toContainText(sources[1]);
+    await expect(page.locator("#p0003")).toContainText("本段暂未翻译");
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
+    await page.reload(); await mount();
+    await expect(page.locator("#p0002")).toContainText("模型拒绝翻译本段");
+    await page.getByRole("button", { name: "英文原文", exact: true }).click();
+    await expect(page.locator("#p0002")).toContainText(sources[1]);
+    await expect(page.locator("#p0002")).not.toContainText("模型拒绝翻译本段");
+    assert.equal(state.posts, 0);
     assert.deepEqual(state.errors, []);
   });
 

@@ -3,12 +3,13 @@ import { webcrypto } from "node:crypto";
 import { runInNewContext } from "node:vm";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { ExtensionResponse } from "../extension/src/protocol";
-import type { ArticleDetail, UserWord, VocabularyView } from "../src/lib/types";
+import type { ArticleDetail } from "../src/lib/types";
 
 let workerCode = "";
 const extensionId = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const configKey = "wordweave.config";
-const libraryKey = "wordweave.local.library";
+const cacheKey = "wordweave.translation.cache";
+const legacyLibraryKey = "wordweave.local.library";
 const legacyServer = "https://old-learning.example";
 const legacyToken = "old-server-token-never-to-send";
 const apiKey = "personal-ai-key-test-fixture";
@@ -58,6 +59,7 @@ type TranslationContext = {
   mode: "free" | "ai";
   retention: string;
   ai?: { baseUrl: string; apiKey: string; model: string };
+  onPartial?: (article: ArticleDetail) => void;
   onProgress?: (value: {
     stage: string;
     completed: number;
@@ -85,12 +87,7 @@ type Job = {
   status: "pending" | "running" | "succeeded" | "failed";
   article?: ArticleDetail;
   error?: string;
-};
-type Library = {
-  articles: ArticleDetail[];
-  words: VocabularyView[];
-  jobs: Job[];
-  localOnly: boolean;
+  revision?: number;
 };
 
 function fixtureArticle(
@@ -222,7 +219,7 @@ function createWorker(
     );
   });
   const set = vi.fn(async (value: Store) => {
-    if (options.failStorage?.() && libraryKey in value)
+    if (options.failStorage?.() && cacheKey in value)
       throw new Error("QUOTA_BYTES quota exceeded");
     Object.assign(store, structuredClone(value));
   });
@@ -324,11 +321,6 @@ async function startAndComplete(
   const job = success<Job>(await worker.send(message, sender));
   return completed(worker, job.id, sender);
 }
-async function library(worker: Worker) {
-  return success<Library>(
-    await worker.send({ type: "ww:library:get" }, librarySender),
-  );
-}
 function otherPage(url = "https://developer.example/another-article") {
   return { ...pageSender, url, tab: { ...pageSender.tab, url } };
 }
@@ -392,13 +384,11 @@ describe("local worker transport and authorization", () => {
         expect.objectContaining({ mode: "free" }),
       );
       expect(worker.fetch).not.toHaveBeenCalled();
-      expect(JSON.stringify(worker.store[libraryKey])).not.toContain(
-        legacyToken,
-      );
+      expect(JSON.stringify(worker.store[cacheKey])).not.toContain(legacyToken);
     }
   });
 
-  it("allows secrets/library only in trusted UI and gives pages secret-free preferences", async () => {
+  it("allows secrets/cache clearing only in trusted UI and gives pages secret-free preferences", async () => {
     const worker = createWorker({ store: { [configKey]: aiConfig } });
     for (const type of [
       "ww:config:get",
@@ -406,8 +396,6 @@ describe("local worker transport and authorization", () => {
       "ww:status",
       "ww:models:list",
       "ww:cache:clear",
-      "ww:library:get",
-      "ww:library:delete",
     ])
       expect(
         await worker.send({ type, config: freeConfig, id: "local_example" }),
@@ -423,11 +411,11 @@ describe("local worker transport and authorization", () => {
       /aiApiKey|accessToken|personal-ai-key|old-server-token/,
     );
     expect(
-      await worker.send({ type: "ww:config:get" }, librarySender),
+      await worker.send({ type: "ww:config:get" }, uiSender),
     ).toMatchObject({ ok: true, data: { aiApiKey: apiKey } });
     expect(
-      await worker.send({ type: "ww:library:get" }, librarySender),
-    ).toMatchObject({ ok: true });
+      await worker.send({ type: "ww:config:get" }, librarySender),
+    ).toMatchObject({ ok: false, status: 403 });
     expect(worker.chrome.storage.local.setAccessLevel).toHaveBeenCalledWith({
       accessLevel: "TRUSTED_CONTEXTS",
     });
@@ -437,13 +425,13 @@ describe("local worker transport and authorization", () => {
     expect(worker.fetch).not.toHaveBeenCalled();
   });
 
-  it("removes saved credentials through trusted settings and preserves the library across restart", async () => {
+  it("removes saved credentials through trusted settings and preserves the cache across restart", async () => {
     const worker = createWorker({
       store: { [configKey]: aiConfig },
       granted: ["https://api.deepseek.com/*"],
     });
     await startAndComplete(worker, { ...startMessage, translationMode: "ai" });
-    const savedLibrary = structuredClone(worker.store[libraryKey]);
+    const savedLibrary = structuredClone(worker.store[cacheKey]);
     const cleared = {
       ...aiConfig,
       translationMode: "free",
@@ -456,7 +444,7 @@ describe("local worker transport and authorization", () => {
     expect(
       await worker.send({ type: "ww:config:set", config: cleared }, uiSender),
     ).toMatchObject({ ok: true });
-    expect(worker.store[libraryKey]).toEqual(savedLibrary);
+    expect(worker.store[cacheKey]).toEqual(savedLibrary);
     const restarted = createWorker({ store: worker.store });
     expect(
       await restarted.send({ type: "ww:config:get" }, uiSender),
@@ -467,7 +455,7 @@ describe("local worker transport and authorization", () => {
     expect(
       await restarted.send({ type: "ww:models:list" }, uiSender),
     ).toMatchObject({ ok: false });
-    expect(restarted.store[libraryKey]).toEqual(savedLibrary);
+    expect(restarted.store[cacheKey]).toEqual(savedLibrary);
     expect(restarted.discoverModels).not.toHaveBeenCalled();
     expect(restarted.fetch).not.toHaveBeenCalled();
   });
@@ -514,7 +502,7 @@ describe("local worker transport and authorization", () => {
         ai: { baseUrl: aiConfig.aiBaseUrl, apiKey, model: aiConfig.aiModel },
       }),
     );
-    expect(JSON.stringify(worker.store[libraryKey])).not.toContain(apiKey);
+    expect(JSON.stringify(worker.store[cacheKey])).not.toContain(apiKey);
     expect(worker.fetch).not.toHaveBeenCalled();
   });
 
@@ -550,27 +538,25 @@ describe("local worker transport and authorization", () => {
     ).toMatchObject({ ok: false, status: 400 });
     expect(worker.translate).not.toHaveBeenCalled();
     const job = await startAndComplete(worker);
-    const wordId = job.article!.version!.occurrences[0].vocabularyId;
     for (const message of [
       { type: "ww:job:get", id: job.id },
       { type: "ww:job:retry", id: job.id },
-      { type: "ww:word:update", id: wordId, patch: { favorite: true } },
     ])
       expect(await worker.send(message, otherPage())).toMatchObject({
         ok: false,
         status: 403,
       });
-    expect(
-      await worker.send({ type: "ww:reader:open", id: job.id }),
-    ).toMatchObject({ ok: true });
-    expect(worker.chrome.tabs.create).toHaveBeenCalledWith({
-      url: `chrome-extension://${extensionId}/library.html?article=${job.id}`,
-    });
+    for (const type of ["ww:reader:open", "ww:library:get", "ww:word:update"])
+      expect(await worker.send({ type, id: job.id }, uiSender)).toMatchObject({
+        ok: false,
+        status: 400,
+      });
+    expect(worker.chrome.tabs.create).not.toHaveBeenCalled();
     expect(worker.fetch).not.toHaveBeenCalled();
   });
 });
 
-describe("local worker durable jobs and vocabulary", () => {
+describe("local worker translation cache", () => {
   it("responds immediately, coalesces concurrent starts and reuses completed work after restart", async () => {
     let finish!: () => void;
     const pending = new Promise<void>((resolve) => {
@@ -593,7 +579,7 @@ describe("local worker durable jobs and vocabulary", () => {
       status: "running",
     });
     await vi.waitFor(() => expect(worker.translate).toHaveBeenCalledTimes(1));
-    expect(JSON.stringify(worker.store[libraryKey])).toContain(job.id);
+    expect(JSON.stringify(worker.store[cacheKey])).toContain(job.id);
     finish();
     await completed(worker, job.id);
     expect(success<Job>(await worker.send(startMessage))).toMatchObject({
@@ -701,133 +687,131 @@ describe("local worker durable jobs and vocabulary", () => {
       await worker.send({ type: "ww:job:retry", id: ids[0] }),
     ).toMatchObject({ ok: false });
     expect(worker.translate).toHaveBeenCalledTimes(6);
-    expect(JSON.stringify(worker.store[libraryKey])).not.toMatch(
+    expect(JSON.stringify(worker.store[cacheKey])).not.toMatch(
       /personal-ai-key-test-fixture|different-personal-key|old-server-token/,
     );
     expect(worker.fetch).not.toHaveBeenCalled();
   });
 
-  it("persists local vocabulary and retains explicit favorites after deleting articles and clearing cache", async () => {
-    const worker = createWorker();
-    const job = await startAndComplete(worker);
-    const wordId = job.article!.version!.occurrences[0].vocabularyId;
-    expect(
-      success<UserWord>(
-        await worker.send({
-          type: "ww:word:update",
-          id: wordId,
-          patch: { favorite: true, status: "LEARNING" },
-        }),
-      ),
-    ).toMatchObject({ favorite: true, status: "LEARNING" });
-    expect(
-      (await library(worker)).words.find((word) => word.id === wordId)?.user,
-    ).toMatchObject({ favorite: true, status: "LEARNING" });
-    const restarted = createWorker({ store: worker.store });
-    expect(
-      success<Job>(await restarted.send({ type: "ww:job:get", id: job.id }))
-        .article!.version!.occurrences[0].word.user,
-    ).toMatchObject({ favorite: true });
-    expect(
-      await restarted.send(
-        { type: "ww:library:delete", id: job.id },
-        librarySender,
-      ),
-    ).toMatchObject({ ok: true });
-    expect((await library(restarted)).articles).toHaveLength(0);
-    expect(
-      (await library(restarted)).words.find((word) => word.id === wordId)?.user
-        ?.favorite,
-    ).toBe(true);
-    expect(
-      await restarted.send({ type: "ww:cache:clear" }, uiSender),
-    ).toMatchObject({ ok: true });
-    expect(
-      (await library(restarted)).words.find((word) => word.id === wordId)?.user
-        ?.favorite,
-    ).toBe(true);
-    expect(restarted.fetch).not.toHaveBeenCalled();
-  });
-
-  it("preserves existing data when storage rejects writes or article/byte limits are reached", async () => {
-    let rejectStorage = false;
-    const worker = createWorker({ failStorage: () => rejectStorage });
-    const first = await startAndComplete(worker);
-    const wordId = first.article!.version!.occurrences[0].vocabularyId;
-    expect(
-      await worker.send({
-        type: "ww:word:update",
-        id: wordId,
-        patch: { favorite: true },
-      }),
-    ).toMatchObject({ ok: true });
-    const before = structuredClone(worker.store[libraryKey]);
-    rejectStorage = true;
-    const different = {
-      ...startMessage,
-      input: {
-        ...startMessage.input,
-        blocks: [{ id: "b0", markdown: "A different paragraph about state." }],
-      },
+  it("preserves old articles/favorites while evicting translation cache automatically", async () => {
+    const legacy = {
+      version: 1,
+      jobs: [{ id: "old-article" }],
+      words: [{ favorite: true }],
     };
-    expect(await worker.send(different)).toMatchObject({ ok: false });
-    expect(worker.store[libraryKey]).toEqual(before);
-    expect(worker.translate).toHaveBeenCalledTimes(1);
-    rejectStorage = false;
-    for (let index = 1; index < 20; index++)
+    const worker = createWorker({
+      store: { [legacyLibraryKey]: structuredClone(legacy) },
+    });
+    const first = await startAndComplete(worker);
+    for (let index = 1; index < 22; index++) {
       await startAndComplete(worker, {
         ...startMessage,
         input: {
           ...startMessage.input,
-          blocks: [{ id: "b0", markdown: `State update paragraph ${index}.` }],
+          blocks: [{ id: "b0", markdown: `Paragraph ${index}.` }],
         },
       });
-    const full = structuredClone(worker.store[libraryKey]);
-    expect(await worker.send(different)).toMatchObject({
-      ok: false,
-      status: 429,
-    });
-    expect(worker.store[libraryKey]).toEqual(full);
+    }
+    expect(worker.translate).toHaveBeenCalledTimes(22);
     expect(
-      (await library(worker)).words.find((word) => word.id === wordId)?.user
-        ?.favorite,
-    ).toBe(true);
-    expect(worker.translate).toHaveBeenCalledTimes(20);
+      await worker.send({ type: "ww:job:get", id: first.id }),
+    ).toMatchObject({ ok: false, status: 404 });
+    expect((worker.store[cacheKey] as { jobs: unknown[] }).jobs).toHaveLength(
+      20,
+    );
+    expect(worker.store[legacyLibraryKey]).toEqual(legacy);
+    expect(
+      await worker.send({ type: "ww:cache:clear" }, uiSender),
+    ).toMatchObject({ ok: true });
+    expect((worker.store[cacheKey] as { jobs: unknown[] }).jobs).toHaveLength(
+      0,
+    );
+    expect(worker.store[legacyLibraryKey]).toEqual(legacy);
+  });
 
-    let oversized = false;
-    const byteLimited = createWorker({
+  it("reports partial results before completion without writing every paragraph to storage", async () => {
+    let finish!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const worker = createWorker({
       translate: async (input, context) => {
         const article = fixtureArticle(input, context);
-        if (oversized) article.sourceText = "x".repeat(5 * 1024 * 1024);
+        context.onPartial?.(article);
+        await pending;
         return article;
       },
     });
-    const saved = await startAndComplete(byteLimited);
-    const savedWord = saved.article!.version!.occurrences[0].vocabularyId;
-    success(
-      await byteLimited.send({
-        type: "ww:word:update",
-        id: savedWord,
-        patch: { favorite: true },
+    const job = success<Job>(await worker.send(startMessage));
+    let partial: Job | undefined;
+    await vi.waitFor(async () => {
+      partial = success<Job>(
+        await worker.send({ type: "ww:job:get", id: job.id }),
+      );
+      expect(partial.status).toBe("running");
+      expect(partial.article?.version?.paragraphs).toHaveLength(1);
+    });
+    expect(
+      (worker.store[cacheKey] as { jobs: Job[] }).jobs[0].article,
+    ).toBeUndefined();
+    const reads = worker.chrome.storage.local.get.mock.calls.length;
+    const unchanged = success<Job>(
+      await worker.send({
+        type: "ww:job:get",
+        id: job.id,
+        afterRevision: partial!.revision,
       }),
     );
-    const savedArticle = (await library(byteLimited)).articles[0];
+    expect(unchanged.article).toBeUndefined();
+    expect(unchanged.status).toBe("running");
+    expect(worker.chrome.storage.local.get.mock.calls.length).toBe(reads);
+    finish();
+    const ready = await completed(worker, job.id);
+    expect(ready.revision).toBeGreaterThan(partial!.revision!);
+    expect(ready.article).toBeDefined();
+  });
+
+  it("does not call providers after a failed initial storage write and retains prior results on an oversized response", async () => {
+    let rejectStorage = false;
+    let oversized = false;
+    const worker = createWorker({
+      failStorage: () => rejectStorage,
+      translate: async (input, context) => {
+        const article = fixtureArticle(input, context);
+        if (oversized) article.sourceText = "x".repeat(4 * 1024 * 1024);
+        return article;
+      },
+    });
+    const first = await startAndComplete(worker);
+    const before = structuredClone(worker.store[cacheKey]);
+    const different = {
+      ...startMessage,
+      input: {
+        ...startMessage.input,
+        blocks: [{ id: "b0", markdown: "Different source paragraph." }],
+      },
+    };
+    rejectStorage = true;
+    expect(await worker.send(different)).toMatchObject({ ok: false });
+    expect(worker.store[cacheKey]).toEqual(before);
+    expect(worker.translate).toHaveBeenCalledTimes(1);
+    rejectStorage = false;
     oversized = true;
-    const tooLarge = success<Job>(await byteLimited.send(different));
+    const tooLarge = success<Job>(await worker.send(different));
     await vi.waitFor(async () => {
       const failed = success<Job>(
-        await byteLimited.send({ type: "ww:job:get", id: tooLarge.id }),
+        await worker.send({ type: "ww:job:get", id: tooLarge.id }),
       );
-      expect(failed).toMatchObject({ status: "failed" });
-      expect(failed.error).toContain("5 MiB");
+      expect(failed.status).toBe("failed");
+      expect(failed.error).toContain("缓存过大");
     });
-    const afterOversize = await library(byteLimited);
-    expect(afterOversize.articles).toEqual([savedArticle]);
-    expect(afterOversize.words).toHaveLength(1);
-    expect(afterOversize.words[0].user?.favorite).toBe(true);
     expect(
-      new TextEncoder().encode(JSON.stringify(byteLimited.store[libraryKey]))
+      success<Job>(await worker.send({ type: "ww:job:get", id: first.id }))
+        .article,
+    ).toEqual(first.article);
+    expect(
+      new TextEncoder().encode(JSON.stringify(worker.store[cacheKey]))
         .byteLength,
-    ).toBeLessThan(5 * 1024 * 1024);
+    ).toBeLessThan(3 * 1024 * 1024);
   });
 });

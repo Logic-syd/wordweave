@@ -15,7 +15,6 @@ import tailwindcss from "@tailwindcss/postcss";
 import { chromium, expect } from "@playwright/test";
 
 const repository = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const optionsOnly = process.argv.includes("--options-only");
 const testFilter = process.argv.find((argument) => argument.startsWith("--match="))?.slice("--match=".length);
 const temporary = await mkdtemp(join(tmpdir(), "wordweave-extension-ui-"));
 const screenshots = join(repository, "test-results", "extension-ui");
@@ -29,52 +28,8 @@ const defaults = {
   retention: "medium",
   glossMode: "first",
 };
-const originalSentence = "React batches state updates to avoid unnecessary re-renders.";
-const fixtureWord = {
-  id: "local-word-fixture",
-  language: "en",
-  lemma: "avoid unnecessary re-renders",
-  partOfSpeech: "phrase",
-  meaning: "避免不必要的重新渲染",
-  grammar: { article: "", plural: "", infinitive: "", currentForm: "", note: "avoid 后接名词或动名词。" },
-  explanation: "用 avoid unnecessary… 表达避免不必要的工作。",
-  example: originalSentence,
-  exampleTranslation: "React 批量处理状态更新，以避免不必要的重新渲染。",
-  user: { status: "LEARNING", favorite: true, category: "general", exposureCount: 1, reviewCount: 0, knownStreak: 0, dueAt: null },
-};
-const fixtureArticle = {
-  id: "local-article-fixture",
-  title: "React 状态更新 · 插件本地测试文章",
-  mode: "tech",
-  language: "en",
-  sourceUrl: "https://article.fixture.invalid/react",
-  sourceText: originalSentence,
-  sourceBlocks: [{ id: "p0001", kind: "paragraph", original: originalSentence, masked: originalSentence, protected: {} }],
-  origin: "extension-free",
-  generationStartedAt: null,
-  generationError: null,
-  createdAt: "2026-10-18T12:00:00.000Z",
-  version: {
-    id: "local-version-fixture",
-    settings: { retention: "medium", level: "A2", minutes: "3-5", newWordCount: 5, topic: "购物", requestedWords: "", reviewOnly: false },
-    coverage: { newWords: [fixtureWord.lemma], reviewWords: [], requestedNew: 1, requestedReview: 0, missing: [] },
-    createdAt: "2026-10-18T12:00:00.000Z",
-    paragraphs: [{ id: "paragraph-fixture", sourceId: "p0001", position: 0, original: originalSentence, segments: [
-      { type: "text", text: "React 批量处理状态更新，以 " },
-      { type: "term", text: fixtureWord.lemma, termId: "term-fixture", occurrenceId: "occurrence-fixture", meaning: fixtureWord.meaning, sentence: originalSentence },
-      { type: "text", text: "。" },
-    ] }],
-    occurrences: [{ id: "occurrence-fixture", vocabularyId: fixtureWord.id, sourceId: "p0001", form: fixtureWord.lemma, meaning: fixtureWord.meaning, sentence: originalSentence, targetKind: "new", word: fixtureWord }],
-  },
-  progress: null,
-  defaultGlossMode: "first",
-};
-const fixtureLibrary = {
-  localOnly: true,
-  articles: [fixtureArticle],
-  words: [{ ...fixtureWord, appearances: [{ articleId: fixtureArticle.id, title: fixtureArticle.title, sentence: originalSentence, form: fixtureWord.lemma, sourceId: "p0001" }] }],
-  jobs: [{ id: fixtureArticle.id, status: "succeeded", title: fixtureArticle.title, sourceUrl: fixtureArticle.sourceUrl, translationMode: "free" }],
-};
+// Legacy data is a sentinel only: the new popup/settings must leave it untouched.
+const fixtureLibrary = { version: 1, jobs: [{ id: "legacy-article" }], words: [{ id: "legacy-favorite", favorite: true }] };
 
 let browser;
 let server;
@@ -87,7 +42,7 @@ try {
   await cp(join(repository, "extension/static"), staticDirectory, { recursive: true });
   await build({
     absWorkingDir: repository,
-    entryPoints: (optionsOnly ? ["options", "popup"] : ["options", "popup", "library"]).map((name) => join(repository, "extension/src", `${name}.ts`)),
+    entryPoints: ["options", "popup"].map((name) => join(repository, "extension/src", `${name}.ts`)),
     outdir: staticDirectory,
     bundle: true,
     platform: "browser",
@@ -212,36 +167,6 @@ try {
               }
               case "ww:models:list": data = { models: ["fixture-model"] }; break;
               case "ww:status": data = { ok: true, translationMode: state.config.translationMode, localOnly: true, modelConfigured: true }; break;
-              case "ww:library:get": data = state.library; break;
-              case "ww:library:open": state.openedTabs.push({ url: `${baseURL}/library.html` }); data = { ok: true }; break;
-              case "ww:reader:open": state.openedTabs.push({ url: `${baseURL}/library.html#article=${message.id}` }); data = { ok: true }; break;
-              case "ww:library:delete": {
-                state.library.articles = state.library.articles.filter((article) => article.id !== message.id);
-                state.library.jobs = state.library.jobs.filter((job) => job.id !== message.id);
-                data = { ok: true };
-                break;
-              }
-              case "ww:job:retry": {
-                const job = state.library.jobs.find((job) => job.id === message.id);
-                if (!job) return { ok: false, error: "Unknown fixture job" };
-                job.status = "running";
-                job.progress = { stage: "translating", completed: 0, total: 3 };
-                delete job.error;
-                data = job;
-                break;
-              }
-              case "ww:word:update": {
-                const word = state.library.words.find((word) => word.id === message.id);
-                if (!word) return { ok: false, error: "Unknown fixture word" };
-                word.user = { ...word.user, ...message.patch };
-                for (const article of state.library.articles) {
-                  for (const occurrence of article.version?.occurrences ?? []) {
-                    if (occurrence.word.id === word.id) occurrence.word.user = word.user;
-                  }
-                }
-                data = word.user;
-                break;
-              }
               case "ww:cache:clear": data = { ok: true }; break;
               default: return { ok: false, error: `Unsupported UI fixture message: ${message.type}` };
             }
@@ -362,6 +287,20 @@ try {
     assert.deepEqual(externalRequests, []);
   });
 
+  await check("settings clear translation cache only after explicit confirmation", async () => {
+    const { page, errors } = await fixture("/options.html");
+    await expect(page.locator("#save")).toBeEnabled();
+    await expect(page.locator("#library")).toHaveCount(0);
+    page.once("dialog", (dialog) => dialog.dismiss());
+    await page.locator("#clear-cache").click();
+    assert.equal(await page.evaluate(() => window.__extensionUIFixture.messages.filter((message) => message.type === "ww:cache:clear").length), 0);
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.locator("#clear-cache").click();
+    await expect(page.locator("#status")).toContainText("翻译缓存已清除");
+    assert.equal(await page.evaluate(() => window.__extensionUIFixture.messages.filter((message) => message.type === "ww:cache:clear").length), 1);
+    assert.deepEqual(errors, []);
+  });
+
   await check("privacy is available in the packaged popup/settings without a website or account", async () => {
     for (const filename of ["popup.html", "options.html"]) {
       const { page } = await fixture(`/${filename}`);
@@ -405,12 +344,11 @@ try {
     assert.deepEqual(errors, []);
   });
 
-  await check("the default popup opens article or selection translation directly and exposes the local library", async () => {
+  await check("the default popup opens article or selection translation directly with no article-library entry", async () => {
     const { page, errors, externalRequests } = await fixture("/popup.html");
     await expect(page.locator("#page-title")).toContainText("React state updates");
     await expect(page.locator("#mode-badge")).toHaveText("免费翻译");
-    await page.locator("#library").click();
-    await expect.poll(() => page.evaluate(() => window.__extensionUIFixture.openedTabs.length)).toBe(1);
+    await expect(page.locator("#library")).toHaveCount(0);
     await page.locator("#retention").selectOption("high");
     await page.locator("#convert-article").click();
     await expect.poll(() => page.evaluate(() => window.__extensionUIFixture.closed)).toBe(1);
@@ -419,7 +357,7 @@ try {
     assert.equal(state.config.retention, "high");
     assert.deepEqual(state.injectedScripts, [{ target: { tabId: 42 }, files: ["content.js"] }]);
     assert.deepEqual(state.tabMessages, [{ tabId: 42, message: { type: "ww:open", scope: "article" } }]);
-    assert.equal(new URL(state.openedTabs[0].url).pathname, "/library.html");
+    assert.equal(state.openedTabs.length, 0);
     await page.locator("#convert-selection").click();
     await expect.poll(() => page.evaluate(() => window.__extensionUIFixture.tabMessages.length)).toBe(2);
     state = await page.evaluate(() => window.__extensionUIFixture);
@@ -430,101 +368,6 @@ try {
     assert.deepEqual(errors, []);
     assert.deepEqual(externalRequests, []);
   });
-
-  if (!optionsOnly) {
-    await check("the local library displays saved articles, original paragraphs, and newly favorited expressions", async () => {
-      const library = structuredClone(fixtureLibrary);
-      library.words[0].user.favorite = false;
-      library.articles[0].version.occurrences[0].word.user.favorite = false;
-      const { page, errors, externalRequests } = await fixture("/library.html", { library });
-      await expect(page.locator(".article-title")).toHaveText(fixtureArticle.title);
-      await expect(page.getByText(/免费翻译 · 规则选词/)).toBeVisible();
-      await page.locator("#tab-words").click();
-      await expect(page.getByText(/还没有收藏词/)).toBeVisible();
-      await page.locator("#tab-articles").click();
-      await page.locator(".article-title").click();
-      await expect(page.locator(".local-reader h1")).toHaveText(fixtureArticle.title);
-      await expect(page.getByText("免费翻译 · 规则选词", { exact: true })).toBeVisible();
-      await expect(page.locator(".reading-term")).toHaveText(fixtureWord.lemma);
-      await expect(page.locator(".term-gloss")).toContainText(fixtureWord.meaning);
-      await page.getByText("查看这段原文", { exact: true }).click();
-      await expect(page.locator(".paragraph-original")).toContainText(originalSentence);
-      await page.getByRole("button", { name: "看英文原文", exact: true }).click();
-      await expect(page.locator(".reading-paragraph")).toHaveText(originalSentence);
-      await expect(page.locator(".reading-term")).toHaveCount(0);
-      await page.getByRole("button", { name: "看学习版", exact: true }).click();
-      await page.getByRole("combobox", { name: "中文释义", exact: true }).selectOption("click");
-      await expect(page.locator(".term-gloss")).toHaveCount(0);
-      await page.setViewportSize({ width: 390, height: 844 });
-      await page.locator(".reading-term").scrollIntoViewIfNeeded();
-      const readingPosition = await page.evaluate(() => window.scrollY);
-      await page.locator(".reading-term").click();
-      const wordcard = page.getByRole("dialog", { name: fixtureWord.lemma, exact: true });
-      await expect(wordcard).toBeVisible();
-      await expect(wordcard).toContainText(originalSentence);
-      await expect(wordcard).toContainText(fixtureWord.meaning);
-      await wordcard.getByRole("button", { name: "收藏 ♡", exact: true }).click();
-      await expect(wordcard.getByRole("button", { name: "已收藏 ♥", exact: true })).toBeVisible();
-      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth));
-      await page.screenshot({ path: join(screenshots, "library-wordcard-mobile.png"), fullPage: true });
-      await wordcard.getByRole("button", { name: "关闭词卡", exact: true }).click();
-      await expect(wordcard).toBeHidden();
-      assert.ok(Math.abs(await page.evaluate(() => window.scrollY) - readingPosition) <= 1, "Closing a word card must preserve the reading position");
-      await page.locator("#tab-words").click();
-      await expect(page.locator(".word-title")).toHaveText(fixtureWord.lemma);
-      await expect(page.locator(".saved-word")).toContainText(originalSentence);
-      const state = await page.evaluate(() => window.__extensionUIFixture);
-      assert.deepEqual(state.messages.filter((message) => message.type === "ww:word:update"), [{ type: "ww:word:update", id: fixtureWord.id, patch: { favorite: true } }]);
-      assert.equal(state.config.glossMode, "click");
-      await page.screenshot({ path: join(screenshots, "library-favorites-mobile.png"), fullPage: true });
-      assert.deepEqual(errors, []);
-      assert.deepEqual(externalRequests, []);
-    });
-
-    await check("deleting a local article requires confirmation while its explicitly favorited word remains visible", async () => {
-      const { page, errors } = await fixture("/library.html");
-      await expect(page.locator(".article-title")).toBeVisible();
-      page.once("dialog", (dialog) => dialog.dismiss());
-      await page.getByRole("button", { name: "删除", exact: true }).click();
-      assert.equal(await page.evaluate(() => window.__extensionUIFixture.messages.filter((message) => message.type === "ww:library:delete").length), 0);
-      page.once("dialog", (dialog) => dialog.accept());
-      await page.getByRole("button", { name: "删除", exact: true }).click();
-      await expect(page.getByText(/还没有文章/)).toBeVisible();
-      await page.locator("#tab-words").click();
-      await expect(page.locator(".word-title")).toHaveText(fixtureWord.lemma);
-      assert.equal(await page.evaluate(() => window.__extensionUIFixture.messages.filter((message) => message.type === "ww:library:delete").length), 1);
-      assert.deepEqual(errors, []);
-    });
-
-    await check("pending and failed local jobs remain visible before an article exists and retry only on request", async () => {
-      const library = {
-        localOnly: true,
-        articles: [],
-        words: [],
-        jobs: [
-          { id: "pending-fixture-job", title: "正在读取的技术文章", sourceUrl: "https://article.fixture.invalid/pending", translationMode: "free", status: "running", progress: { stage: "translating", completed: 1, total: 4 } },
-          { id: "failed-fixture-job", title: "稍后重试的技术文章", sourceUrl: "https://article.fixture.invalid/failed", translationMode: "ai", status: "failed", error: "测试连接中断，请稍后重试。" },
-        ],
-      };
-      const { page, errors, externalRequests } = await fixture("/library.html", { library });
-      await expect(page.getByRole("heading", { name: "正在读取的技术文章", exact: true })).toBeVisible();
-      await expect(page.getByText("正在翻译 1 / 4 段…", { exact: true })).toBeVisible();
-      await expect(page.getByRole("heading", { name: "稍后重试的技术文章", exact: true })).toBeVisible();
-      await expect(page.getByText("测试连接中断，请稍后重试。", { exact: true })).toBeVisible();
-      assert.equal(await page.evaluate(() => window.__extensionUIFixture.messages.filter((message) => message.type === "ww:job:retry").length), 0);
-      await page.getByRole("button", { name: "重试翻译", exact: true }).click();
-      await expect(page.getByText("正在翻译 0 / 3 段…", { exact: true })).toBeVisible();
-      await expect(page.getByRole("button", { name: "重试翻译", exact: true })).toHaveCount(0);
-      assert.deepEqual(await page.evaluate(() => window.__extensionUIFixture.messages.filter((message) => message.type === "ww:job:retry")), [{ type: "ww:job:retry", id: "failed-fixture-job" }]);
-      await page.evaluate(() => { window.__extensionUIFixture.library.jobs[0].progress.completed = 2; });
-      await expect(page.getByText("正在翻译 2 / 4 段…", { exact: true })).toBeVisible();
-      await page.setViewportSize({ width: 390, height: 844 });
-      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth));
-      await page.screenshot({ path: join(screenshots, "library-jobs-mobile.png"), fullPage: true });
-      assert.deepEqual(errors, []);
-      assert.deepEqual(externalRequests, []);
-    });
-  }
 
   await check("the four-step install page copies browser management addresses and fits a mobile screen", async () => {
     const { page, errors, externalRequests } = await fixture("/setup.html");

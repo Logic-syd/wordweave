@@ -1,7 +1,14 @@
 import { authHandler } from "@/lib/auth-handler";
 import { NextResponse } from "next/server";
 import { getReviewTargets, listVocabulary } from "@/lib/repository";
-import { AppError } from "@/lib/errors";
+import { AppError, readJson } from "@/lib/errors";
+import { practiceWordSchema } from "@/lib/practice-schemas";
+import { savePracticeWord } from "@/lib/practice-store";
+export async function POST(request: Request) {
+  return authHandler(request, async () => NextResponse.json(
+    await savePracticeWord(practiceWordSchema.parse(await readJson(request, 6000))),
+  ));
+}
 export async function GET(request: Request) {
   return authHandler(request, async () => {
     const p = new URL(request.url).searchParams;

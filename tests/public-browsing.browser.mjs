@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdir } from "node:fs/promises";
 import { chromium, expect } from "@playwright/test";
 
-export async function checkPublicBrowsing(baseURL, ownerToken) {
+export async function checkPublicBrowsing(baseURL) {
   const browser = await chromium.launch({
     executablePath: process.env.CHROMIUM_PATH ?? "/usr/bin/chromium",
     headless: true,
@@ -24,17 +24,10 @@ export async function checkPublicBrowsing(baseURL, ownerToken) {
   const screenshots = "test-results/public-browsing";
   await mkdir(screenshots, { recursive: true });
   try {
-    await page.goto("/");
+    await page.goto("/read");
     await expect(
-      page.getByRole("heading", { name: "读一点，学会一点。" }),
+      page.getByRole("heading", { name: "状态更新，并不会立刻发生" }),
     ).toBeVisible();
-    await expect(
-      page.getByText("免费阅读 · 无需登录", { exact: true }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("link", { name: /状态更新，并不会立刻发生/ }),
-    ).toBeVisible();
-    await expect(page.getByRole("link", { name: /看房那天/ })).toBeVisible();
     await page.goto("/library?mode=german");
     await expect(page.locator(".article-card")).toHaveCount(4);
     await expect(page.getByRole("button", { name: /^删除文章/ })).toHaveCount(
@@ -84,38 +77,16 @@ export async function checkPublicBrowsing(baseURL, ownerToken) {
     await page
       .getByLabel("英文正文", { exact: true })
       .fill("React batches state updates to avoid unnecessary re-renders.");
-    await page.getByRole("button", { name: "保存并生成学习版" }).click();
-    await expect(
-      page.getByRole("dialog", { name: "登录个人空间" }),
-    ).toBeVisible();
-    assert.equal(privateWrites.length, 0, "Prompt must precede any upload");
-    await page
-      .getByLabel("访问密码", { exact: true })
-      .fill("invalid-test-token");
-    await page.getByRole("button", { name: "验证并继续" }).click();
-    await expect(page.getByRole("dialog").getByRole("alert")).toBeVisible();
-    await page.getByLabel("访问密码", { exact: true }).fill(ownerToken);
-    await page.getByRole("button", { name: "验证并继续" }).click();
-    await expect(page.getByRole("dialog")).toHaveCount(0);
-    await expect(page.getByLabel("英文正文", { exact: true })).toHaveValue(
-      "React batches state updates to avoid unnecessary re-renders.",
-    );
-    await expect(page.getByRole("status")).toContainText("已验证");
-    assert.equal(
-      privateWrites.length,
-      0,
-      "Authentication must not silently submit or charge",
-    );
-
+    await page.getByRole("button", { name: "保存原文", exact: true }).click();
+    await page.waitForURL(/\/read\/local-article-/);
+    await expect(page.locator(".reading-content")).toContainText("React batches state updates");
+    assert.equal(privateWrites.length, 0, "Public import stays in the browser");
     await page.goto("/library");
     await expect(page.getByRole("link", { name: /邀请朋友/ })).toHaveCount(0);
     await page.goto("/login#invite=obsolete-friend-code");
     await expect(page).not.toHaveURL(/#invite=/);
-
     await page.goto("/new?mode=tech");
-    await expect(page.getByText(/今日已生成 \d+ \/ 20 次/)).toBeVisible();
-    await page.getByText(/今日已生成 \d+ \/ 20 次/).click();
-    await expect(page.getByText(/^模型请求 \d+ \/ 100 次/)).toBeVisible();
+    await expect(page.getByText(/今日已生成 \d+ \/ 20 次/)).toHaveCount(0);
 
     const visitor = await browser.newContext({
       baseURL,
@@ -140,21 +111,10 @@ export async function checkPublicBrowsing(baseURL, ownerToken) {
     await mobile.getByRole("button", { name: "关闭词卡" }).click();
     assert.ok(Math.abs((await mobile.evaluate(() => scrollY)) - scroll) < 3);
     await mobile.goto("/new?mode=tech");
-    await mobile.getByRole("button", { name: /上传/ }).click();
-    await expect(
-      mobile.getByRole("dialog", { name: "登录个人空间" }),
-    ).toBeVisible();
-    assert.ok(
-      await mobile.evaluate(
-        () => document.documentElement.scrollWidth <= innerWidth,
-      ),
-    );
-    await mobile.screenshot({
-      path: `${screenshots}/upload-login-mobile.png`,
-      fullPage: false,
-    });
-    await mobile.getByRole("button", { name: "暂时不用" }).click();
     await expect(mobile.getByRole("dialog")).toHaveCount(0);
+    await expect(mobile.getByRole("button", { name: "保存原文", exact: true })).toBeVisible();
+    assert.ok(await mobile.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    await mobile.screenshot({ path: `${screenshots}/local-import-mobile.png` });
     await mobile.goto("/extension");
     await expect(
       mobile.getByRole("heading", { name: "把小精灵装进浏览器" }),
@@ -170,7 +130,7 @@ export async function checkPublicBrowsing(baseURL, ownerToken) {
     );
     await visitor.close();
     assert.deepEqual(errors, []);
-    return "Public browser: eight samples, mode filter, local favorites/progress, isolated visitors, personal login prompt, invalid/valid login preserving input, mobile reader and plugin install page";
+    return "Public browser: eight samples, mode filter, local favorites/progress, isolated visitors, registration-free local import, mobile reader and plugin install page";
   } finally {
     await context.close();
     await browser.close();

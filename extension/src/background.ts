@@ -2,25 +2,21 @@ import {
   DEFAULT_CONFIG,
   normalizeAIBaseUrl,
   aiPermissionPattern,
-  type ArticleDetail,
   type ArticleInput,
   type ExtensionConfig,
   type ExtensionMessage,
   type ExtensionResponse,
   type JobRecord,
-  type LibrarySnapshot,
   type Retention,
   type TranslationMode,
-  type UserWord,
-  type WordPatch,
 } from "./protocol";
 import { translateArticle, discoverModels } from "./translation";
-import type { VocabularyView, Word } from "../../src/lib/types";
 
 const CONFIG_KEY = "wordweave.config";
-const LIBRARY_KEY = "wordweave.local.library";
-const MAX_ARTICLES = 20;
-const MAX_BYTES = 5 * 1024 * 1024;
+// The old article library is left untouched; translations use a separate evictable cache.
+const CACHE_KEY = "wordweave.translation.cache";
+const MAX_ENTRIES = 20;
+const MAX_BYTES = 3 * 1024 * 1024;
 const workerId = crypto.randomUUID();
 type LocalJob = JobRecord & {
   input: ArticleInput;
@@ -32,8 +28,7 @@ type LocalJob = JobRecord & {
   workerId: string;
   runToken: string | null;
 };
-type LocalWord = { word: Word; touched: number };
-type LocalLibrary = { version: 1; jobs: LocalJob[]; words: LocalWord[] };
+type TranslationCache = { version: 1; jobs: LocalJob[] };
 type ObjectValue = Record<string, unknown>;
 class RequestError extends Error {
   constructor(
@@ -47,6 +42,11 @@ const storageReady = chrome.storage.local.setAccessLevel({
   accessLevel: "TRUSTED_CONTEXTS",
 });
 const running = new Map<string, Promise<void>>();
+const activeJobs = new Map<string, LocalJob>();
+const liveResults = new Map<
+  string,
+  Pick<JobRecord, "article" | "progress" | "revision">
+>();
 const persistenceFailures = new Map<string, string>();
 let storageQueue: Promise<unknown> = Promise.resolve();
 let initialization: Promise<void> | undefined;
@@ -98,33 +98,31 @@ async function config(): Promise<ExtensionConfig> {
     (await chrome.storage.local.get(CONFIG_KEY))[CONFIG_KEY],
   );
 }
-async function library(): Promise<LocalLibrary> {
-  const saved = (await chrome.storage.local.get(LIBRARY_KEY))[LIBRARY_KEY];
-  if (
-    !record(saved) ||
-    saved.version !== 1 ||
-    !Array.isArray(saved.jobs) ||
-    !Array.isArray(saved.words)
-  )
-    return { version: 1, jobs: [], words: [] };
-  return saved as unknown as LocalLibrary;
+async function cache(): Promise<TranslationCache> {
+  const saved = (await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY];
+  if (!record(saved) || saved.version !== 1 || !Array.isArray(saved.jobs))
+    return { version: 1, jobs: [] };
+  return saved as unknown as TranslationCache;
 }
-async function persist(value: LocalLibrary) {
-  if (value.jobs.length > MAX_ARTICLES)
-    throw new RequestError(
-      "本机文章库最多保存 20 篇，请先删除不需要的文章。",
-      429,
-    );
-  if (new TextEncoder().encode(JSON.stringify(value)).byteLength > MAX_BYTES)
-    throw new RequestError(
-      "本机学习库已达到 5 MiB 上限，请先删除文章。已有文章和收藏保持不变。",
-      413,
-    );
+async function persist(value: TranslationCache, keepId?: string) {
+  while (
+    value.jobs.length > MAX_ENTRIES ||
+    new TextEncoder().encode(JSON.stringify(value)).byteLength > MAX_BYTES
+  ) {
+    const candidate = value.jobs
+      .filter((job) => job.status !== "running" && job.id !== keepId)
+      .sort((a, b) => a.touched - b.touched)[0];
+    if (!candidate)
+      throw new RequestError("当前翻译占用的缓存过大，请选取较短正文。", 413);
+    value.jobs = value.jobs.filter((job) => job.id !== candidate.id);
+    liveResults.delete(candidate.id);
+    persistenceFailures.delete(candidate.id);
+  }
   try {
-    await chrome.storage.local.set({ [LIBRARY_KEY]: value });
+    await chrome.storage.local.set({ [CACHE_KEY]: value });
   } catch {
     throw new RequestError(
-      "浏览器存储空间不足或写入失败。已有数据保持不变，请清理空间后重试。",
+      "浏览器存储空间不足或写入失败。请在设置中清除翻译缓存后重试。",
       507,
     );
   }
@@ -137,9 +135,9 @@ async function initialize() {
     try {
       await chrome.storage.local.set({ [CONFIG_KEY]: next });
     } catch {
-      /* Sanitized reads still default to free; allow opening the library to free space. */
+      /* Sanitized reads still default to free; allow clearing the translation cache. */
     }
-    const data = await library();
+    const data = await cache();
     let changed = false;
     for (const job of data.jobs) {
       if (
@@ -202,10 +200,10 @@ async function digest(value: string): Promise<string> {
 }
 async function providerSignature(value: ExtensionConfig) {
   return value.translationMode === "free"
-    ? "google-free-v1"
+    ? "google-free-v2-local-glossary"
     : digest(
         JSON.stringify({
-          provider: "openai-compatible",
+          provider: "openai-compatible-progressive-v2",
           baseUrl: normalizeAIBaseUrl(value.aiBaseUrl),
           model: value.aiModel.trim(),
           keyHash: await digest(value.aiApiKey),
@@ -279,69 +277,23 @@ function validateInput(
     blocks: value.blocks as ArticleInput["blocks"],
   };
 }
-function freshUser(): UserWord {
-  return {
-    status: "NEW",
-    favorite: false,
-    category: null,
-    exposureCount: 0,
-    reviewCount: 0,
-    knownStreak: 0,
-    dueAt: null,
-  };
-}
-function retained(word: Word) {
-  return (
-    word.user?.favorite ||
-    word.user?.status === "LEARNING" ||
-    word.user?.status === "KNOWN"
-  );
-}
-function pruneWords(data: LocalLibrary) {
-  const used = new Set(
-    data.jobs.flatMap(
-      (job) =>
-        job.article?.version?.occurrences.map((item) => item.vocabularyId) ??
-        [],
-    ),
-  );
-  data.words = data.words.filter(
-    ({ word }) => used.has(word.id) || retained(word),
-  );
-}
-function articleWithWords(
-  article: ArticleDetail,
-  words: LocalWord[],
-): ArticleDetail {
-  if (!article.version) return article;
-  const users = new Map(words.map(({ word }) => [word.id, word.user]));
-  return {
-    ...article,
-    version: {
-      ...article.version,
-      occurrences: article.version.occurrences.map((occurrence) => ({
-        ...occurrence,
-        word: {
-          ...occurrence.word,
-          user: users.get(occurrence.vocabularyId) ?? occurrence.word.user,
-        },
-      })),
-    },
-  };
-}
-function publicJob(job: LocalJob, words: LocalWord[]): JobRecord {
+function publicJob(job: LocalJob, afterRevision?: number): JobRecord {
   const persistenceError = persistenceFailures.get(job.id);
+  const live = liveResults.get(job.id);
+  const article = live?.article ?? job.article;
+  const revision = live?.revision ?? job.revision ?? 0;
   return {
     id: job.id,
     status: persistenceError ? "failed" : job.status,
-    title: job.input.title,
-    sourceUrl: job.input.sourceUrl,
     translationMode: job.translationMode,
+    revision,
     ...(persistenceError || job.error
       ? { error: persistenceError ?? job.error }
       : {}),
-    ...(job.progress ? { progress: job.progress } : {}),
-    ...(job.article ? { article: articleWithWords(job.article, words) } : {}),
+    ...((live?.progress ?? job.progress)
+      ? { progress: live?.progress ?? job.progress }
+      : {}),
+    ...(article && revision !== afterRevision ? { article } : {}),
   };
 }
 function assertJobPage(
@@ -350,15 +302,12 @@ function assertJobPage(
   trusted: boolean,
 ) {
   if (!trusted && sourceUrl(job.input.sourceUrl) !== pageUrl(sender))
-    throw new RequestError("不能从其他网页读取这篇本机文章。", 403);
+    throw new RequestError("不能从其他网页读取这次翻译。", 403);
 }
-function findJob(data: LocalLibrary, id: string) {
+function findJob(data: TranslationCache, id: string) {
   const job = data.jobs.find((item) => item.id === id);
   if (!job)
-    throw new RequestError(
-      "本机文章不存在或已删除，请回到原网页重新转换。",
-      404,
-    );
+    throw new RequestError("翻译缓存已过期，请在当前网页重新翻译。", 404);
   return job;
 }
 function safeError(error: unknown, value: ExtensionConfig) {
@@ -370,7 +319,6 @@ function safeError(error: unknown, value: ExtensionConfig) {
 }
 async function execute(job: LocalJob, value: ExtensionConfig) {
   const runToken = job.runToken;
-  let lastProgressAt = 0;
   try {
     const article = await translateArticle(job.input, {
       id: job.id,
@@ -380,31 +328,14 @@ async function execute(job: LocalJob, value: ExtensionConfig) {
         ? { ai: await aiConfigured(value) }
         : {}),
       onProgress: (progress) => {
-        const now = Date.now();
-        if (
-          lastProgressAt &&
-          progress.completed !== progress.total &&
-          now - lastProgressAt < 350
-        )
-          return;
-        lastProgressAt = now;
-        void serial(async () => {
-          const data = await library();
-          const current = data.jobs.find(
-            (item) =>
-              item.id === job.id &&
-              item.runToken === runToken &&
-              item.status === "running",
-          );
-          if (!current) return;
-          current.progress = {
-            stage: progress.stage.slice(0, 60),
-            completed: Math.max(0, Math.floor(progress.completed)),
-            total: Math.max(0, Math.floor(progress.total)),
-          };
-          await persist(data);
-        }).catch(() => {
-          /* Final save below reports any persistent storage failure. */
+        liveResults.set(job.id, { ...liveResults.get(job.id), progress });
+      },
+      onPartial: (article) => {
+        const previous = liveResults.get(job.id);
+        liveResults.set(job.id, {
+          ...previous,
+          article,
+          revision: (previous?.revision ?? job.revision ?? 0) + 1,
         });
       },
     });
@@ -415,7 +346,7 @@ async function execute(job: LocalJob, value: ExtensionConfig) {
     )
       throw new RequestError("翻译返回的数据不完整，请重新尝试。");
     await serial(async () => {
-      const data = await library();
+      const data = await cache();
       const current = data.jobs.find(
         (item) =>
           item.id === job.id &&
@@ -423,41 +354,21 @@ async function execute(job: LocalJob, value: ExtensionConfig) {
           item.status === "running",
       );
       if (!current) return;
-      const seen = new Set<string>();
-      for (const occurrence of article.version!.occurrences) {
-        if (seen.has(occurrence.vocabularyId)) continue;
-        seen.add(occurrence.vocabularyId);
-        const existing = data.words.find(
-          ({ word }) => word.id === occurrence.vocabularyId,
-        );
-        if (existing) {
-          const user = existing.word.user ?? freshUser();
-          existing.word.user = {
-            ...user,
-            exposureCount: user.exposureCount + 1,
-          };
-        } else {
-          data.words.push({
-            word: {
-              ...occurrence.word,
-              id: occurrence.vocabularyId,
-              user: { ...freshUser(), exposureCount: 1 },
-            },
-            touched: Date.now(),
-          });
-        }
-      }
       current.article = article;
+      current.revision =
+        (liveResults.get(job.id)?.revision ?? current.revision ?? 0) + 1;
+      current.progress = liveResults.get(job.id)?.progress;
       current.status = "succeeded";
       current.error = undefined;
       current.runToken = null;
       current.touched = Date.now();
-      await persist(data);
+      await persist(data, job.id);
+      liveResults.delete(job.id);
     });
   } catch (error) {
     try {
       await serial(async () => {
-        const data = await library();
+        const data = await cache();
         const current = data.jobs.find(
           (item) => item.id === job.id && item.runToken === runToken,
         );
@@ -472,15 +383,19 @@ async function execute(job: LocalJob, value: ExtensionConfig) {
       // update. A restart also recovers the persisted lease as failed.
       persistenceFailures.set(
         job.id,
-        "翻译未能保存：浏览器存储空间不足或写入失败。请清理空间后主动重试，已有数据未覆盖。",
+        "无法保存翻译缓存：请在设置中清除缓存后主动重试。",
       );
     }
   }
 }
 function launch(job: LocalJob, value: ExtensionConfig) {
+  activeJobs.set(job.id, job);
   const work = execute(job, value);
   running.set(job.id, work);
-  void work.finally(() => running.delete(job.id));
+  void work.finally(() => {
+    running.delete(job.id);
+    activeJobs.delete(job.id);
+  });
 }
 async function startJob(
   value: ExtensionConfig,
@@ -499,7 +414,7 @@ async function startJob(
   );
   let toLaunch: LocalJob | undefined;
   const response = await serial(async () => {
-    const data = await library();
+    const data = await cache();
     const existing = data.jobs.find(
       (entry) => entry.fingerprint === fingerprint,
     );
@@ -528,6 +443,7 @@ async function startJob(
       touched: Date.now(),
       workerId,
       runToken: crypto.randomUUID(),
+      revision: 0,
       progress: {
         stage: "preparing",
         completed: 0,
@@ -546,7 +462,7 @@ function uiSender(sender: chrome.runtime.MessageSender): boolean {
   if (!sender.url) return false;
   try {
     const url = new URL(sender.url);
-    return ["popup.html", "options.html", "library.html"].some(
+    return ["popup.html", "options.html"].some(
       (file) =>
         `${url.protocol}//${url.host}${url.pathname}` ===
         chrome.runtime.getURL(file),
@@ -561,70 +477,6 @@ function pageSender(sender: chrome.runtime.MessageSender): boolean {
     /^https?:\/\//.test(sender.url ?? "") &&
     (sender.frameId ?? 0) === 0
   );
-}
-function patchUser(current: UserWord, patch: WordPatch): UserWord {
-  const next = { ...current, ...patch };
-  if (patch.favorite && current.status === "NEW" && !patch.status)
-    next.status = "LEARNING";
-  if (patch.status) {
-    next.reviewCount += 1;
-    next.knownStreak = patch.status === "KNOWN" ? current.knownStreak + 1 : 0;
-  }
-  if (next.status === "IGNORED") next.dueAt = null;
-  else if (patch.status || (patch.favorite && current.status === "NEW"))
-    next.dueAt = new Date(
-      Date.now() +
-        (next.status === "KNOWN"
-          ? Math.min(30, 2 ** next.knownStreak) * 86400_000
-          : 0),
-    ).toISOString();
-  return next;
-}
-function validatePatch(value: unknown): asserts value is WordPatch {
-  if (
-    !record(value) ||
-    !Object.keys(value).length ||
-    Object.keys(value).some(
-      (key) => !["status", "favorite", "category"].includes(key),
-    ) ||
-    (value.status !== undefined &&
-      !["LEARNING", "KNOWN", "IGNORED"].includes(value.status as string)) ||
-    (value.favorite !== undefined && typeof value.favorite !== "boolean") ||
-    (value.category !== undefined &&
-      !["technical", "general"].includes(value.category as string))
-  )
-    throw new RequestError("词卡操作无效。", 400);
-}
-async function snapshot(): Promise<LibrarySnapshot> {
-  const data = await library();
-  const articles = data.jobs
-    .filter((job) => job.article)
-    .map((job) => articleWithWords(job.article!, data.words));
-  const words: VocabularyView[] = data.words.map(({ word }) => ({
-    ...word,
-    appearances: articles.flatMap(
-      (article) =>
-        article.version?.occurrences
-          .filter((occurrence) => occurrence.vocabularyId === word.id)
-          .map((occurrence) => ({
-            articleId: article.id,
-            title: article.title,
-            sentence: occurrence.sentence,
-            form: occurrence.form,
-            sourceId: occurrence.sourceId,
-          })) ?? [],
-    ),
-  }));
-  return {
-    articles,
-    words,
-    jobs: data.jobs.map((job) => {
-      const summary = publicJob(job, data.words);
-      delete summary.article;
-      return summary;
-    }),
-    localOnly: true,
-  };
 }
 async function handle(
   message: unknown,
@@ -646,9 +498,6 @@ async function handle(
       "ww:status",
       "ww:models:list",
       "ww:cache:clear",
-      "ww:library:get",
-      "ww:library:delete",
-      "ww:library:open",
     ].includes(message.type) &&
     !trusted
   )
@@ -727,32 +576,13 @@ async function handle(
     }
     case "ww:cache:clear":
       if (running.size)
-        throw new RequestError("文章正在翻译，请完成后再清除本机文章。");
+        throw new RequestError("正在翻译，请完成后再清除缓存。");
       await serial(async () => {
-        const data = await library();
-        data.jobs = [];
-        pruneWords(data);
-        await persist(data);
+        await persist({ version: 1, jobs: [] });
+        liveResults.clear();
+        persistenceFailures.clear();
       });
       return null;
-    case "ww:library:get":
-      return snapshot();
-    case "ww:library:open":
-      await chrome.tabs.create({ url: chrome.runtime.getURL("library.html") });
-      return null;
-    case "ww:library:delete": {
-      identifier(msg.id);
-      if (running.has(msg.id))
-        throw new RequestError("这篇文章正在翻译，请完成后再删除。");
-      await serial(async () => {
-        const data = await library();
-        findJob(data, msg.id);
-        data.jobs = data.jobs.filter((job) => job.id !== msg.id);
-        pruneWords(data);
-        await persist(data);
-      });
-      return null;
-    }
     case "ww:job:start": {
       if (!page) throw new RequestError("请从文章网页启动转换。", 403);
       if (!retention(msg.retention))
@@ -768,10 +598,14 @@ async function handle(
     }
     case "ww:job:get": {
       identifier(msg.id);
-      const data = await library();
-      const job = findJob(data, msg.id);
+      const job = activeJobs.get(msg.id) ?? findJob(await cache(), msg.id);
       assertJobPage(job, sender, trusted);
-      return publicJob(job, data.words);
+      if (
+        msg.afterRevision !== undefined &&
+        (!Number.isSafeInteger(msg.afterRevision) || msg.afterRevision < 0)
+      )
+        throw new RequestError("翻译进度编号无效。", 400);
+      return publicJob(job, msg.afterRevision);
     }
     case "ww:job:retry": {
       identifier(msg.id);
@@ -779,7 +613,7 @@ async function handle(
       const signature = await providerSignature(value);
       let toLaunch: LocalJob | undefined;
       const result = await serial(async () => {
-        const data = await library();
+        const data = await cache();
         const job = findJob(data, msg.id);
         assertJobPage(job, sender, trusted);
         if (
@@ -799,6 +633,9 @@ async function handle(
           ).length >= 2
         )
           throw new RequestError("已有两篇文章正在翻译，请稍后重试。", 429);
+        liveResults.delete(job.id);
+        job.article = undefined;
+        job.revision = (job.revision ?? 0) + 1;
         job.status = "running";
         job.error = undefined;
         job.workerId = workerId;
@@ -811,40 +648,6 @@ async function handle(
       });
       if (toLaunch) launch(toLaunch, value);
       return result;
-    }
-    case "ww:word:update": {
-      identifier(msg.id);
-      validatePatch(msg.patch);
-      return serial(async () => {
-        const data = await library();
-        const word = data.words.find((entry) => entry.word.id === msg.id);
-        if (!word) throw new RequestError("词条不存在或已删除。", 404);
-        if (
-          !trusted &&
-          !data.jobs.some(
-            (job) =>
-              sourceUrl(job.input.sourceUrl) === pageUrl(sender) &&
-              job.article?.version?.occurrences.some(
-                (occurrence) => occurrence.vocabularyId === msg.id,
-              ),
-          )
-        )
-          throw new RequestError("不能从其他网页修改这个词条。", 403);
-        word.word.user = patchUser(word.word.user ?? freshUser(), msg.patch);
-        word.touched = Date.now();
-        await persist(data);
-        return word.word.user;
-      });
-    }
-    case "ww:reader:open": {
-      identifier(msg.id);
-      const data = await library();
-      const job = findJob(data, msg.id);
-      assertJobPage(job, sender, trusted);
-      await chrome.tabs.create({
-        url: `${chrome.runtime.getURL("library.html")}?article=${encodeURIComponent(msg.id)}`,
-      });
-      return null;
     }
     default:
       throw new RequestError("不支持的插件操作。", 400);

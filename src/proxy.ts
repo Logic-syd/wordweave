@@ -51,6 +51,9 @@ export const config = {
     "/vocabulary",
     "/invites/:path*",
     "/read/:path*",
+    "/listen",
+    "/speak",
+    "/settings",
     "/api/:path*",
   ],
 };

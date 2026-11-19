@@ -190,7 +190,7 @@ export async function acquireGenerationPermit({
 
       const active = { releasedAt: null, expiresAt: { gt: now } };
       if (await tx.generationPermit.count({ where: { ...active, ownerId } }))
-        throw new AppError("你已有一篇文章正在生成，请等它完成后再试。", 429);
+        throw new AppError("你已有一个生成或批改任务正在进行，请等它完成后再试。", 429);
       if (
         (await tx.generationPermit.count({ where: active })) >=
         limits.globalConcurrent

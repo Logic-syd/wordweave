@@ -63,6 +63,85 @@ afterEach(() => {
 });
 
 describe("bounded generation pipeline", () => {
+  it("repairs an omitted protected link on a bounded retry without exposing links or code to the model", async () => {
+    const blocks = parseSource(
+      "**Read [the guide](https://protected-link.example.com/private) and call `setCount(1)`.**\n\n```js\nconsole.log('code-must-stay-local');\n```",
+    );
+    const fetcher = vi.fn(async (_url: URL, init: RequestInit) => {
+      const { body, input } = requestData(init);
+      const request = JSON.parse(body.messages[1].content);
+      expect(input.paragraphs).toHaveLength(1);
+      expect(input.paragraphs[0].protectedTokens).toEqual([
+        "⟦PROTECTED_0_0⟧",
+        "⟦PROTECTED_0_1⟧",
+      ]);
+      expect(init.body).not.toContain("protected-link.example.com");
+      expect(init.body).not.toContain("setCount(1)");
+      expect(init.body).not.toContain("code-must-stay-local");
+      if (fetcher.mock.calls.length === 2)
+        expect(request.validationFeedback).toContain("模型未完整保留代码或链接");
+      return Response.json({
+        choices: [
+          {
+            finish_reason: "stop",
+            message: {
+              content: JSON.stringify({
+                title: "阅读指南",
+                terms: [],
+                paragraphs: [
+                  {
+                    id: input.paragraphs[0].id,
+                    segments: [
+                      {
+                        type: "text",
+                        text:
+                          fetcher.mock.calls.length === 1
+                            ? "阅读指南并调用函数。"
+                            : "阅读 ⟦PROTECTED_0_0⟧ 并调用 ⟦PROTECTED_0_1⟧。",
+                      },
+                    ],
+                  },
+                ],
+              }),
+            },
+          },
+        ],
+      });
+    });
+    vi.stubGlobal("fetch", fetcher);
+    const result = await generateTranslated(blocks, settings, "tech", {});
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(result.paragraphs[0].segments).toEqual([
+      {
+        type: "text",
+        text: "阅读 [the guide](https://protected-link.example.com/private) 并调用 `setCount(1)`。",
+      },
+    ]);
+    expect(result.paragraphs[1].segments).toEqual([
+      { type: "text", text: blocks[1].original },
+    ]);
+    expect(result.untranslated ?? []).toEqual([]);
+  });
+
+  it("fails after a repeated omission instead of accepting lost links or labeling it a content refusal", async () => {
+    const fetcher = vi.fn(async (_url: URL, init: RequestInit) =>
+      response(requestData(init).input),
+    );
+    vi.stubGlobal("fetch", fetcher);
+    await expect(
+      generateTranslated(
+        parseSource("Read [the guide](https://example.com/guide) first."),
+        settings,
+        "tech",
+        {},
+      ),
+    ).rejects.toMatchObject({
+      status: 502,
+      message: expect.stringContaining("模型未完整保留代码或链接"),
+    });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
   it("reserves every chunk/retry and stops provider traffic when the daily request budget is exhausted", async () => {
     vi.stubEnv("LLM_CHUNK_CONCURRENCY", "1");
     let attempts = 0;

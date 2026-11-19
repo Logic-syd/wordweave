@@ -1,19 +1,10 @@
-import type { OccurrenceView, UserWord } from "../../src/lib/types";
-import { sendMessage, type WordPatch } from "./protocol";
+import type { OccurrenceView } from "../../src/lib/types";
 import { button, ui } from "./ui";
-
-const statusNames: Record<string, string> = {
-  NEW: "初次遇见",
-  LEARNING: "想学",
-  KNOWN: "认识",
-  IGNORED: "暂不学习",
-};
 
 export class WordCard {
   private node: HTMLElement | null = null;
   private trigger: HTMLElement | null = null;
   private selected: OccurrenceView | null = null;
-  private busy = false;
   private keyboard = (event: KeyboardEvent) => {
     if (event.key === "Escape" && this.node) {
       event.preventDefault();
@@ -23,7 +14,6 @@ export class WordCard {
   };
   constructor(
     private root: ShadowRoot,
-    private updated: (id: string, user: UserWord) => void,
     private onClose: () => void = () => {},
   ) {
     root.addEventListener("keydown", this.keyboard as EventListener);
@@ -32,7 +22,6 @@ export class WordCard {
     this.node?.remove();
     this.selected = occurrence;
     this.trigger = trigger;
-    this.busy = false;
     this.render();
     this.node
       ?.querySelector<HTMLButtonElement>("button")
@@ -94,104 +83,10 @@ export class WordCard {
       grammar.append(ui("summary", "一点基础语法"), ui("p", word.grammar.note));
       card.append(grammar);
     }
-    const category = ui("div", undefined, "row section");
-    category.append(ui("span", "归类", "muted"));
-    for (const [value, label] of [
-      ["technical", "技术术语"],
-      ["general", "通用表达"],
-    ] as const)
-      category.append(
-        button(
-          label,
-          () => void this.update({ category: value }, feedback),
-          word.user?.category === value ? "selected" : "",
-        ),
-      );
-    card.append(category);
-    category.querySelectorAll("button").forEach((button) => {
-      button.dataset.mutation = "";
-    });
-    const actions = ui("div", undefined, "row actions");
-    for (const [status, label] of [
-      ["LEARNING", "想学"],
-      ["KNOWN", "认识"],
-      ["IGNORED", "暂不学习"],
-    ] as const)
-      actions.append(
-        button(
-          label,
-          () => void this.update({ status }, feedback),
-          word.user?.status === status ? "selected" : "",
-        ),
-      );
-    actions.append(
-      button(
-        word.user?.favorite ? "♥ 已收藏" : "♡ 收藏",
-        () => void this.update({ favorite: !word.user?.favorite }, feedback),
-        word.user?.favorite ? "selected" : "",
-      ),
-    );
-    actions.querySelectorAll("button").forEach((button) => {
-      button.dataset.mutation = "";
-    });
-    card.append(
-      actions,
-      ui(
-        "p",
-        `${statusNames[word.user?.status ?? "NEW"] ?? "初次遇见"} · 保存在本机插件`,
-        "saved",
-      ),
-      feedback,
-    );
+    card.append(feedback);
     this.node?.replaceWith(card);
     if (!card.isConnected) this.root.append(card);
     this.node = card;
-  }
-  private async update(patch: WordPatch, feedback: HTMLElement) {
-    if (this.busy || !this.selected) return;
-    const occurrence = this.selected;
-    const focusLabel = this.root.activeElement?.textContent;
-    this.busy = true;
-    feedback.textContent = "保存中…";
-    this.node
-      ?.querySelectorAll<HTMLButtonElement>("button[data-mutation]")
-      .forEach((button) => {
-        button.disabled = true;
-      });
-    try {
-      const user = await sendMessage<UserWord>({
-        type: "ww:word:update",
-        id: occurrence.vocabularyId,
-        patch,
-      });
-      occurrence.word.user = user;
-      this.updated(occurrence.vocabularyId, user);
-      if (this.selected === occurrence) {
-        this.render();
-        const nextFocus = Array.from(
-          this.node?.querySelectorAll("button") ?? [],
-        ).find(
-          (button) =>
-            button.textContent === focusLabel ||
-            (patch.favorite !== undefined &&
-              button.textContent?.includes("收藏")),
-        );
-        nextFocus?.focus({ preventScroll: true });
-        const message = this.node?.querySelector<HTMLElement>(".message");
-        if (message) message.textContent = "已保存到本机收藏。";
-      }
-    } catch (error) {
-      feedback.textContent =
-        error instanceof Error ? error.message : "保存失败，请稍后重试。";
-      feedback.classList.add("error");
-    } finally {
-      this.busy = false;
-      this.node
-        ?.querySelectorAll<HTMLButtonElement>("button[data-mutation]")
-        .forEach((button) => {
-          button.disabled = false;
-        });
-    }
   }
   private speak(text: string, feedback: HTMLElement) {
     if (!("speechSynthesis" in window)) {

@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { localShelf } from "@/lib/browser-store";
 import type { LibraryArticle } from "@/lib/types";
 import { sampleShelf } from "@/lib/sample-storage";
 import { useHydrated } from "./use-hydrated";
@@ -12,7 +13,10 @@ function SavedShelf({
   personal: LibraryArticle[];
   mode: string;
 }) {
-  const [initial] = useState(() => [...personal, ...sampleShelf()]);
+  const [initial, setInitial] = useState<LibraryArticle[] | null>(null);
+  const [error, setError] = useState("");
+  useEffect(() => { let live = true; void localShelf().then(articles => { if(live) setInitial([...articles, ...personal, ...sampleShelf()]); }).catch(e => setError(e.message)); return () => { live=false; }; }, [personal]);
+  if (!initial) return <main className="page"><h1>本地书架</h1><p>{error || "正在读取…"}</p></main>;
   return <Library initial={initial} initialMode={mode} />;
 }
 export function SampleLibrary({

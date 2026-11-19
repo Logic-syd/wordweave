@@ -55,7 +55,7 @@ async function check(name, action) {
 }
 try {
   await check(
-    "content requires an actual user click before starting generation and ignores spoofed senders",
+    "a trusted popup action starts translation once without a second confirmation; spoofed senders cannot start it",
     async () => {
       const page = await fixture(
         "<article><p>A complete English paragraph for learning.</p></article>",
@@ -105,34 +105,15 @@ try {
           () => {},
         ),
       );
-      const generate = page.getByRole("button", {
-        name: "开始免费翻译",
-        exact: true,
-      });
-      await generate.waitFor();
-      await generate.evaluate((button) => button.click());
-      assert.equal(
-        await page.evaluate(
-          () =>
-            window.messages.filter((message) => message.type === "ww:job:start")
-              .length,
-        ),
-        0,
-      );
-      await generate.click();
-      assert.equal(
-        await page.evaluate(
-          () =>
-            window.messages.filter((message) => message.type === "ww:job:start")
-              .length,
-        ),
-        1,
-      );
+      await page.waitForFunction(() => window.messages.some((message) => message.type === "ww:job:start"));
+      assert.equal(await page.evaluate(() => window.messages.filter((message) => message.type === "ww:job:start").length), 1);
+      await page.evaluate(() => window.contentListener({ type: "ww:open", scope: "article" }, { id: "fixture", url: "chrome-extension://fixture/popup.html" }, () => {}));
+      assert.equal(await page.evaluate(() => window.messages.filter((message) => message.type === "ww:job:start").length), 1);
       await page.close();
     },
   );
   await check(
-    "wordcard can close while saving and a delayed response does not reopen it",
+    "word card offers meaning and pronunciation without collection or learning-state controls",
     async () => {
       const page = await fixture(
         '<article><p>A paragraph with a word.</p></article><button id="trigger">Open word</button>',
@@ -165,31 +146,12 @@ try {
         const card = new WWDom.WordCard(root, () => {});
         card.open(occurrence, document.querySelector("#trigger"));
       });
-      await page.getByRole("button", { name: "♡ 收藏", exact: true }).click();
-      assert.equal(
-        await page
-          .getByRole("button", { name: "♡ 收藏", exact: true })
-          .isDisabled(),
-        true,
-      );
-      assert.equal(
-        await page
-          .getByRole("button", { name: "关闭词卡", exact: true })
-          .isDisabled(),
-        false,
-      );
+      assert.equal(await page.getByRole("button", { name: /收藏|想学|认识|暂不学习/ }).count(), 0);
+      assert.equal(await page.getByRole("button", { name: "朗读", exact: true }).count(), 1);
+      assert.equal(await page.getByRole("dialog").textContent().then((text) => text.includes("避免不必要的重新渲染")), true);
       await page.getByRole("button", { name: "关闭词卡", exact: true }).click();
-      await page.evaluate(() =>
-        window.finishSaving({
-          ok: true,
-          data: { status: "LEARNING", favorite: true },
-        }),
-      );
       assert.equal(await page.getByRole("dialog").count(), 0);
-      assert.equal(
-        await page.evaluate(() => document.activeElement.id),
-        "trigger",
-      );
+      assert.equal(await page.evaluate(() => document.activeElement?.id), "trigger");
       await page.close();
     },
   );
@@ -299,7 +261,7 @@ try {
     },
   );
   await check(
-    "in-place replacement renders safe code/link/terms, known words hide glosses, original nodes retain events",
+    "in-place replacement renders safe code/link/terms, click-only mode hides glosses, original nodes retain events",
     async () => {
       const page = await fixture(
         '<article><p id="body">React calls <code>setCount(count + 1)</code> with <a id="link" href="/docs">documentation</a> to avoid unnecessary re-renders.</p><pre id="code"><code>const n = 1;\nreturn n &lt; 2;</code></pre></article>',
@@ -374,7 +336,7 @@ try {
       );
       assert.equal(await page.locator(".gloss").isVisible(), true);
       await page.evaluate(() =>
-        window.session.updateWord("v1", { status: "KNOWN", favorite: true }),
+        window.session.setGlossMode("click"),
       );
       assert.equal(await page.locator(".gloss").isVisible(), false);
       await page.getByRole("button", { name: "切换本段原文与学习版" }).click();
@@ -530,6 +492,69 @@ try {
       await page.close();
     },
   );
+  await check("out-of-order chunks preserve existing DOM, reading position, original view and first-occurrence glosses", async () => {
+    const page = await fixture(`<article><p id="a">${"Earlier English text taking vertical space. ".repeat(220)}</p><p id="b">Later English paragraph containing a useful phrase.</p><p id="c">A final English paragraph.</p></article><div style="height:1800px" aria-hidden="true"></div>`);
+    const result = await page.evaluate(() => {
+      const extraction = WWDom.extractPage("article");
+      const make = (indices) => ({ version: {
+        paragraphs: indices.map((index) => ({ sourceId: `b${index}`, segments: [{ type: "term", text: "useful phrase", occurrenceId: `o${index}` }] })),
+        occurrences: indices.map((index) => ({ id: `o${index}`, sourceId: `b${index}`, vocabularyId: "v1", form: "useful phrase", meaning: "有用的表达", word: { user: null } })),
+      } });
+      const original = document.querySelector("article").innerHTML;
+      const session = new WWDom.ReadingReplacement(extraction.blocks, make([1]), "first", () => {});
+      const host = document.querySelector('#b [data-wordweave-learning]');
+      document.querySelector("#b").scrollIntoView();
+      const before = document.querySelector("#b").getBoundingClientRect().top;
+      session.append(make([0, 1]));
+      const shift = Math.abs(document.querySelector("#b").getBoundingClientRect().top - before);
+      const sameHost = host === document.querySelector('#b [data-wordweave-learning]');
+      const firstVisible = !document.querySelector('#a [data-wordweave-learning]').shadowRoot.querySelector('.gloss').hidden;
+      const laterHidden = host.shadowRoot.querySelector('.gloss').hidden;
+      session.setView("original");
+      session.append(make([0, 1, 2]));
+      const finalStaysOriginal = document.querySelector("#c").textContent.includes("A final English paragraph.");
+      const count = session.count;
+      const skipped = session.skipped;
+      session.restore();
+      return { shift, sameHost, firstVisible, laterHidden, finalStaysOriginal, count, skipped, restored: document.querySelector("article").innerHTML === original };
+    });
+    assert.ok(result.shift <= 2, `Reading anchor moved ${result.shift}px`);
+    assert.deepEqual({ ...result, shift: 0 }, { shift: 0, sameHost: true, firstVisible: true, laterHidden: true, finalStaysOriginal: true, count: 3, skipped: 0, restored: true });
+    await page.close();
+  });
+
+  await check("restoring while a poll is pending prevents late chunks from changing the page", async () => {
+    const page = await fixture('<article><p>First English source paragraph.</p><p>Second English source paragraph.</p></article>');
+    const original = await page.locator("article").innerHTML();
+    await page.evaluate(() => {
+      let input;
+      let polls = 0;
+      const result = (all = false) => ({ version: { paragraphs: input.blocks.slice(0, all ? 2 : 1).map((block) => ({ sourceId: block.id, segments: [{ type: "text", text: "这段已经翻译。" }] })), occurrences: [] } });
+      window.chrome = { runtime: {
+        id: "fixture", getURL: () => "chrome-extension://fixture/",
+        onMessage: { addListener: (listener) => { window.contentListener = listener; } },
+        sendMessage: async (message) => {
+          if (message.type === "ww:preferences:get") return { ok: true, data: { retention: "medium", glossMode: "first", translationMode: "free" } };
+          if (message.type === "ww:job:start") { input = message.input; return { ok: true, data: { id: "j1", status: "running" } }; }
+          if (++polls === 1) return { ok: true, data: { id: "j1", status: "running", article: result(), revision: 1 } };
+          return new Promise((resolve) => { window.finishPoll = () => resolve({ ok: true, data: { id: "j1", status: "succeeded", article: result(true), revision: 2 } }); });
+        },
+      } };
+    });
+    await page.addScriptTag({ path: contentBundle });
+    await page.evaluate(() => window.contentListener({ type: "ww:open", scope: "article" }, { id: "fixture", url: "chrome-extension://fixture/popup.html" }, () => {}));
+    await page.waitForFunction(() => typeof window.finishPoll === "function");
+    assert.equal(await page.locator("[data-wordweave-learning]").count(), 1);
+    await page.evaluate(() => {
+      window.contentListener({ type: "ww:restore" }, { id: "fixture", url: "chrome-extension://fixture/popup.html" }, () => {});
+      window.finishPoll();
+    });
+    await page.waitForTimeout(350);
+    assert.equal(await page.locator("article").innerHTML(), original);
+    assert.equal(await page.locator("[data-wordweave-learning]").count(), 0);
+    await page.close();
+  });
+
   console.log(`${passed} extension DOM browser checks passed.`);
 } finally {
   await browser.close();

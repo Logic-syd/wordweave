@@ -94,8 +94,3 @@ document.querySelector("#restore")!.addEventListener("click", () => {
 document.querySelector("#settings")!.addEventListener("click", () => {
   void chrome.runtime.openOptionsPage();
 });
-document.querySelector("#library")!.addEventListener("click", () => {
-  void sendMessage({ type: "ww:library:open" }).catch((error: unknown) =>
-    show(error instanceof Error ? error.message : "无法打开收藏。", true),
-  );
-});

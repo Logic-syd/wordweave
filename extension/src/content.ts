@@ -33,9 +33,8 @@ class ContentController {
   private replacement: ReadingReplacement | null = null;
   private card: WordCard;
   private jobId: string | null = null;
-  private articleId: string | null = null;
+  private revision = -1;
   private busy = false;
-  private polling = false;
   private failed = false;
   private pageUrl = location.href;
   private timer: ReturnType<typeof setTimeout> | null = null;
@@ -75,9 +74,7 @@ class ContentController {
     this.message.setAttribute("role", "status");
     this.panel.append(top, this.body);
     this.root.append(this.panel);
-    this.card = new WordCard(this.root, (id, user) =>
-      this.replacement?.updateWord(id, user),
-    );
+    this.card = new WordCard(this.root);
     document.documentElement.append(host);
     this.panel.hidden = true;
   }
@@ -93,7 +90,7 @@ class ContentController {
       this.busy = false;
       this.failed = false;
       this.jobId = null;
-      this.articleId = null;
+      this.revision = -1;
       this.pageUrl = location.href;
     }
     if (this.busy || this.replacement) {
@@ -112,8 +109,9 @@ class ContentController {
       };
       this.failed = false;
       this.jobId = null;
-      this.articleId = null;
+      this.revision = -1;
       this.render();
+      await this.start();
     } catch (error) {
       this.extraction = null;
       this.body.replaceChildren(
@@ -135,11 +133,11 @@ class ContentController {
         "p",
         skipped
           ? `已恢复未变化的段落。${skipped} 段已被网页更新，语境没有覆盖这些内容。`
-          : "已恢复原文。文章和收藏仍保存在本机插件中。",
+          : "已恢复原文。",
         "notice",
       ),
     );
-    // A pending model request remains saved, but must not rewrite the page after restore.
+    // A pending request may populate the cache, but must never rewrite the restored page.
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
     this.jobId = null;
@@ -161,7 +159,11 @@ class ContentController {
     this.message.textContent = "";
     this.message.classList.remove("error");
     if (this.replacement) {
-      this.title.textContent = "语境 · 学习版已就绪";
+      this.title.textContent = this.busy
+        ? "语境 · 正在翻译"
+        : this.failed
+          ? "语境 · 部分翻译未完成"
+          : "语境 · 翻译完成";
       const views = ui("div", undefined, "row");
       views.append(
         button(
@@ -206,16 +208,9 @@ class ContentController {
       });
       label.append(select);
       const actions = ui("div", undefined, "row");
-      actions.append(
-        button("打开我的文章", () => {
-          if (this.articleId)
-            void sendMessage({
-              type: "ww:reader:open",
-              id: this.articleId,
-            }).catch((error) => this.showError(error));
-        }),
-        button("恢复网页", () => this.restore(), "quiet"),
-      );
+      actions.append(button("恢复原文", () => this.restore(), "quiet"));
+      if (this.failed)
+        actions.append(button("重试翻译", () => void this.start(), "primary"));
       this.body.append(
         views,
         label,
@@ -307,11 +302,18 @@ class ContentController {
     );
     start.disabled = this.busy;
     this.body.append(start, this.message);
-    if (this.busy)
-      this.message.textContent = "可以收起面板，结果会保存在本机插件中。";
+    if (this.busy) {
+      this.message.textContent = "正在翻译，完成的段落会直接显示。";
+      this.body.append(button("恢复原文", () => this.restore(), "quiet"));
+    }
   }
   private async start() {
     if (this.busy || !this.extraction) return;
+    // A failed request can leave verified paragraphs visible. Retry from original DOM.
+    this.replacement?.restore();
+    this.replacement = null;
+    this.card.close();
+    this.revision = -1;
     if (
       this.pageUrl !== location.href ||
       this.extraction.blocks.some(
@@ -327,6 +329,7 @@ class ContentController {
     }
     this.busy = true;
     this.render();
+    this.collapse(true);
     const epoch = ++this.requestEpoch;
     try {
       const retry =
@@ -363,62 +366,72 @@ class ContentController {
     }
   }
   private async poll() {
-    if (!this.jobId || this.polling) return;
+    if (!this.jobId) return;
     const id = this.jobId;
-    this.polling = true;
+    const epoch = this.requestEpoch;
     try {
-      const job = await sendMessage<JobRecord>({ type: "ww:job:get", id });
-      if (id !== this.jobId) return;
-      if (job.status === "succeeded" && job.article && this.extraction) {
-        this.busy = false;
-        this.articleId = job.article.id;
-        if (this.pageUrl !== location.href) {
-          this.render();
-          this.showError(
-            new Error("网页已切换。翻译结果已保存在插件的「我的文章」里。"),
+      const job = await sendMessage<JobRecord>({
+        type: "ww:job:get",
+        id,
+        ...(this.revision >= 0 ? { afterRevision: this.revision } : {}),
+      });
+      if (id !== this.jobId || epoch !== this.requestEpoch) return;
+      if (this.pageUrl !== location.href) {
+        this.restore();
+        this.body.append(
+          ui("p", "网页已切换，请在新页面重新点击翻译。", "notice"),
+        );
+        return;
+      }
+      const hadReplacement = !!this.replacement;
+      if (job.article && this.extraction) {
+        this.revision = job.revision ?? this.revision + 1;
+        if (this.replacement) this.replacement.append(job.article);
+        else {
+          this.replacement = new ReadingReplacement(
+            this.extraction.blocks,
+            job.article,
+            this.prefs.glossMode,
+            (occurrence, trigger) => {
+              this.collapse(true);
+              this.card.open(occurrence, trigger);
+            },
           );
-          return;
+          this.view = "learning";
         }
-        this.replacement = new ReadingReplacement(
-          this.extraction.blocks,
-          job.article,
-          this.prefs.glossMode,
-          (occurrence, trigger) => {
-            this.collapse(true);
-            this.card.open(occurrence, trigger);
-          },
-        );
-        this.view = "learning";
-        this.render();
-        // A compact controller leaves room for the actual article.
-        this.collapse(true);
-      } else if (job.status === "succeeded") {
-        throw new Error("未找到翻译结果，请重新查询。");
-      } else if (job.status === "failed") {
-        this.busy = false;
-        this.failed = true;
-        this.render();
+      }
+      this.busy = job.status === "pending" || job.status === "running";
+      this.failed = job.status === "failed";
+      if ((!hadReplacement && this.replacement) || !this.busy) this.render();
+      if (this.failed) {
+        this.collapse(false);
         this.showError(
-          new Error(job.error || "翻译失败，原文已保留。请重试。"),
+          new Error(
+            job.error || "部分翻译未完成，未处理的段落保留原文。请重试。",
+          ),
         );
-      } else {
+      } else if (this.busy) {
+        const count = this.replacement?.count ?? 0;
+        this.title.textContent = count
+          ? `语境 · 已显示 ${count} 段`
+          : "语境 · 正在翻译";
         if (job.progress?.total)
-          this.message.textContent = `已处理 ${job.progress.completed} / ${job.progress.total} 段`;
-        this.timer = setTimeout(() => void this.poll(), 1000);
+          this.message.textContent = `已处理 ${job.progress.completed} / ${job.progress.total} ${this.prefs.translationMode === "ai" ? "组" : "段"}，可以边读边等。`;
+        this.timer = setTimeout(() => void this.poll(), 200);
+      } else if (!this.replacement) {
+        this.showError(new Error("未找到译文，请重新翻译。"));
       }
     } catch (error) {
+      if (id !== this.jobId || epoch !== this.requestEpoch) return;
       this.busy = false;
       this.render();
       this.showError(error);
-      // Polling can be resumed explicitly without starting another paid generation.
       const resume = button("重新查询结果", () => {
         this.busy = true;
         this.render();
         void this.poll();
       });
       this.body.append(resume);
-    } finally {
-      this.polling = false;
     }
   }
 }

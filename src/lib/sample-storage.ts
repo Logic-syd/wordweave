@@ -22,14 +22,32 @@ const progressSchema = z.object({
 const schema = z.object({
   words: z.record(z.string(), userSchema),
   progress: z.record(z.string(), progressSchema),
+  practice: z
+    .record(
+      z.string(),
+      z.array(
+        z.object({
+          skill: z.enum(["listen", "speak", "read"]),
+          articleId: z.string(),
+          sourceId: z.string(),
+          title: z.string(),
+          sentence: z.string(),
+          form: z.string(),
+          href: z.string().regex(/^\/(?:(listen|speak)\?|read\/local-article-)/),
+        }),
+      ),
+    )
+    .default({}),
 });
 type State = z.infer<typeof schema>;
 function read(): State {
   try {
     const raw = localStorage.getItem(KEY);
-    return raw ? schema.parse(JSON.parse(raw)) : { words: {}, progress: {} };
+    return raw
+      ? schema.parse(JSON.parse(raw))
+      : { words: {}, progress: {}, practice: {} };
   } catch {
-    return { words: {}, progress: {} };
+    return { words: {}, progress: {}, practice: {} };
   }
 }
 function write(state: State) {
@@ -107,7 +125,37 @@ export function saveSampleWord(
           : null;
   state.words[id] = user;
   write(state);
+  if (typeof window !== "undefined")
+    window.dispatchEvent(new Event("wordweave:vocabulary"));
   return user;
+}
+export function saveSamplePracticeOccurrence(
+  id: string,
+  appearance: State["practice"][string][number],
+) {
+  const state = read();
+  if (!state.words[id]) throw new Error("请先保存这个范文词条。");
+  const previous = state.practice[id] ?? [];
+  if (
+    !previous.some(
+      (a) =>
+        a.skill === appearance.skill &&
+        a.articleId === appearance.articleId &&
+        a.sourceId === appearance.sourceId,
+    )
+  ) {
+    state.practice[id] = [...previous, appearance];
+    state.words[id].exposureCount++;
+    write(schema.parse(state));
+    if (typeof window !== "undefined")
+      window.dispatchEvent(new Event("wordweave:vocabulary"));
+  }
+}
+export function removeSampleArticleOccurrences(articleId: string) {
+  const state = read();
+  if (!Object.values(state.practice).some(items => items.some(a => a.articleId === articleId))) return;
+  for (const id of Object.keys(state.practice)) state.practice[id] = state.practice[id].filter(a => a.articleId !== articleId);
+  write(state);
 }
 export function sampleShelf() {
   const state = read();
@@ -138,5 +186,8 @@ export function sampleVocabulary(): VocabularyView[] {
       words.set(word.id, word);
     }
   }
-  return [...words.values()];
+  return [...words.values()].map((w) => ({
+    ...w,
+    appearances: [...w.appearances, ...(state.practice[w.id] ?? [])],
+  }));
 }

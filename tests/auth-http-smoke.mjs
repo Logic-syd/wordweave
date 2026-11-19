@@ -298,6 +298,7 @@ try {
   });
   const modelUrl = await listen(modelServer);
   Object.assign(env, {
+    SERVER_AI_ENABLED: "true", // Explicit opt-in for legacy private API regression checks.
     LLM_API_KEY: "local-auth-fixture",
     LLM_BASE_URL: `${modelUrl}/v1`,
     LLM_MODEL: "local-auth-fixture",
@@ -472,7 +473,7 @@ try {
     "Invitation page redirects home; retired management APIs return 410 without writing data",
   );
 
-  report(await checkPublicBrowsing(appUrl, aliceToken));
+  report(await checkPublicBrowsing(appUrl));
   const loggedOut = await request("/api/auth/logout", {
     cookie: aliceCookie,
     method: "POST",
@@ -594,7 +595,7 @@ try {
         modelCalls,
         limitations: [
           "Real HTTP/PostgreSQL ownership checks; local mocked model output does not assess translation quality.",
-          "Public browsing and the personal login dialog use a real Chromium browser and production cookie authentication.",
+          "Public local browsing uses real Chromium; legacy API authentication uses production cookies.",
         ],
       },
       null,

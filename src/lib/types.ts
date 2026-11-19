@@ -1,4 +1,4 @@
-import type { Settings, Segment, Term } from "./schemas";
+import type { Settings, Segment, Term, UntranslatedParagraph } from "./schemas";
 import type { SourceBlock } from "./markdown";
 export type UserWord = {
   status: string;
@@ -37,6 +37,7 @@ export type Coverage = {
   requestedNew: number;
   requestedReview: number;
   missing: string[];
+  untranslated?: UntranslatedParagraph[];
 };
 export type GenerationProgress = {
   stage: string;
@@ -101,6 +102,8 @@ export type LibraryArticle = {
 };
 export type VocabularyView = Word & {
   appearances: {
+    skill?: "read" | "listen" | "speak";
+    href?: string;
     articleId: string;
     title: string;
     sentence: string;

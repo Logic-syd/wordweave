@@ -183,7 +183,7 @@ describe("extension free translation", () => {
     expect(article.version!.coverage.newWords).toEqual([]);
   });
 
-  it("caps extra expression lookups across the article and requests at concurrency two", async () => {
+  it("translates at concurrency two with no extra network requests for glossary matches", async () => {
     let active = 0;
     let peak = 0;
     const expressions = [
@@ -219,7 +219,7 @@ describe("extension free translation", () => {
       { ...free, onProgress: (value) => progress.push(value.completed) },
       fetcher,
     );
-    expect(fetcher).toHaveBeenCalledTimes(expressions.length + 6);
+    expect(fetcher).toHaveBeenCalledTimes(expressions.length);
     expect(peak).toBe(2);
     expect(progress[0]).toBe(0);
     expect(progress.at(-1)).toBe(expressions.length);
@@ -771,5 +771,129 @@ describe("extension direct BYOK AI", () => {
     await expect(readBoundedJson(response, 30)).rejects.toThrow("过大");
     expect(cancelled).toBe(true);
     expect(text).not.toHaveBeenCalled();
+  });
+});
+
+describe("progressive translation latency and validation", () => {
+  it("shows a complete free paragraph before a slow later paragraph, with no glossary round trips", async () => {
+    let release!: () => void;
+    const slow = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const snapshots: Awaited<ReturnType<typeof translateArticle>>[] = [];
+    let done = false;
+    const fetcher = vi.fn<typeof fetch>(async (url) => {
+      const text = new URL(String(url)).searchParams.get("q")!;
+      if (text.startsWith("Later")) {
+        await slow;
+        return google("后面的段落需要更长时间。");
+      }
+      expect(text).toBe(source);
+      return google("React 批量处理状态更新，以避免不必要的重新渲染。");
+    });
+    const translated = translateArticle(
+      {
+        ...input(),
+        blocks: [
+          { id: "b0", markdown: source },
+          { id: "b1", markdown: "Later paragraphs take more time." },
+        ],
+      },
+      {
+        ...free,
+        onPartial: (article) => {
+          snapshots.push(article);
+        },
+      },
+      fetcher,
+    ).then((article) => {
+      done = true;
+      return article;
+    });
+    await vi.waitFor(() => expect(snapshots.length).toBeGreaterThan(0));
+    expect(done).toBe(false);
+    expect(
+      snapshots[0].version!.paragraphs.map((paragraph) => paragraph.sourceId),
+    ).toEqual(["b0"]);
+    expect(
+      snapshots[0].version!.occurrences.map((occurrence) => occurrence.form),
+    ).toEqual(["state updates", "avoid unnecessary re-renders"]);
+    release();
+    const result = await translated;
+    expect(result.version!.paragraphs).toHaveLength(2);
+    expect(result.version!.occurrences[0].id).toBe(
+      snapshots[0].version!.occurrences[0].id,
+    );
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it("publishes only validated AI chunks while another chunk is still pending or invalid", async () => {
+    let release!: () => void;
+    const slow = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const snapshots: Awaited<ReturnType<typeof translateArticle>>[] = [];
+    const fetcher = vi.fn<typeof fetch>(async (_url, init) => {
+      const body = JSON.parse(String(init?.body));
+      const blocks = JSON.parse(body.messages[1].content).blocks;
+      if (blocks[0].id === "b1") {
+        await slow;
+        return envelope({ title: "Invalid", paragraphs: [], terms: [] });
+      }
+      return envelope(aiResult(init));
+    });
+    const translated = translateArticle(
+      {
+        ...input(),
+        blocks: [
+          { id: "b0", markdown: "First English paragraph. ".repeat(50) },
+          { id: "b1", markdown: "Second English paragraph. ".repeat(50) },
+        ],
+      },
+      {
+        ...ai,
+        onPartial: (article) => {
+          snapshots.push(article);
+        },
+      },
+      fetcher,
+    );
+    const outcome = translated.catch((error: unknown) => error);
+    await vi.waitFor(() => expect(snapshots).toHaveLength(1));
+    expect(
+      snapshots[0].version!.paragraphs.map((paragraph) => paragraph.sourceId),
+    ).toEqual(["b0"]);
+    release();
+    expect(await outcome).toBeInstanceOf(Error);
+    expect(snapshots).toHaveLength(1);
+    expect(fetcher).toHaveBeenCalledTimes(3); // The invalid chunk has one bounded retry.
+  });
+});
+
+describe("automatic AI model selection cache", () => {
+  it("reuses model discovery across pages for the same account and isolates different keys", async () => {
+    const fetcher = vi.fn<typeof fetch>(async (url, init) =>
+      String(url).endsWith("/models")
+        ? json({ data: [{ id: "provider-text-model" }] })
+        : envelope(aiResult(init)),
+    );
+    const context = { ...ai, ai: { ...ai.ai!, model: "" } };
+    await translateArticle(input(), context, fetcher);
+    await translateArticle(
+      input("Another English paragraph worth translating."),
+      context,
+      fetcher,
+    );
+    expect(
+      fetcher.mock.calls.filter(([url]) => String(url).endsWith("/models")),
+    ).toHaveLength(1);
+    await translateArticle(
+      input(),
+      { ...context, ai: { ...context.ai, apiKey: "another-test-key" } },
+      fetcher,
+    );
+    expect(
+      fetcher.mock.calls.filter(([url]) => String(url).endsWith("/models")),
+    ).toHaveLength(2);
   });
 });

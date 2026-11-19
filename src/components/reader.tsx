@@ -29,7 +29,11 @@ import { useHydrated } from "./use-hydrated";
 import { WordCard } from "./word-card";
 import { SettingsFields } from "./settings-fields";
 import { GenerationAllowance } from "./generation-allowance";
+import { browserFetch } from "@/lib/browser-api";
+import { LocalAiNotice } from "./browser-ai-settings";
 import { saveSampleProgress } from "@/lib/sample-storage";
+import { saveLocalProgress } from "@/lib/browser-store";
+import { rememberReading } from "@/lib/learning-entry";
 type SavedSegment = Segment & { occurrenceId?: string };
 const markdownPlugins = [remarkGfm];
 const EMPTY_OCCURRENCES: OccurrenceView[] = [];
@@ -137,6 +141,11 @@ const readingComponents: Components = {
     </div>
   ),
 };
+function readerFetch(path: string, options?: RequestInit) {
+  return path.includes("/local-article-")
+    ? browserFetch(path, options)
+    : fetch(path, options);
+}
 export function Reader({
   initial,
   configured,
@@ -151,6 +160,10 @@ export function Reader({
   local?: boolean;
 }) {
   const hydrated = useHydrated();
+  const browserLocal = initial.id.startsWith("local-article-");
+  useEffect(() => {
+    rememberReading(initial.id);
+  }, [initial.id]);
   const [article, setArticle] = useState(initial);
   const [view, setView] = useState(initial.progress?.view ?? "learning");
   const [gloss, setGloss] = useState(
@@ -203,12 +216,18 @@ export function Reader({
         }
         return;
       }
+      if (browserLocal) {
+        void saveLocalProgress(initial.id, data)
+          .then(() => setSaveState("进度保存在这个浏览器"))
+          .catch(() => setSaveState("本地保存失败，请检查浏览器存储空间"));
+        return;
+      }
       pendingProgress.current = { ...pendingProgress.current, ...data };
       if (progressTimer.current) clearTimeout(progressTimer.current);
       progressTimer.current = setTimeout(() => {
         const payload = pendingProgress.current;
         pendingProgress.current = {};
-        void fetch(`/api/articles/${initial.id}/progress`, {
+        void readerFetch(`/api/articles/${initial.id}/progress`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -220,13 +239,15 @@ export function Reader({
           .catch(() => setSaveState("进度保存失败，请检查连接"));
       }, 400);
     },
-    [initial.id, local],
+    [initial.id, local, browserLocal],
   );
   useEffect(
     () => () => {
       if (progressTimer.current) clearTimeout(progressTimer.current);
+      if (initial.id.startsWith("local-article-"))
+        generationRequest.current?.abort("page-closed");
       if (Object.keys(pendingProgress.current).length)
-        void fetch(`/api/articles/${initial.id}/progress`, {
+        void readerFetch(`/api/articles/${initial.id}/progress`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(pendingProgress.current),
@@ -239,7 +260,7 @@ export function Reader({
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 12_000);
     try {
-      const r = await fetch(`/api/articles/${initial.id}`, {
+      const r = await readerFetch(`/api/articles/${initial.id}`, {
         cache: "no-store",
         signal: controller.signal,
       });
@@ -267,9 +288,7 @@ export function Reader({
       }
       return data;
     } catch {
-      setProgressError(
-        "暂时无法更新进度。请检查网络，生成可能仍在服务器继续。",
-      );
+      setProgressError("暂时无法读取最新生成进度，请稍后重试。");
       return undefined;
     } finally {
       clearTimeout(timeout);
@@ -318,7 +337,7 @@ export function Reader({
       }
     };
     try {
-      const r = await fetch(`/api/articles/${initial.id}/generate`, {
+      const r = await readerFetch(`/api/articles/${initial.id}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(settings),
@@ -327,7 +346,7 @@ export function Reader({
       const result = await r.json().catch(() => null);
       if (!r.ok && r.status !== 409)
         throw new Error(
-          result?.error || "生成请求连接中断，正在查询服务器中的最新结果。",
+          result?.error || "生成请求中断，正在读取最新保存结果。",
         );
       const latest = await refresh();
       showSuccessfulVersion(latest);
@@ -337,7 +356,7 @@ export function Reader({
       } else {
         setError(
           controller.signal.aborted
-            ? "等待响应的时间较长，正在查询服务器中的最新进度。"
+            ? "本次等待已结束，正在读取最新保存结果。"
             : e instanceof Error
               ? e.message
               : "生成失败，请稍后重试",
@@ -519,12 +538,15 @@ export function Reader({
   );
   const de = article.mode === "german";
   const coverage = article.version?.coverage;
+  const untranslated = new Map(
+    (coverage?.untranslated ?? []).map((item) => [item.sourceId, item.reason]),
+  );
   return (
     <main className="reader-page">
       <div className="reader-top">
         <Link href="/library" className="back-link">
           <ArrowLeft size={16} />
-          文章库
+          换一篇
         </Link>
         <span className="reader-top-meta">
           {de ? "德语日常" : "技术英语"}
@@ -540,7 +562,7 @@ export function Reader({
             href={`/new?mode=${de ? "german" : "tech"}`}
             className="text-button"
           >
-            创建自己的文章
+            导入文章
           </Link>
         ) : (
           <button
@@ -596,6 +618,7 @@ export function Reader({
               <X size={17} />
             </button>
           </div>
+          {browserLocal && <LocalAiNotice />}
           <SettingsFields
             mode={article.mode}
             value={settings}
@@ -612,7 +635,9 @@ export function Reader({
           </p>
           {!configured && (
             <p className="field-hint">
-              请先在服务端配置 LLM_API_KEY、LLM_BASE_URL 和 LLM_MODEL。
+              {browserLocal
+                ? "请在右上角「更多功能 → 我的 API」填写自己的 Key 和模型，保存后即可生成。"
+                : "旧私人模式的服务端 AI 默认已关闭。"}
             </p>
           )}
           <button
@@ -726,7 +751,7 @@ export function Reader({
           </p>
         </section>
       )}
-      {!local && configured && <GenerationAllowance />}
+      {!browserLocal && !local && configured && <GenerationAllowance />}
       {(error || article.generationError) && (
         <div className="error-box reader-error" role="alert">
           <AlertCircle size={17} />
@@ -805,7 +830,7 @@ export function Reader({
                   ? "下方保留完整原文，完成后会自动显示学习版。"
                   : configured
                     ? "点击右上角设置，生成你的学习材料。"
-                    : "演示文章无需 API。为新文章生成学习版，需要配置服务端模型 API。"}
+                    : "演示文章无需 API。生成自己的学习版，请先在「我的 API」填写自己的 Key。"}
               </p>
               {article.sourceText && (
                 <button
@@ -815,6 +840,21 @@ export function Reader({
                   先阅读原文 →
                 </button>
               )}
+            </div>
+          </div>
+        )}
+        {untranslated.size > 0 && (
+          <div
+            className="notice no-version"
+            role="status"
+            aria-label="翻译完成情况"
+          >
+            <AlertCircle size={19} />
+            <div>
+              <strong>部分翻译完成 · {untranslated.size} 段保留原文</strong>
+              <p>
+                模型拒绝了部分内容，或已达到分段定位的请求上限。未翻译的段落逐段标明，其余译文可以正常阅读；原文没有删减。
+              </p>
             </div>
           </div>
         )}
@@ -834,8 +874,21 @@ export function Reader({
               data-paragraph
               key={p.sourceId}
               className={`reading-paragraph ${view === "original" ? "original-view" : ""}`}
-              lang={view === "original" ? (de ? "de" : "en") : "zh-CN"}
+              lang={
+                view === "original" || untranslated.has(p.sourceId)
+                  ? de
+                    ? "de"
+                    : "en"
+                  : "zh-CN"
+              }
             >
+              {view === "learning" && untranslated.has(p.sourceId) && (
+                <p className="field-hint" lang="zh-CN">
+                  {untranslated.get(p.sourceId) === "content_refused"
+                    ? "模型拒绝翻译本段，已保留原文。"
+                    : "已达到分段定位的请求上限，本段暂未翻译，已保留原文。"}
+                </p>
+              )}
               {renderMarkdown(
                 view === "original" ? p.original : learningMarkdown(p.segments),
                 view === "learning",

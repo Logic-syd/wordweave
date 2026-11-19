@@ -7,6 +7,7 @@ import { settingsSchema } from "@/lib/schemas";
 import { AppError } from "@/lib/errors";
 import { getSample } from "@/lib/samples";
 import { SampleReader } from "@/components/sample-reader";
+import { BrowserReader } from "@/components/browser-pages";
 export const dynamic = "force-dynamic";
 export default async function ReadPage({
   params,
@@ -16,6 +17,14 @@ export default async function ReadPage({
   searchParams: Promise<{ generate?: string }>;
 }) {
   const { id } = await params;
+  if (id.startsWith("local-article-"))
+    return (
+      <BrowserReader
+        key={id}
+        id={id}
+        autoGenerate={(await searchParams).generate === "1"}
+      />
+    );
   const sample = getSample(id);
   if (sample) return <SampleReader article={sample} />;
   if (id.startsWith("sample-")) notFound();
@@ -32,7 +41,9 @@ export default async function ReadPage({
       return (
         <Reader
           initial={article}
-          configured={modelConfigured()}
+          configured={
+            process.env.SERVER_AI_ENABLED === "true" && modelConfigured()
+          }
           autoGenerate={(await searchParams).generate === "1"}
           initialSettings={settingsSchema.parse(
             article.version?.settings ?? row.draftSettings ?? {},

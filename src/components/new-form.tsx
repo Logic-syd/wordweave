@@ -16,18 +16,22 @@ import { SettingsFields } from "./settings-fields";
 import { SpriteIcon } from "./sprite-icon";
 import { PersonalLoginPrompt } from "./personal-login-prompt";
 import { GenerationAllowance } from "./generation-allowance";
+import { browserFetch } from "@/lib/browser-api";
+import { LocalAiNotice } from "./browser-ai-settings";
 export function NewForm({
   mode,
   configured,
   initialSettings,
   dueWords,
   authorized = true,
+  browserLocal = false,
 }: {
   mode: "tech" | "german";
   configured: boolean;
   initialSettings: Settings;
   dueWords: string[];
   authorized?: boolean;
+  browserLocal?: boolean;
 }) {
   const router = useRouter();
   const hydrated = useHydrated();
@@ -76,7 +80,7 @@ export function NewForm({
     submitting.current = true;
     setBusy(true);
     try {
-      const response = await fetch("/api/articles", {
+      const response = await (browserLocal ? browserFetch : fetch)("/api/articles", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -139,6 +143,7 @@ export function NewForm({
   }
   return (
     <main className="page create-page">
+      {browserLocal && <LocalAiNotice />}
       <Link href="/" className="back-link">
         ← 返回学习空间
       </Link>
@@ -166,7 +171,7 @@ export function NewForm({
           <div>
             尚未配置模型 API。
             {tech
-              ? "你可以先保存、阅读原文；生成学习版需配置服务端环境变量。"
+              ? "你可以先保存、阅读原文；生成学习版请在「我的 API」填写自己的 Key。"
               : "原创生成需要 API；你也可以导入原文，或先体验演示故事。"}{" "}
             <Link href="/library">去读演示文章 →</Link>
           </div>
@@ -316,14 +321,14 @@ export function NewForm({
           )}
           <div className="generation-note">
             <Sparkles size={16} />
-            <p>网站生成会调用模型。语言内容可能有误，可以对照原文阅读。</p>
+            <p>生成会调用你配置的模型 API。语言内容可能有误，可以对照原文阅读。</p>
           </div>
           {error && (
             <div className="error-box" role="alert">
               {error}
             </div>
           )}
-          {canCreate && configured && <GenerationAllowance />}
+          {canCreate && configured && !browserLocal && <GenerationAllowance />}
           {loginMessage && (
             <p role="status" className="field-hint">
               {loginMessage}

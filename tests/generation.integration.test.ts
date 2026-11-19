@@ -123,6 +123,85 @@ afterAll(async () => {
 });
 
 describe("generation transaction with real PostgreSQL and mocked model transport", () => {
+  it("persists partial translations and refusal markers, and keeps that version if a later request is entirely refused", async () => {
+    const blocked = "Blocked provider fixture.";
+    const text = `A normal paragraph about state updates.\n\n${blocked}\n\n\`\`\`js\nconst untouched = '<code>';\n\`\`\``;
+    const a = await article("tech", text);
+    const refused = () =>
+      Response.json(
+        {
+          error: {
+            code: "invalid_request_error",
+            message: "Content Exists Risk",
+          },
+        },
+        { status: 400 },
+      );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+        const input = JSON.parse(
+          JSON.parse(init!.body as string).messages[1].content,
+        ).data;
+        if (
+          input.paragraphs.some((p: { source: string }) => p.source === blocked)
+        )
+          return refused();
+        return envelope({
+          title: "状态更新",
+          terms: [],
+          paragraphs: input.paragraphs.map((p: { id: string }) => ({
+            id: p.id,
+            segments: [{ type: "text", text: "状态更新的说明。" }],
+          })),
+        });
+      }),
+    );
+    const versionId = await generateArticle(a.id, settings);
+    const loaded = await getArticle(a.id);
+    expect(loaded.sourceText).toBe(text);
+    expect(loaded.version?.coverage.untranslated).toEqual([
+      { sourceId: "p0002", reason: "content_refused" },
+    ]);
+    expect(loaded.version?.paragraphs[1].segments).toEqual([
+      { type: "text", text: blocked },
+    ]);
+    expect(loaded.version?.paragraphs[2].segments[0].text).toBe(
+      parseSource(text)[2].original,
+    );
+    expect(loaded.version?.occurrences).toEqual([]);
+    const count = await db.articleVersion.count({ where: { articleId: a.id } });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+        const input = JSON.parse(
+          JSON.parse(init!.body as string).messages[1].content,
+        ).data;
+        return envelope({
+          title: "学习材料",
+          terms: [],
+          paragraphs: input.paragraphs.map((p: { id: string }) => ({
+            id: p.id,
+            translationStatus: "refused",
+            segments: [{ type: "text", text: "" }],
+          })),
+        });
+      }),
+    );
+    await expect(generateArticle(a.id, settings)).rejects.toMatchObject({
+      status: 422,
+    });
+    const retained = await getArticle(a.id);
+    expect(retained.version?.id).toBe(versionId);
+    expect(retained.version?.coverage.untranslated).toEqual(
+      loaded.version?.coverage.untranslated,
+    );
+    expect(retained.generationError).toContain("内容拒绝");
+    expect(retained.generationStartedAt).toBeNull();
+    expect(await db.articleVersion.count({ where: { articleId: a.id } })).toBe(
+      count,
+    );
+  });
   it("saves aligned paragraphs while keeping code out of the prompt and preserving it exactly", async () => {
     const a = await article();
     const fetchMock = vi.fn(

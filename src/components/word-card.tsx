@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Bookmark, Check, Heart, Volume2, X, ChevronDown } from "lucide-react";
 import type { Word, UserWord } from "@/lib/types";
 import { saveSampleWord } from "@/lib/sample-storage";
+import { browserFetch } from "@/lib/browser-api";
 export const statusLabels: Record<string, string> = {
   NEW: "初次遇见",
   LEARNING: "想学",
@@ -50,7 +51,7 @@ export function WordCard({
         setMessage("已保存在这个浏览器");
         return;
       }
-      const response = await fetch(`/api/vocabulary/${word.id}`, {
+      const response = await (word.id.startsWith("local-word-") ? browserFetch : fetch)(`/api/vocabulary/${word.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -58,6 +59,7 @@ export function WordCard({
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
       onUpdate(result);
+      window.dispatchEvent(new Event("wordweave:vocabulary"));
       setMessage(
         data.favorite !== undefined
           ? data.favorite
@@ -223,7 +225,7 @@ export function WordCard({
         <p className="review-rule">
           {word.user?.status === "KNOWN"
             ? `主动确认认识后，按 1、3、7、14、30 天间隔复习。${word.user?.dueAt ? "下次：" + new Date(word.user.dueAt).toLocaleDateString("zh-CN") : ""}`
-            : "选“想学”或收藏新词后进入待复习队列；读到或读完文章，都不会自动判定掌握。"}
+            : "选“想学”或收藏新词后进入待复习队列；听过、说过、读过，都不会自动判定掌握。"}
         </p>
         <div className="word-message" role="status">
           {message}

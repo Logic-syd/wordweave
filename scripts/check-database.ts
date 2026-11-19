@@ -20,7 +20,9 @@ async function main() {
     await client.connect();
     if (process.argv.includes("--schema")) {
       await client.query('SELECT 1 FROM "public"."Article" LIMIT 1');
-      console.info("[database] connection and Article table: ready");
+      await client.query('SELECT 1 FROM "public"."StudyItem" LIMIT 1');
+      await client.query('SELECT 1 FROM "public"."PracticeOccurrence" LIMIT 1');
+      console.info("[database] connection, reading and practice tables: ready");
     } else {
       await client.query("SELECT 1");
       console.info("[database] connection: ready");

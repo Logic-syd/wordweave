@@ -1,4 +1,4 @@
-import { AppError } from "./errors";
+import { AppError } from "./app-error";
 
 function integer(
   name: string,
@@ -6,7 +6,7 @@ function integer(
   minimum: number,
   maximum: number,
 ) {
-  const raw = process.env[name];
+  const raw = typeof process === "undefined" ? undefined : process.env[name];
   if (raw === undefined || raw === "") return fallback;
   const value = Number(raw);
   if (!Number.isInteger(value) || value < minimum || value > maximum)
@@ -21,6 +21,7 @@ export function generationLimits() {
   return {
     concurrency: integer("LLM_CHUNK_CONCURRENCY", 2, 1, 3),
     retries: integer("LLM_MAX_RETRIES", 2, 0, 4),
+    refusalCalls: integer("LLM_MAX_REFUSAL_CALLS", 8, 0, 32),
     outputTokens: integer("LLM_MAX_OUTPUT_TOKENS", 8192, 512, 32768),
     responseBytes: integer("LLM_MAX_RESPONSE_BYTES", 1048576, 16384, 4194304),
   };

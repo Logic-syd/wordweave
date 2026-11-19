@@ -29,7 +29,9 @@ const DB={prepare(sql){
 }};
 const flag = process.argv.indexOf('--port');
 const port=Number(flag>=0?process.argv[flag+1]:process.env.PORT??3001);
-const runtime={DB,OPENAI_API_KEY:process.env.OPENAI_API_KEY,OPENAI_MODEL:process.env.OPENAI_MODEL};
+const runtime={DB,...Object.fromEntries([
+  'LLM_API_KEY','LLM_BASE_URL','LLM_MODEL','LLM_THINKING','LLM_MAX_OUTPUT_TOKENS','LLM_MAX_RESPONSE_BYTES'
+].map(name=>[name,process.env[name]]))};
 createServer(async (incoming,outgoing)=>{
   try {
     const headers=new Headers(incoming.headers);
@@ -41,4 +43,4 @@ createServer(async (incoming,outgoing)=>{
     outgoing.writeHead(response.status,Object.fromEntries(response.headers));
     outgoing.end(Buffer.from(await response.arrayBuffer()));
   } catch {outgoing.writeHead(500).end();}
-}).listen(port,'127.0.0.1');
+}).listen(port,'127.0.0.1',()=>console.log('语境听说工作台 · http://127.0.0.1:'+port));

@@ -1,8 +1,8 @@
 # Chrome 首次提交
 
-状态：**0.2.1 免费首发候选包，未上传、未提交审核。** 先按 [START-HERE.txt](START-HERE.txt) 的三步操作，下面是填表参考。
+状态：**暂停提交，当前在开发和内测。旧的 0.2.1 ZIP 与商店图片不包含本轮翻译精简及逐段显示改动，暂不上传。**
 
-资料包：[下载](https://wordweave-production.up.railway.app/downloads/wordweave-chrome-store-kit.zip)。部署后提供，包括插件 ZIP、商品文案、128px 图标、1280×800 设置界面截图和 440×280 小宣传图。先解压资料包，再上传其中的 `wordweave-chrome-0.2.1.zip`。
+确认开发版之后，再更新版本、图片、隐私披露并重新生成资料。以下是上一次候选版的提交记录，仅供后续整理时参考。
 
 ## 现在先做
 

@@ -80,6 +80,7 @@ export const segmentSchema = z.discriminatedUnion("type", [
 ]);
 export const generatedParagraphSchema = z.object({
   id: z.string(),
+  translationStatus: z.enum(["translated", "refused"]).optional(),
   segments: z.array(segmentSchema).min(1).max(500),
   original: z.string().max(50000).optional(),
 });
@@ -90,7 +91,14 @@ export const generationSchema = z.object({
 });
 export type Term = z.infer<typeof termSchema>;
 export type Segment = z.infer<typeof segmentSchema>;
-export type Generation = z.infer<typeof generationSchema>;
+export type UntranslatedParagraph = {
+  sourceId: string;
+  reason: "content_refused" | "recovery_limit";
+};
+// Server-owned metadata: deliberately absent from the model's JSON Schema.
+export type Generation = z.infer<typeof generationSchema> & {
+  untranslated?: UntranslatedParagraph[];
+};
 export const progressSchema = z.object({
   paragraphId: z.string().max(80).nullable().optional(),
   view: z.enum(["learning", "original"]).optional(),

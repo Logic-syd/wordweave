@@ -4,6 +4,7 @@ import { useState } from "react";
 import { BookOpen, Plus, Search, Trash2 } from "lucide-react";
 import type { LibraryArticle } from "@/lib/types";
 import { ArticleCard } from "./article-card";
+import { browserFetch } from "@/lib/browser-api";
 export function Library({
   initial,
   initialMode = "all",
@@ -26,7 +27,7 @@ export function Library({
     setBusy(true);
     setError("");
     try {
-      const r = await fetch(`/api/articles/${id}`, { method: "DELETE" });
+      const r = await (id.startsWith("local-article-") ? browserFetch : fetch)(`/api/articles/${id}`, { method: "DELETE" });
       if (!r.ok) throw new Error((await r.json()).error);
       setArticles((prev) => prev.filter((a) => a.id !== id));
       setConfirm(null);
@@ -43,7 +44,7 @@ export function Library({
           <span className="eyebrow">YOUR READING SHELF</span>
           <h1>每一篇，都是新的语境。</h1>
           <p className="page-subtitle">
-            范文直接读。范文的收藏和进度保存在这个浏览器。
+            范文直接读。自己的文章、收藏和进度只保存在这个浏览器。
           </p>
         </div>
         <Link href="/new?mode=tech" className="button primary">

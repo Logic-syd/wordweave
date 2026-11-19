@@ -178,7 +178,7 @@ try {
         googleRequests++; assert.equal(request.method, "GET");
         assert.equal(url.searchParams.get("sl"), "en"); assert.equal(url.searchParams.get("tl"), "zh-CN");
         const source = url.searchParams.get("q"); assert.ok(source); noPrivateInput(source);
-        const selected = googleMode; await delay(25);
+        const selected = googleMode; await delay(selected === "delayed" && source.startsWith("Read the") ? 1200 : 25);
         if (selected === "http-failure") return response.writeHead(503).end(JSON.stringify({ error: `intentional fixture failure ${secret}` }));
         return response.end(JSON.stringify([[[googleTranslation(source), source, null, null, 1]], null, "en"]));
       }
@@ -208,13 +208,13 @@ try {
   assert.equal(config.translationMode, "free"); assert.equal(config.aiApiKey, "");
   const status = await sendData({ type: "ww:status" });
   assert.equal(status.localOnly, true); assert.equal(status.translationMode, "free"); assert.equal(providerRequests.length, 0);
-  for (const type of ["ww:config:get", "ww:config:set", "ww:models:list", "ww:library:get"]) {
+  for (const type of ["ww:config:get", "ww:config:set", "ww:models:list", "ww:cache:clear"]) {
     const denied = await worker.send({ type, config }, pageSender(`${fixtureUrl}/article`));
     assert.equal(denied.ok, false); assert.equal(denied.status, 403);
   }
   const invalidSource = await worker.send({ type: "ww:job:start", retention: "medium", input: { title: "Invalid", sourceUrl: "https://different.invalid/article", blocks: [{ id: "b0", markdown: sentence }] } }, pageSender(`${fixtureUrl}/article`));
   assert.equal(invalidSource.ok, false);
-  report("Empty configuration defaults to free without login/key/network probe; page senders cannot read private settings or library");
+  report("Empty configuration defaults to free without login/key/network probe; page senders cannot read private settings or clear cached results");
   browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || "/usr/bin/chromium", headless: true, args: ["--no-sandbox"] });
   context = await browser.newContext({ viewport: { width: 1280, height: 900 } }); context.setDefaultTimeout(15000);
   await context.route("**/*", async (route) => {
@@ -243,17 +243,16 @@ try {
       for (const listener of window.__wordweaveSmokeListeners)
         listener({ type: "ww:open", scope }, { id: chrome.runtime.id, url: chrome.runtime.getURL("popup.html") }, () => {});
     }, selection ? "selection" : "article");
-    await expect(page.getByRole("button", { name: /^开始(免费| AI )翻译$/ })).toBeVisible();
+    await expect(page.locator("[data-wordweave-ui] .panel")).toBeVisible();
   }
   async function generate() {
-    await page.getByRole("button", { name: /^开始(免费| AI )翻译$/ }).click();
-    await expect(page.getByText("语境 · 学习版已就绪", { exact: true })).toBeVisible({ timeout: 25000 });
+    await expect(page.getByText("语境 · 翻译完成", { exact: true })).toBeVisible({ timeout: 25000 });
   }
   async function restore() {
     const collapsed = page.getByRole("button", { name: "展开", exact: true }); if (await collapsed.isVisible()) await collapsed.click();
-    await page.getByRole("button", { name: "恢复网页", exact: true }).click(); await expect(page.locator("[data-wordweave-learning]")).toHaveCount(0);
+    await page.getByRole("button", { name: "恢复原文", exact: true }).click(); await expect(page.locator("[data-wordweave-learning]")).toHaveCount(0);
   }
-  await openController(); assert.equal(googleRequests, 0, "Opening panel must not send article text"); await generate();
+  await openController(); await generate();
   assert.ok(googleRequests > 0); assert.equal(aiRequests, 0);
   await expect(page.locator("#target [data-wordweave-learning]")).toHaveCount(1);
   await expect(page.getByRole("button", { name: `查看词卡：${expression}`, exact: true })).toHaveCount(2);
@@ -262,34 +261,33 @@ try {
   await expect(page.locator("#protected a")).toHaveAttribute("href", new URL(originalHref, fixtureUrl).href);
   await expect(page.locator("#target .gloss").last()).toBeVisible();
   for (const gloss of await page.locator("#repeat .gloss").all()) await expect(gloss).toBeHidden();
-  const freeLibrary = await sendData({ type: "ww:library:get" });
-  assert.equal(freeLibrary.localOnly, true); assert.equal(freeLibrary.articles.length, 1);
-  noPrivateInput(freeLibrary.articles[0].sourceText.replaceAll("setCount((n) => n + 1)", "[expected-protected-source]"));
+  const freeJob = await sendData({ type: "ww:job:get", id: store["wordweave.translation.cache"].jobs[0].id }, pageSender(page.url()));
+  assert.equal(freeJob.status, "succeeded");
+  noPrivateInput(freeJob.article.sourceText.replaceAll("setCount((n) => n + 1)", "[expected-protected-source]"));
   report("Real content/worker flow translates in place using only mocked Google; code/link protection and first-occurrence glosses survive");
   const term = page.getByRole("button", { name: `查看词卡：${expression}`, exact: true }); await term.first().click();
   const card = page.getByRole("dialog", { name: `词卡：${expression}`, exact: true }); await expect(card).toContainText(sentence);
-  await card.getByRole("button", { name: "♡ 收藏", exact: true }).click(); await expect(card.getByRole("button", { name: "♥ 已收藏", exact: true })).toBeVisible();
-  await card.getByRole("button", { name: "想学", exact: true }).click();
-  await page.screenshot({ path: path.join(results, "desktop-word-card.png"), fullPage: true }); await card.getByRole("button", { name: "关闭词卡" }).click();
-  const favorite = (await sendData({ type: "ww:library:get" })).words.find((word) => word.lemma === expression);
-  assert.equal(favorite.user.favorite, true); assert.equal(favorite.user.status, "LEARNING");
+  assert.equal(await card.getByRole("button", { name: /收藏|想学|认识/ }).count(), 0);
+  await expect(card.getByRole("button", { name: "朗读", exact: true })).toBeVisible();
+  await page.screenshot({ path: path.join(results, "desktop-word-card.png"), fullPage: true });
+  await card.getByRole("button", { name: "关闭词卡" }).click();
   await page.getByRole("button", { name: "切换本段原文与学习版" }).first().click(); await expect(page.locator("h1")).toContainText("React state updates"); await restore();
   assert.equal((await page.locator("article").innerHTML()).replaceAll(' style=""', ""), originalHtml.replaceAll(' style=""', ""));
   assert.equal(await page.evaluate(() => window.originalLink === document.querySelector("#original-link") && window.originalEventNode === document.querySelector("#event-target")), true);
   await page.locator("#event-target").click(); await expect(page.locator("body")).toHaveAttribute("data-original-clicks", "1");
   await page.locator("#original-link").click(); await expect(page.locator("body")).toHaveAttribute("data-link-clicked", "yes");
-  report("Vocabulary saves explicit favorites/learning state locally; restore retains original DOM node identity and event handlers");
+  report("Word card explains expressions without collection controls; restore retains original DOM node identity and event handlers");
   const requestsBeforeCache = googleRequests;
   const input = pageMessages.find((message) => message.type === "ww:job:start");
   const duplicates = await Promise.all(Array.from({ length: 5 }, () => sendData(input, pageSender(page.url()))));
-  assert.equal(new Set(duplicates.map((value) => value.id)).size, 1); assert.equal(duplicates[0].id, freeLibrary.jobs[0].id); assert.equal(googleRequests, requestsBeforeCache);
+  assert.equal(new Set(duplicates.map((value) => value.id)).size, 1); assert.equal(duplicates[0].id, freeJob.id); assert.equal(googleRequests, requestsBeforeCache);
   await sendData({ type: "ww:preferences:set", glossMode: "click" }, pageSender(page.url()));
   worker.close(); store = JSON.parse(await readFile(storageFile, "utf8")); worker = createWorker();
   await page.reload(); await openController(); await generate(); assert.equal(googleRequests, requestsBeforeCache);
   assert.equal((await sendData({ type: "ww:preferences:get" }, pageSender(page.url()))).glossMode, "click");
   for (const gloss of await page.locator("#target .gloss").all()) await expect(gloss).toBeHidden();
-  await term.first().click(); await expect(card.getByRole("button", { name: "♥ 已收藏", exact: true })).toBeVisible(); await card.getByRole("button", { name: "关闭词卡" }).click();
-  report("Concurrent duplicates and worker/page restart reuse durable cached jobs without provider calls; favorites and reading preferences persist");
+  await term.first().click(); await expect(card).toContainText(sentence); await card.getByRole("button", { name: "关闭词卡" }).click();
+  report("Concurrent duplicates and worker/page restart reuse durable cached jobs without provider calls; reading preferences persist");
   await page.setViewportSize({ width: 390, height: 844 }); await page.locator("#target").scrollIntoViewIfNeeded();
   const scroll = await page.evaluate(() => scrollY); await term.first().click();
   const bounds = await card.boundingBox(); assert.ok(bounds && bounds.x >= 0 && bounds.x + bounds.width <= 391 && bounds.height <= 844 * 0.56);
@@ -297,9 +295,9 @@ try {
   await card.getByRole("button", { name: "关闭词卡" }).click(); assert.ok(Math.abs(await page.evaluate(() => scrollY) - scroll) <= 2);
   report("Mobile word card fits the viewport and preserves document scroll on open/close"); await page.setViewportSize({ width: 1280, height: 900 });
   googleMode = "http-failure"; await page.goto(`${fixtureUrl}/free-failure`);
-  const freeUnchanged = await page.locator("article").innerHTML(); await openController(); await page.getByRole("button", { name: "开始免费翻译", exact: true }).click();
+  const freeUnchanged = await page.locator("article").innerHTML(); await openController();
   await expect(page.getByRole("button", { name: "重试免费翻译", exact: true })).toBeVisible({ timeout: 25000 }); assert.equal(await page.locator("article").innerHTML(), freeUnchanged);
-  googleMode = "valid"; await page.getByRole("button", { name: "重试免费翻译", exact: true }).click(); await expect(page.getByText("语境 · 学习版已就绪", { exact: true })).toBeVisible({ timeout: 25000 }); assert.equal(aiRequests, 0);
+  googleMode = "valid"; await page.getByRole("button", { name: "重试免费翻译", exact: true }).click(); await expect(page.getByText("语境 · 翻译完成", { exact: true })).toBeVisible({ timeout: 25000 }); assert.equal(aiRequests, 0);
   report("Free-provider failure preserves original DOM; explicit retry succeeds without calling AI");
   const aiConfig = { ...config, translationMode: "ai", aiBaseUrl: `${providerUrl}/v1`, aiApiKey: secret, aiModel: "fixture-local-model" };
   await sendData({ type: "ww:config:set", config: aiConfig }); await sendData({ type: "ww:models:list" }); assert.equal(modelsRequests, 1);
@@ -307,16 +305,16 @@ try {
   assert.equal((await worker.send({ type: "ww:config:get" }, pageSender(page.url()))).status, 403);
   const aiGoogleBefore = googleRequests;
   for (const failure of ["http-failure", "invalid"]) {
-    aiMode = failure; await page.goto(`${fixtureUrl}/ai-${failure}`); const unchanged = await page.locator("article").innerHTML(); await openController(); const before = aiRequests;
-    await page.getByRole("button", { name: "开始 AI 翻译", exact: true }).click(); await expect(page.getByRole("button", { name: "重试 AI 翻译", exact: true })).toBeVisible({ timeout: 25000 });
+    aiMode = failure; await page.goto(`${fixtureUrl}/ai-${failure}`); const unchanged = await page.locator("article").innerHTML(); const before = aiRequests; await openController();
+    await expect(page.getByRole("button", { name: "重试 AI 翻译", exact: true })).toBeVisible({ timeout: 25000 });
     assert.equal(await page.locator("article").innerHTML(), unchanged); assert.ok(aiRequests > before && aiRequests - before <= 2, "Automatic retries must be bounded");
     assert.equal(googleRequests, aiGoogleBefore, "AI failure must never silently fallback to Google"); assert.ok(!(await page.locator("body").innerText()).includes(secret));
     const failedId = pageMessages.filter((message) => message.type === "ww:job:get").at(-1).id;
     const failed = await sendData({ type: "ww:job:get", id: failedId }, pageSender(page.url())); assert.equal(failed.status, "failed"); assert.ok(!JSON.stringify(failed).includes(secret));
-    aiMode = "valid"; await page.getByRole("button", { name: "重试 AI 翻译", exact: true }).click(); await expect(page.getByText("语境 · 学习版已就绪", { exact: true })).toBeVisible({ timeout: 25000 });
+    aiMode = "valid"; await page.getByRole("button", { name: "重试 AI 翻译", exact: true }).click(); await expect(page.getByText("语境 · 翻译完成", { exact: true })).toBeVisible({ timeout: 25000 });
     assert.equal((await sendData({ type: "ww:job:get", id: failedId }, pageSender(page.url()))).status, "succeeded");
   }
-  assert.equal(googleRequests, aiGoogleBefore); assert.ok(!JSON.stringify(store["wordweave.local.library"]).includes(secret), "Raw key must not enter cache/library");
+  assert.equal(googleRequests, aiGoogleBefore); assert.ok(!JSON.stringify(store["wordweave.translation.cache"]).includes(secret), "Raw key must not enter translation cache");
   report("Personal AI uses its configured endpoint; HTTP/JSON failure keeps source, redacts echoed key, never falls back to free/website, and retries explicitly");
   const detachedUrl = `${fixtureUrl}/detached`;
   const detachedInput = { type: "ww:job:start", retention: "medium", translationMode: "ai", input: { title: "Detached task", sourceUrl: detachedUrl, blocks: [{ id: "b0", markdown: sentence }] } };
@@ -327,7 +325,21 @@ try {
   await page.evaluate(() => { const range = document.createRange(); range.selectNodeContents(document.querySelector("#target")); const selection = window.getSelection(); selection.removeAllRanges(); selection.addRange(range); });
   await openController(true); await generate(); await expect(page.locator("[data-wordweave-learning]")).toHaveCount(1); await expect(page.locator("#repeat")).toHaveText(sentence);
   report("Fresh concurrent jobs coalesce to one model call and finish without UI; selection mode preserves surrounding paragraphs");
-  assert.ok(!JSON.stringify(await sendData({ type: "ww:library:get" })).includes(secret)); assert.deepEqual(mockErrors, []); assert.deepEqual(unexpectedRequests, []); assert.ok(accessLevels.length >= 2);
+  googleMode = "delayed";
+  await page.goto(`${fixtureUrl}/progressive`);
+  const started = Date.now();
+  await openController();
+  await expect(page.locator("#target [data-wordweave-learning]")).toHaveCount(1);
+  const firstTextMs = Date.now() - started;
+  const progressiveId = store["wordweave.translation.cache"].jobs[0].id;
+  assert.equal((await sendData({ type: "ww:job:get", id: progressiveId }, pageSender(page.url()))).status, "running");
+  assert.equal(await page.locator("#protected [data-wordweave-learning]").count(), 0);
+  await generate();
+  const completeMs = Date.now() - started;
+  assert.ok(firstTextMs < completeMs, "Useful text must appear before the full job completes");
+  report(`Completed paragraphs appear while a later provider response is pending (local fixture: first text ${firstTextMs} ms, all text ${completeMs} ms)`);
+  googleMode = "valid";
+  assert.ok(!JSON.stringify(store["wordweave.translation.cache"]).includes(secret)); assert.deepEqual(mockErrors, []); assert.deepEqual(unexpectedRequests, []); assert.ok(accessLevels.length >= 2);
   assert.ok(providerRequests.every((request) => request.origin === "https://translate.googleapis.com" || request.origin === providerUrl));
   const summary = {
     status: "passed", mode, checks, googleRequests, aiRequests, modelsRequests, websiteRequests: 0, databaseRequired: false, apiKeyRequired: false,

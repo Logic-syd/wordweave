@@ -1,102 +1,56 @@
-# Railway 首次部署
+# Railway 部署公开 BYOK 网站
 
-当前架构为一个 Next.js 全栈服务（页面、后端接口、生成逻辑），连接独立的 PostgreSQL 服务。数据库与应用分别部署，前端与后端仍属于同一个应用，不应描述成前后端独立部署。
+当前网站公开提供 `/listen`、`/speak`、`/read`，无需注册。每个人在 `/settings` 填自己的 API，由浏览器直接调用供应商；学习记录在各自浏览器。**不要为公开用户填写站主模型 Key。**
 
-完成部署后，可以用于项目介绍的表述：
+## 已有 Railway 服务
 
-> 独立开发并部署基于 Next.js、TypeScript 和 PostgreSQL 的语言学习全栈应用，实现前后端分层、结构化模型输出校验、语境词卡、学习记录与跨文章复习。
-
-## 1. 将代码同步到 GitHub
-
-先把本次云工作区的改动提交并推送到 `Logic-syd/wordweave`。发布 Codex 环境快照不会代替 Git 提交或推送。确认 GitHub 的目标分支中能看到 `package.json`、`railway.json`、`src/` 和 `prisma/migrations/`，再连接部署。
-
-不要上传 `.env`、数据库文件、依赖目录或真实密钥。源码包仅包含 `.env.example`，没有真实密钥。
-
-## 2. 创建 Railway 项目和 PostgreSQL
-
-登录 Railway，创建空项目，在项目中添加一个 PostgreSQL 服务。保持数据库使用项目私有网络即可，不必为数据库创建公网域名或 TCP 公共访问。
-
-再从 GitHub 添加应用服务，选择 `Logic-syd/wordweave` 和包含完整代码的分支，根目录设为仓库根目录。第一次自动构建若在变量填写前开始，可先填写变量后重新部署。
-
-## 3. 在应用服务中填写变量
-
-变量加在 **Next.js 应用服务** 上：
-
-| 名称           | 如何设置                                                                                                    |
-| -------------- | ----------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL` | 使用 Railway 的变量引用功能，选择同项目 PostgreSQL 服务的 `DATABASE_URL`。不要复制本地 localhost 数据库 URL |
-| `LLM_API_KEY`  | 在 Railway 安全变量设置中填入自己的 DeepSeek API Key                                                        |
-| `LLM_BASE_URL` | `https://api.deepseek.com/v1`                                                                               |
-| `LLM_MODEL`    | DeepSeek 开放平台当前支持 JSON 输出的准确模型 ID                                                            |
-| `ADMIN_ACCESS_TOKEN` | 全新部署时一次性设置至少 32 字符的随机站主凭据；已有 `TRIAL_ACCESS_TOKENS` 的 `personal` 或 `EXTENSION_ACCESS_TOKEN` 时可省略。仅用于站主本人登录，不再提供邀请功能 |
-| `SEED_DEMOS`   | 首次部署设为 `true`，初始化两篇演示；之后可删掉此变量或设为 `false`                                         |
-
-没填模型变量也能启动并在登录后阅读演示，但生成新内容不可用。模型名称不硬编码。生产没有任何有效站主凭据时仍开放范文，私人页面和生成接口默认关闭，`/login` 提供一次性设置说明；`/api/health` 仍用于数据库部署检查。现有站主凭据无须改动；旧朋友凭据不能登录。
-
-个人版默认每天最多 20 次文章生成、120,000 输入字符和全站 100 次模型请求；分块及自动重试各算一次模型请求。无需新增变量即可启用，修改时设置 `GENERATION_DAILY_LIMIT`、`GENERATION_DAILY_CHAR_LIMIT`、`GENERATION_DAILY_MODEL_CALL_LIMIT` 后重新部署。按 UTC 00:00 重置，计数持久化；`0` 可暂停生成。单次模型输出由 `LLM_MAX_OUTPUT_TOKENS` 控制（默认 8192），它与次数限制共同约束消耗，不是精确费用预算。新迁移在启动时自动应用，历史每日文章用量保留，模型请求数从部署开始累计。
-
-无需手填 `PORT`：Railway 会注入端口，Next.js 的启动命令会读取它，并监听 `0.0.0.0`。
-
-Codex 云环境里的代理密钥可能是仅对其平台代理有效的占位绑定。请从 DeepSeek 开放平台在 Railway 中安全填写真实 Key，不要从云环境导出密钥或复制整份进程环境。也不要复制 Codex 的 `HTTP_PROXY`、`HTTPS_PROXY` 或 CA 路径到 Railway。
-
-## 4. 在应用服务 Settings 中设置部署命令
-
-Railway 官方文档已将旧的 Config as Code 标为弃用：新服务不能启用 `railway.json` / `railway.toml`；原来已使用它们的服务仅兼容到 2026-12-01。仓库保留 `railway.json` 作为旧服务兼容配置，**新建服务必须在 Dashboard 明确设置下面的值**，不能依赖这个文件自动生效。后续如需代码化管理，可按官方 Infrastructure as Code 指南迁移。
-
-打开 **wordweave → Settings**，在 Build 和 Deploy 区域分别设置：
+1. 将需要部署的代码提交并推送到关联的 GitHub 分支；Codex 环境快照不会代替 Git 推送。
+2. 在应用服务 Settings 确认下列命令。
+3. Variables 设置 `SERVER_AI_ENABLED=false`。已有 `LLM_*` 可以移除；即使保留，关闭开关时旧生成接口也不会使用它们。
+4. 重新部署后，用未登录窗口验证三个入口，以及「我的 API」页面。
 
 | 设置 | 值 |
 | --- | --- |
-| Builder | Railpack |
-| Build Command | `npm run db:generate && npm run build` |
-| Pre-deploy Command | 留空；启动命令已包含迁移与初始化 |
-| Start Command | `npm run start` |
+| Build Command | `npm run db:generate && npm run build:web` |
+| Start Command | `npm start` |
+| Pre-deploy Command | 公开版无需；若已有旧数据库迁移步骤，可继续保留 |
 | Healthcheck Path | `/api/health` |
-| Healthcheck Timeout | `120` 秒 |
+| Healthcheck Timeout | 120 秒 |
 
-保存后点击项目的 **Deploy / Apply changes**，确认新部署使用的是这些设置。`npm run start` 会通过 npm 的 `prestart` 自动执行连接检查、迁移和可选演示初始化，无须额外寻找预部署按钮。此前已配置 `npm run deploy:prepare` 作为预部署步骤也可以继续使用，只是启动时会再检查一次。
+使用 `build:web` 不会打包浏览器插件。Railway 注入 `PORT`，无需手填。部署设置请在 Dashboard 核对，不要只依赖仓库的旧 `railway.json`。
 
-部署按以下顺序执行：
+**已有 PostgreSQL 不要删除。** 原私人记录不会公开，也不会迁移到浏览器。保留 `DATABASE_URL` 时，`npm start` 会继续检查连接、执行已有增量迁移并验证表；数据库失败会阻止启动。若只想运行公开版，可以取消应用的 `DATABASE_URL` 引用，但保留数据库服务与备份；公开页无需读库。移除连接不是数据迁移或数据库备份。
 
-1. Railpack 安装依赖，并执行 `npm run db:generate && npm run build`。
-2. 启动命令 `npm run start` 自动触发 `prestart`，先执行 `npm run deploy:prepare`：检查连接、应用待执行迁移；`SEED_DEMOS=true` 时初始化演示。任一步失败会阻止 Next.js 启动。
-3. 验证文章表可读后启动 Next.js。容器进程重启时再次执行上述步骤，Prisma 只应用尚未执行的迁移；成功演示会跳过，不会覆盖已有收藏、阅读进度或生成偏好。
-4. Railway 请求 `/api/health`，应用可读取数据库文章表时才返回 200；数据库不可用或尚未初始化时返回 503。
+原站主认证仍保护旧数据接口；不要将 `ADMIN_ACCESS_TOKEN` 分享给访客。不要设置 `SERVER_AI_ENABLED=true`，除非确实要恢复站主自己的旧服务器生成流程。公开页即便此开关打开，仍使用浏览器 BYOK。
 
-在 **Deployments → 最新部署 → Deploy Logs** 检查实际状态和启动日志，应看到 `prisma migrate deploy` 成功应用迁移或提示没有待执行迁移，然后出现文章表 ready 和 Next.js ready。若新部署失败，旧版本可能仍显示 Online；因此不要仅凭服务卡片判断本次部署成功。首次成功迁移后 PostgreSQL 中应有 `Article`、`VocabularyItem`、`_prisma_migrations` 等表；`SEED_DEMOS=true` 时还会写入两篇演示。
+## 首次部署
 
-Prisma CLI、tsx 与 TypeScript 放在运行依赖中，供启动迁移、演示初始化及配置加载使用，即使平台裁剪开发依赖也能运行。第一版使用一个应用实例；扩展多个实例前，应将初始化协调为独立部署任务，避免同时首次写入演示。首次初始化后可将 `SEED_DEMOS` 设为 `false`，防止删除过的演示在重启时被补回。
+Railway 新建项目 → 从 GitHub 选择 `Logic-syd/wordweave` → 根目录使用仓库根目录。配置上面的构建、启动和健康检查，设置 `SERVER_AI_ENABLED=false` 即可。不需要 PostgreSQL、`LLM_API_KEY`、站主密码或邀请码。
 
-不要在 Railway 上运行 `npm run setup` 或 `npm run local`，这两个命令用于本机 Docker 数据库。不要在 Railway 上执行 `prisma migrate reset`。
+部署成功后：应用服务 → Settings → Networking → Public Networking → Generate Domain，生成 HTTPS 地址。公开版没有数据库连接时 `/api/health` 返回：
 
-## 5. 生成 HTTPS 测试地址
+```json
+{"status":"ok","storage":"browser"}
+```
 
-部署成功后，打开 **应用服务 → Settings → Networking → Public Networking → Generate Domain**。Railway 会为应用分配 HTTPS 域名。这个操作针对 Next.js 应用服务，不是 PostgreSQL 服务。
+确保最新部署成功；新部署失败时旧部署仍可能显示 Online。用这个域名打开首页，在「我的 API」配置你用于测试的个人 Key，先运行少量测试。该 Key 属于这个浏览器，不会写入 Railway 环境变量。
 
-先访问地址后面的 `/api/health`，应得到 `{"status":"ok"}`，再用未登录窗口打开首页：应能直接阅读 8 篇公开范文、下载插件。上传或网站生成需要个人访问密码；私人文章不会出现在访客书架。公开范文随代码部署，无须再次 seed。随后登录自己的空间，用一小段英文测试真实生成，确认 DeepSeek 权限与余额、模型 ID 和结构化输出能力。
+## 验证与排错
 
-网页版只供站主个人使用。新版插件独立运行，默认免费翻译；AI 使用插件使用者自己的 Key，不消耗网站额度。网站生成仍保留每日次数、字符与并发限制；说明见 [README](../README.md#个人网页版)。供应商消费上限需在模型控制台设置，应用额度不等于精确费用预算。
+- 三个入口都能未登录打开；范文、朗读、收藏和本机进度不需要 Key。
+- 导入不需要登录；未配置 Key 时可保存原文，配置后再主动生成。
+- 模型服务必须允许网页 CORS 请求。错误提示说明网络／CORS 问题时，应检查服务商的浏览器访问支持；不要给网站增加站主 Key 作为兜底。
+- 浏览器只向配置的模型地址发送 Key；学习内容只在主动调用 AI 时发送给该供应商。页面不上传原文、词卡或录音到语境后端。
+- 更换 Railway 域名不会带走旧域名的浏览器记录；不同浏览器也不会自动同步。可在设置导出不含 Key 的记录，目前没有备份导入 UI。
+- 构建缺少 Prisma Client：检查 Build Command 是否包含 `npm run db:generate`。即便公开页不使用数据库，保留的旧私有接口在构建时仍需要客户端类型。
+- 配置旧数据库时启动失败：运行 `npm run db:check` 或查看启动日志，确认 Railway 私网 `DATABASE_URL` 引用；不能使用本机 localhost 连接串。不要 `migrate reset` 或重建已有表。
 
-## 数据与故障排查
+本地生产验证：`npm run build:web && npm start`。旧库维护：`npm run db:migrate`、`npm run db:check -- --schema`。公开版无数据库时不要运行旧的 `deploy:prepare` 预部署脚本。
 
-Railway 上的新数据库不会自动包含 Codex 或本机数据库中的个人文章、收藏和学习进度。演示可以通过 seed 重新初始化；如需搬迁个人数据，应先备份，再恢复到目标 PostgreSQL，避免覆盖已有目标数据。
+## English quick reference
 
-- 构建提示 Prisma Client 不存在：确认使用仓库的构建命令，并检查依赖安装结果。
-- 应用显示 Online 但数据库没有表：确认正在部署最新代码，Start Command 为 `npm run start`，并检查日志是否执行 `prestart` 和 `prisma migrate deploy`。直接运行 `next start` 会跳过初始化；仅上传 `railway.json` 不会为新服务设置健康检查。
-- 预部署迁移连接失败：检查 `DATABASE_URL` 引用是否指向同项目已运行的 PostgreSQL。
-- 日志出现 `ECONNREFUSED`：连接目标拒绝了连接；先看预部署或启动日志的 `[database] target=主机:端口`，不能仅凭此错误认定是缺表。配置为空或未展开会明确报告 `DATABASE_URL_MISSING` / `DATABASE_URL_UNRESOLVED`；Railway 上的 localhost 连接会报告 `DATABASE_URL_LOCAL_ON_RAILWAY`。
-- Postgres 自身的 `DATABASE_URL` 为 `<empty string>`：应用引用后也会为空。先在 **Postgres → Variables** 恢复值 `postgresql://${{PGUSER}}:${{PGPASSWORD}}@${{PGHOST}}:${{PGPORT}}/${{PGDATABASE}}`，再确认 **wordweave → Variables** 的值为 `${{Postgres.DATABASE_URL}}`，应用变更并重新部署 wordweave。
-- 迁移日志成功但数据库页面仍为空：刷新 Database 页面，核对日志中的数据库名、schema 与正在查看的 Postgres 服务及环境。不要手动新建空表或重置数据库。
-- 健康检查 503：响应中的 `code` 是经过白名单筛选的错误码，结合部署日志检查连接与迁移。此接口不返回主机、用户名、密码或完整连接串，也不会调用模型。
-- 登录页提示未配置：全新部署在 wordweave 的 Variables 中一次性设置有效 `ADMIN_ACCESS_TOKEN` 后 Deploy。已有站主访问密码或 `EXTENSION_ACCESS_TOKEN` 可直接沿用；原个人数据不会删除。没有邀请朋友的流程。
-- 页面能打开但生成失败：检查三项 `LLM_*`；不要使用翻译插件的展示名称替代真实模型 ID。
-- 重新部署后演示自动回来：将 `SEED_DEMOS` 设为 `false`；seed 是幂等的，但会补回已删除的演示。
+The public site is registration-free and BYOK. Use build command `npm run db:generate && npm run build:web`, start command `npm start`, health check `/api/health`, and `SERVER_AI_ENABLED=false`. No PostgreSQL or owner API key is required for a new deployment.
 
-可在应用的终端运行 `npm run db:check` 检查连接，或 `npm run db:check -- --schema` 检查文章表。诊断只输出主机、端口和受控错误提示，不输出完整连接串、账号或密码。若目标已经是 Postgres 内网主机但仍拒绝连接，检查 Postgres 的日志是否出现 ready to accept connections、数据库端口是否匹配，并确认两项服务位于同一 Railway 环境。
+Keep existing PostgreSQL data and backups intact. Configured `DATABASE_URL` still triggers legacy migrations at startup; removing the application reference does not migrate or delete database records. Authenticated private APIs remain protected and server-funded AI is disabled by default.
 
-官方参考：
-
-- [Config as Code 弃用说明](https://docs.railway.com/config-as-code)
-- [Infrastructure as Code](https://docs.railway.com/infrastructure-as-code)
-- [Pre-deploy commands](https://docs.railway.com/deployments/pre-deploy-command)
-- [Public networking](https://docs.railway.com/networking/public-networking)
+Generate an HTTPS domain in the application service's Networking settings. Each visitor configures their own API in `/settings`; browser requests require provider CORS support. Records are local to the browser and website origin. Updating the deployed site requires committing/pushing code and deploying it; creating an environment snapshot alone does not update Railway.

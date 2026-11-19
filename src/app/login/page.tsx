@@ -5,7 +5,7 @@ import { LoginForm } from "./login-form";
 import styles from "./login.module.css";
 import Link from "next/link";
 
-export const metadata: Metadata = { title: "进入学习空间" };
+export const metadata: Metadata = { title: "旧版私人数据入口" };
 
 export default function LoginPage() {
   return (
@@ -20,9 +20,9 @@ export default function LoginPage() {
           </span>
         </div>
         <p className={styles.eyebrow}>一点一点，读懂更多</p>
-        <h1 id="login-title">进入你的学习空间</h1>
+        <h1 id="login-title">旧版私人数据入口</h1>
         <p className={styles.intro}>
-          这是你的个人网页版。登录后上传、生成文章，查看私人学习记录。
+          仅供站主访问原有数据库记录。公开版听、说、读无需登录，使用自己的 API，记录保存在浏览器。
         </p>
         <Suspense
           fallback={
@@ -33,7 +33,7 @@ export default function LoginPage() {
         >
           <LoginForm />
         </Suspense>
-        <Link href="/library">不登录，先读范文 →</Link>
+        <Link href="/">进入公开学习页面 →</Link>
       </section>
       <p className={styles.footer}>让语言回到故事里。</p>
     </main>

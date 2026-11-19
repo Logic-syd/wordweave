@@ -2,6 +2,7 @@ import { captureOwnerCallback } from "@/lib/auth-context";
 import { after, NextResponse } from "next/server";
 import { extensionHandler } from "@/lib/extension-auth";
 import { retryExtensionJob, runExtensionJob } from "@/lib/extension-jobs";
+import { assertServerAiEnabled } from "@/lib/server-ai-access";
 
 export const maxDuration = 300;
 
@@ -10,6 +11,7 @@ export async function POST(
   context: { params: Promise<{ id: string }> },
 ) {
   return extensionHandler(request, async () => {
+    assertServerAiEnabled();
     const job = await retryExtensionJob((await context.params).id);
     if (job.status === "pending")
       after(captureOwnerCallback(() => runExtensionJob(job.id)));

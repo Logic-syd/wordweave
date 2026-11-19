@@ -20,7 +20,7 @@ import type {
 } from "./types";
 const json = (value: unknown) => value as Prisma.InputJsonValue;
 
-function publicUserWord(
+export function publicUserWord(
   user: UserVocabulary | null | undefined,
 ): UserWord | null {
   return user
@@ -36,7 +36,7 @@ function publicUserWord(
     : null;
 }
 
-function publicWord(
+export function publicWord(
   vocabulary: VocabularyItem,
   user: UserVocabulary | null | undefined,
 ): Word {
@@ -345,7 +345,7 @@ export async function getKnownWords(language: string) {
     orderBy: { updatedAt: "desc" },
   });
 }
-function vocabularyKey(language: string, t: Term) {
+export function vocabularyKey(language: string, t: Pick<Term, "lemma" | "partOfSpeech" | "meaning">) {
   const { ownerId } = userScope();
   const original = [
     language,
@@ -609,6 +609,10 @@ export async function listVocabulary(
     include: {
       vocabulary: {
         include: {
+          practiceOccurrences: {
+            where: userScope(),
+            orderBy: { createdAt: "asc" },
+          },
           occurrences: {
             where: { version: { article: userScope() } },
             include: {
@@ -627,7 +631,7 @@ export async function listVocabulary(
     orderBy: { updatedAt: "desc" },
   });
   return rows.map((u) => {
-    const appearances = u.vocabulary.occurrences
+    const appearances: VocabularyView["appearances"] = u.vocabulary.occurrences
       .filter((o) => o.version.article.activeVersionId === o.versionId)
       .map((o) => ({
         articleId: o.version.articleId,
@@ -635,7 +639,18 @@ export async function listVocabulary(
         sentence: o.sentence,
         form: o.form,
         sourceId: o.sourceId,
+        skill: "read" as const,
       }));
+    for (const o of u.vocabulary.practiceOccurrences)
+      appearances.push({
+        articleId: o.materialId,
+        title: o.title,
+        sentence: o.sentence,
+        form: o.form,
+        sourceId: o.paragraphId,
+        skill: o.skill === "speak" ? "speak" : "listen",
+        href: `/${o.skill === "speak" ? "speak" : "listen"}?material=${encodeURIComponent(o.materialId)}&paragraph=${encodeURIComponent(o.paragraphId)}`,
+      });
     return {
       ...publicWord(u.vocabulary, u),
       user: publicUserWord(u)!,

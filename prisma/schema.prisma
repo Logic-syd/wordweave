@@ -104,8 +104,33 @@ model VocabularyItem {
   example String
   exampleTranslation String
   occurrences Occurrence[]
+  practiceOccurrences PracticeOccurrence[]
   users UserVocabulary[]
   @@index([ownerId, language])
+}
+model StudyItem {
+  ownerId String @default("personal")
+  kind String
+  id String
+  value Json
+  updatedAt DateTime @updatedAt
+  @@id([ownerId, kind, id])
+  @@index([ownerId, kind, updatedAt])
+}
+model PracticeOccurrence {
+  id String @id @default(cuid())
+  ownerId String @default("personal")
+  vocabularyId String
+  vocabulary VocabularyItem @relation(fields: [vocabularyId], references: [id], onDelete: Cascade)
+  skill String
+  materialId String
+  paragraphId String
+  title String
+  form String
+  sentence String
+  createdAt DateTime @default(now())
+  @@unique([ownerId, vocabularyId, skill, materialId, paragraphId], map: "practice_occurrence_source_key")
+  @@index([ownerId, vocabularyId])
 }
 model Occurrence {
   id String @id @default(cuid())

@@ -1,11 +1,7 @@
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import type { RootContent, PhrasingContent } from "mdast";
-import type {
-  ArticleDetail,
-  OccurrenceView,
-  UserWord,
-} from "../../src/lib/types";
+import type { ArticleDetail, OccurrenceView } from "../../src/lib/types";
 import type { ExtractedBlock } from "./extract";
 import type { GlossMode } from "./protocol";
 
@@ -21,7 +17,7 @@ type DomRecord = {
   toggle: HTMLButtonElement;
 };
 const parser = unified().use(remarkParse);
-const textStyle = `:host{font:inherit;color:inherit;line-height:inherit}a{color:inherit;text-decoration:underline;text-underline-offset:.16em}code{font-family:ui-monospace,monospace;font-size:.88em;background:rgba(120,120,120,.1);padding:.08em .2em;border-radius:3px}.term{display:inline}button{all:unset;font:inherit;cursor:pointer;color:inherit;border-bottom:1px dashed #b3748a;border-radius:2px}button:hover{background:#f9e5ed}button:focus-visible{outline:2px solid #ad5677;outline-offset:3px}.gloss{color:#7d6b73;font-size:.88em;font-weight:400}.favorite{background:#f9e5ed}button.term-toggle{display:inline-block;font:11px/1.8 system-ui,sans-serif;color:#7b6670;margin-left:8px;border:0;padding:0 4px}`;
+const textStyle = `:host{font:inherit;color:inherit;line-height:inherit}a{color:inherit;text-decoration:underline;text-underline-offset:.16em}code{font-family:ui-monospace,monospace;font-size:.88em;background:rgba(120,120,120,.1);padding:.08em .2em;border-radius:3px}.term{display:inline}button{all:unset;font:inherit;cursor:pointer;color:inherit;border-bottom:1px dashed #b3748a;border-radius:2px}button:hover{background:#f9e5ed}button:focus-visible{outline:2px solid #ad5677;outline-offset:3px}.gloss{color:#7d6b73;font-size:.88em;font-weight:400}button.term-toggle{display:inline-block;font:11px/1.8 system-ui,sans-serif;color:#7b6670;margin-left:8px;border:0;padding:0 4px}`;
 
 function element<K extends keyof HTMLElementTagNameMap>(
   name: K,
@@ -133,6 +129,8 @@ function markdownFragment(
 
 export class ReadingReplacement {
   private records: DomRecord[] = [];
+  private processed = new Set<string>();
+  private view: "learning" | "original" = "learning";
   private occurrences = new Map<string, OccurrenceView>();
   private first = new Map<string, string>();
   private clicked = new Set<string>();
@@ -154,6 +152,9 @@ export class ReadingReplacement {
     ) => void,
   ) {
     this.glossMode = glossMode;
+    this.append(article);
+  }
+  append(article: ArticleDetail) {
     if (!article.version) throw new Error("学习版本尚未生成。");
     article.version.occurrences.forEach((occurrence) => {
       this.occurrences.set(occurrence.id, occurrence);
@@ -161,11 +162,12 @@ export class ReadingReplacement {
     const paragraphs = new Map(
       article.version.paragraphs.map((p) => [p.sourceId, p]),
     );
-    preservePosition(blocks, () => {
-      for (const block of blocks) {
+    preservePosition(this.blocks, () => {
+      for (const block of this.blocks) {
         const paragraph = paragraphs.get(block.id);
+        if (!paragraph || this.processed.has(block.id)) continue;
+        this.processed.add(block.id);
         if (
-          !paragraph ||
           !block.element.isConnected ||
           block.element.innerHTML !== block.snapshot
         ) {
@@ -224,9 +226,23 @@ export class ReadingReplacement {
           ),
         );
         this.records.push(record);
+        if (this.view === "original") this.swap(record, "original");
       }
     });
-    this.updateGlosses();
+    // Chunks may arrive out of order. "First" follows document order, not network order.
+    preservePosition(this.blocks, () => {
+      this.first.clear();
+      for (const block of this.blocks) {
+        for (const { occurrence } of this.glosses) {
+          if (
+            occurrence.sourceId === block.id &&
+            !this.first.has(occurrence.vocabularyId)
+          )
+            this.first.set(occurrence.vocabularyId, occurrence.id);
+        }
+      }
+      this.updateGlosses();
+    });
   }
   get count() {
     return this.records.length;
@@ -282,6 +298,7 @@ export class ReadingReplacement {
     record.currentSnapshot = parent.innerHTML;
   }
   setView(view: "learning" | "original") {
+    this.view = view;
     preservePosition(this.blocks, () =>
       this.records.forEach((record) => this.swap(record, view)),
     );
@@ -290,23 +307,14 @@ export class ReadingReplacement {
     this.glossMode = mode;
     preservePosition(this.blocks, () => this.updateGlosses());
   }
-  updateWord(id: string, user: UserWord) {
-    this.occurrences.forEach((occurrence) => {
-      if (occurrence.vocabularyId === id) occurrence.word.user = user;
-    });
-    preservePosition(this.blocks, () => this.updateGlosses());
-  }
   private updateGlosses() {
-    for (const { node, occurrence, button } of this.glosses) {
-      node.hidden =
-        occurrence.word.user?.status === "KNOWN" ||
-        !(
-          this.glossMode === "all" ||
-          (this.glossMode === "first" &&
-            this.first.get(occurrence.vocabularyId) === occurrence.id) ||
-          (this.glossMode === "click" && this.clicked.has(occurrence.id))
-        );
-      button.classList.toggle("favorite", !!occurrence.word.user?.favorite);
+    for (const { node, occurrence } of this.glosses) {
+      node.hidden = !(
+        this.glossMode === "all" ||
+        (this.glossMode === "first" &&
+          this.first.get(occurrence.vocabularyId) === occurrence.id) ||
+        (this.glossMode === "click" && this.clicked.has(occurrence.id))
+      );
     }
   }
   restore() {
@@ -324,6 +332,8 @@ export class ReadingReplacement {
     });
     this.records = [];
     this.glosses = [];
+    this.processed.clear();
+    this.first.clear();
     return skipped;
   }
 }

@@ -13,8 +13,8 @@ await cp(path.join(root, "static"), dist, { recursive: true });
 await cp(path.join(root, "manifest.json"), path.join(dist, "manifest.json"));
 const bundle = await build({
   absWorkingDir: path.resolve(root, ".."),
-  entryPoints: ["background", "popup", "options", "content", "library"].map(
-    (file) => path.join(root, "src", `${file}.ts`),
+  entryPoints: ["background", "popup", "options", "content"].map((file) =>
+    path.join(root, "src", `${file}.ts`),
   ),
   outdir: dist,
   bundle: true,
@@ -65,29 +65,33 @@ await writeFile(
   path.join(dist, "THIRD_PARTY_NOTICES.txt"),
   notices.join("\n\n========================================\n\n"),
 );
-const files = {};
-async function collect(directory, prefix = "") {
-  const entries = await readdir(directory, { withFileTypes: true });
-  for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
-    const name = prefix + entry.name;
-    if (entry.isDirectory())
-      await collect(path.join(directory, entry.name), `${name}/`);
-    else
-      files[name] = [
-        new Uint8Array(await readFile(path.join(directory, entry.name))),
-        { mtime: new Date("2026-01-01T00:00:00Z") },
-      ];
+if (!process.argv.includes("--unpacked")) {
+  const files = {};
+  async function collect(directory, prefix = "") {
+    const entries = await readdir(directory, { withFileTypes: true });
+    for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+      const name = prefix + entry.name;
+      if (entry.isDirectory())
+        await collect(path.join(directory, entry.name), `${name}/`);
+      else
+        files[name] = [
+          new Uint8Array(await readFile(path.join(directory, entry.name))),
+          { mtime: new Date("2026-01-01T00:00:00Z") },
+        ];
+    }
   }
+  await collect(dist);
+  const downloads = path.resolve(root, "../public/downloads");
+  await mkdir(downloads, { recursive: true });
+  const archive = zipSync(files, { level: 9 });
+  await writeFile(path.join(downloads, "wordweave-extension.zip"), archive);
+  await writeFile(
+    path.join(downloads, "wordweave-chrome-store-kit.zip"),
+    await makeChromeStoreKit(archive),
+  );
+  console.log(
+    "语境插件已构建：extension/dist；下载包：public/downloads/wordweave-extension.zip",
+  );
+} else {
+  console.log("开发构建完成：extension/dist（未生成 ZIP 或商店资料）");
 }
-await collect(dist);
-const downloads = path.resolve(root, "../public/downloads");
-await mkdir(downloads, { recursive: true });
-const archive = zipSync(files, { level: 9 });
-await writeFile(path.join(downloads, "wordweave-extension.zip"), archive);
-await writeFile(
-  path.join(downloads, "wordweave-chrome-store-kit.zip"),
-  await makeChromeStoreKit(archive),
-);
-console.log(
-  "语境插件已构建：extension/dist；下载包：public/downloads/wordweave-extension.zip",
-);

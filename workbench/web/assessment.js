@@ -65,6 +65,9 @@ export function pointCounts(points) {
     total:points.length
   };
 }
+// Keep previously saved OpenAI feedback valid after switching model providers.
+export const isAiGrade = grade => ['ai','openai'].includes(grade?.method);
+
 export function selfCheckPoints(type, source, lang, cues) {
   if (type==='oral') return ['我回应了问题里的具体情境。','我用自己的话给出了一个相关细节。'];
   if (cues?.length) return cues;

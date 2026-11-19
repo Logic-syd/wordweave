@@ -186,8 +186,15 @@ test.addEventListener("click", () => {
       setBusy(false);
     });
 });
-document.querySelector("#library")!.addEventListener("click", () => {
-  void sendMessage({ type: "ww:library:open" });
+document.querySelector("#clear-cache")!.addEventListener("click", () => {
+  if (busy || !window.confirm("清除翻译缓存？下次翻译将重新请求服务。")) return;
+  setBusy(true);
+  void sendMessage({ type: "ww:cache:clear" })
+    .then(() => show("翻译缓存已清除。"))
+    .catch((error: unknown) =>
+      show(error instanceof Error ? error.message : "清除失败，请重试。", true),
+    )
+    .finally(() => setBusy(false));
 });
 updateMode();
 
@@ -195,7 +202,7 @@ forget.addEventListener("click", () => {
   if (
     !ready ||
     busy ||
-    !window.confirm("删除已保存的 Key 并切回免费翻译？文章和收藏会保留。")
+    !window.confirm("删除已保存的 Key 并切回免费翻译？翻译缓存会保留。")
   )
     return;
   setBusy(true);

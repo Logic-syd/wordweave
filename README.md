@@ -1,187 +1,176 @@
 # 语境 · Wordweave
 
-给中文母语者的个人语言学习阅读器。两个入口：把英文技术文章变成中文与英文表达结合的学习材料；在中文故事中学习少量德语词，并对照自然德语全文。
+[简体中文](#简体中文) | [English](#english)
 
-首页、文章库、8 篇英德范文和插件安装页公开可看，不需要邀请码。范文收藏与进度保存在当前浏览器；网页版供站主个人使用，上传、网站生成和私人文章由自己的访问密码保护。没有注册、社交或付费功能。
+## 简体中文
 
-全站要求邀请码的旧版保存在 [`archive/invite-only`](https://github.com/Logic-syd/wordweave/tree/archive/invite-only)；当前版本保留公开范文，私人空间只允许站主访问。
+给中文母语者的语言学习工具。**网站公开使用，无需注册；每个人填写自己的 API，文章、词卡和练习记录保存在自己的浏览器。** 网站不代转模型请求，也不使用站主的 Key。
 
-插件发布准备见 [简明上架清单](docs/extension-release.md)。当前尚未提交任何扩展商店。
+| 入口 | 做什么 | 特点 |
+| --- | --- | --- |
+| `/listen` 听力 | 播放一段、概括重点、逐句听写 | 青绿色；默认收起原文，播放按钮在顶部 |
+| `/speak` 口语 | 跟读、复述、情景表达、录音回听 | 淡紫色；以开口和自己的表达为中心 |
+| `/read` 阅读 | 技术英语学习版、中文嵌德语短文、逐段原文 | 淡粉色；保留英文表达、代码和语境词卡 |
+| `/vocabulary` 单词库 | 听说读共用收藏、认识状态、出现句子 | 词条可直接拿去听或说 |
+| `/settings` 我的 API | 设置自己的服务、模型与 Key，导出记录 | 保存配置不发请求；测试连接会消耗少量额度 |
 
-## 听力与口语工作台
+三个入口直接打开学习内容，不先展示选择首页。`/listen` 直接听，`/speak` 直接跟读或继续上次任务，`/read` 直接打开上次文章（首次默认 React 范文）。`/` 继续上次学习，首次默认听力。右上角切换听说读，「更多功能」里找到单词库与 API 设置；换材料、换练法按需展开。
 
-[Wordweave 听说工作台](workbench/) 是可独立运行的第二个工具。用自己的材料做 5 或 20 分钟练习，逐词核对听写，按要点批改回答，并把漏听的表达排进复习。运行方法和个人 API 配置见工作台目录。
+三个学习页面可以互相跳转，在**同一浏览器、同一网站地址**下共用单词库。附带 8 篇结构化阅读范文与 15 份英德听说材料；范文、浏览器朗读、听写对照、收藏和进度保存无需 Key。范文明确标注为演示内容，不冒充现场生成。
 
-## 本地启动
+### 启动网站
 
-需要 Node.js 22.12+（推荐仓库固定的 Node 24）、npm，以及带 Compose 的 Docker。默认数据库只监听本机。
-
-```bash
-npm run setup
-npm run local
-```
-
-`setup` 在 `.env` 不存在时复制 `.env.example`，执行锁定依赖安装、Prisma Client 生成、启动 PostgreSQL 17、应用已提交迁移并写入两篇演示。重复执行不会清空文章、收藏或学习记录。删除演示后重新运行 seed 会重新添加演示。
-
-浏览器打开 `http://localhost:3000`。再次启动只需 `npm run local`。数据库已运行时也可以直接 `npm run dev`。
-
-生产方式：
+需要 Node.js 22.12+（推荐 Node 24）和 npm。公开版无需数据库、Docker 或站主 API 配置：
 
 ```bash
-npm run build
-npm run start
-```
-
-### 已有 PostgreSQL
-
-在 `.env` 或进程环境设置 `DATABASE_URL`，然后：
-
-```bash
-START_LOCAL_DB=0 npm run setup
+npm ci
+npm run db:generate
 npm run dev
 ```
 
-迁移用 `npm run db:migrate`（`prisma migrate deploy`），演示用 `npm run db:seed`。`npm run db:check` 可检查连接；加 `-- --schema` 检查文章表，诊断不显示账号密码。`npm run start` 在启动前自动检查连接、应用待执行迁移、按 `SEED_DEMOS` 初始化演示，再检查文章表；失败会给出错误提示并退出。已执行迁移不会重复执行，已有学习记录不会被重置。修改 schema 后可用 `npx prisma migrate dev --name <说明>` 创建新迁移；不要在有个人数据的库上执行 reset。Prisma 7 使用官方 `@prisma/adapter-pg`；连接 URL 统一在 `prisma.config.ts` 与服务端进程环境读取。
-
-本地 PostgreSQL 数据在忽略提交的 仓库外的 `../.wordweave/postgres`（可用 `WORDWEAVE_DATA_DIR` 覆盖），停止容器或 `docker compose down` 后仍保留。不要删除此目录。Docker 会将数据目录设置为 PostgreSQL 用户所有，这是正常行为。数据库目录位于源码树之外，避免数据库写入触发开发服务器热刷新。
-
-备份／恢复（恢复会替换目标数据库，请先备份）：
+打开 <http://localhost:3000>。生产验证：
 
 ```bash
-docker compose exec -T db pg_dump -Fc -U wordweave wordweave > backup.dump
-# 恢复到已启动的本地库：
-docker compose exec -T db pg_restore --clean --if-exists --no-owner --no-privileges -U wordweave -d wordweave < backup.dump
+npm run build:web
+npm start
 ```
 
-远程长期使用建议连接持久 PostgreSQL。开发环境快照与应用数据备份是不同的事；不要依赖运行中的容器进程跨任务存活。
+`npm run build` 与 `npm run build:web` 都只构建网站，不会打包插件。插件打包使用独立的 `extension:build` / `extension:release` 命令。已有 `.env` 中若配置了 `DATABASE_URL`，生产启动仍会检查并迁移该旧数据库；未配置则直接启动公开版。[环境示例](.env.example) · [Railway 部署](docs/railway.md)。
 
-## Railway 首次部署
+### 使用自己的 API
 
-首次部署在 Railway 的应用服务 Settings 中设置构建命令、`npm run start` 和健康检查；启动流程会自动执行数据库迁移，无须单独设置预部署步骤。具体值及变量填写见 [Railway 部署说明](docs/railway.md)。Railway 新服务已不再启用旧的 `railway.json` 配置。这个项目由一个 Next.js 全栈服务和独立 PostgreSQL 数据库组成，页面与后端接口在同一应用内分层实现。
+1. 打开「我的 API」，填入 Base URL、供应商当前支持 JSON 输出的准确模型 ID、自己的 Key。没有硬编码默认模型。
+2. 保存。默认只在当前标签页会话保存；勾选「在这个浏览器记住 Key」后才长期保存在本机。
+3. 返回听、说、读页面，主动点击生成或 AI 反馈才调用供应商。
 
-## 启用真实生成
+DeepSeek 的 Base URL 可填 `https://api.deepseek.com/v1`，模型 ID 从自己的供应商控制台确认。接口使用 OpenAI 兼容的 `/chat/completions`；默认对官方 DeepSeek 关闭深度思考，可在设置中更改。Key 仅直接发送到使用者填写的供应商地址，不传到语境后端；学习记录导出不含 Key。网站不会从 `LLM_*` 读取一个备用 Key 来替用户调用。
 
-三项均为**服务端**变量，在 `.env` 或托管环境的安全变量设置中填写：
+**服务商必须允许网页直接跨域调用（CORS）。** 网络、权限或 CORS 不允许时会明确提示，不走网站代理，也不自动换供应商。HTTPS 网站连接本机模型还受浏览器本地网络权限限制。模型请求仍在供应商服务器执行并可能收费；“本地使用”指配置与学习数据保存在浏览器，不是模型离线运行。建议在供应商账户设置消费上限。不要在共用电脑勾选长期记住 Key。
 
-```dotenv
-LLM_API_KEY=""
-LLM_BASE_URL=""
-LLM_MODEL=""
+### 本地数据与学习闭环
+
+- 导入与生成文章、完整词条、听说材料及记录存于 IndexedDB；小型草稿、范文记录、阅读位置与 Key 使用浏览器存储。关闭再打开可恢复，Key 的保留取决于是否勾选记住。
+- 不同浏览器、设备和网站域名互不共享数据。清除网站数据会删除本机记录；可在「我的 API」导出不含 Key 的 JSON 备份，目前没有导入备份界面，也没有云同步。
+- 技术英语支持粘贴、UTF-8 TXT / Markdown；保存完整原文、标题与来源。稳定段落 ID 对应学习版，支持逐段查看原文。代码块不交给模型，行内代码与链接保护后恢复；不会抓取来源网址或解析 PDF。
+- 德语支持 A1 / A2 / B1、3 / 5 / 8 个新词、自定义主题与指定词、导入原文和只复习。中文嵌词版与自然德语逐段对应；名词冠词复数、动词变化和基础语法在词卡中展示。实际新词数与复习覆盖通过校验后保存。
+- 收藏进入待复习；主动选「认识」后间隔 1、3、7、14、30 天；「暂不学习」暂停。出现次数和主动复习分别记录，读完或完成练习不等于掌握。最多挑选 3 个到期德语词用于新文章。
+- 手机底部词卡、桌面浮层；三种释义模式、已认识词隐藏释义、阅读位置与语言偏好自动保存。删除文章保留词条和用户主动保存的学习状态，清理文章关联。
+- 听说共享材料、语速与草稿各自保存。浏览器朗读依赖系统英／德语音包，没有语音时提示。录音仅留在当前页面，可下载；不上传录音、不自动转写、不评价发音。AI 评价的是文字回答。
+- 浏览器最多保存 200 篇文章、200 份听说材料、最近 1,000 条完整听说记录；界面展示最近 100 条，草稿按任务保留最近 100 份。
+
+### 生成可靠性
+
+模型输出结构化 JSON，经过 Zod、段落对应、代码保护、原句与目标词覆盖校验后才保存。输入按文本安全渲染，文章里的指令不作为系统指令执行。技术长文按段分块、顺序合并，不静默截断。重新生成失败保留原文和已有成功版本。
+
+浏览器每篇最多两个并行块、普通错误最多两次额外重试，每块最多重试一次；整篇限时 4 分钟、单请求 90 秒、输出 8,192 tokens / 1 MiB。生成按钮和浏览器跨标签页锁防止同篇重复生成。费用由使用者账户承担，不设置站主每日额度。供应商可能对失败请求收费。
+
+明确的 `Content Exists Risk`、`content_filter` 或拒绝回复按内容拒绝处理；单纯 400 / 403 或非法 JSON 不是“敏感词”。技术文章被拒绝时按段定位，最多 8 次额外定位调用；成功段落保留，仍被拒绝的段落显示原文并标识，不声称翻译完成。德语保持整篇严格覆盖校验。鉴权、余额、参数不支持直接报错；短暂限流与服务故障有限重试；浏览器网络／CORS 错误不自动重试。语言正确性与所有隐性拒绝无法自动保证。[已有模型故障验证记录](docs/model-failure-checks.md)记载此前的服务端测试，不代表本版完成了真实供应商测试。
+
+### 原有私人数据与独立工具
+
+原 PostgreSQL 数据、迁移、站主鉴权和旧私有接口保留；不会将私人数据库内容公开，也不会自动迁入浏览器。`/login` 仅是站主的旧数据入口。公开页面不依赖它。新部署不需要邀请码或站主密码。
+
+旧服务器生成接口**默认关闭**，即使仍有 `LLM_API_KEY` 也不调用。只有显式设置 `SERVER_AI_ENABLED=true` 才能供已认证站主使用；保留此开关只是兼容旧个人流程，公开页面始终使用自己的 Key。旧 `GENERATION_*` 限额仅适用于这些私有接口。
+
+需要连接旧库时，在服务端配置 `DATABASE_URL`，执行：
+
+```bash
+npm run db:generate
+npm run db:migrate
+npm run db:check -- --schema
 ```
 
-`LLM_BASE_URL` 是兼容 OpenAI 的 HTTPS API 根路径，通常以 `/v1` 结尾；服务端向其 `/chat/completions` 发送请求。`LLM_MODEL` 使用供应商当前提供、支持 JSON 对象响应的模型名称，没有内置默认模型。仅为本机测试允许 localhost HTTP。
+本机旧数据库可用 `docker compose up -d db` 启动；连接示例 `postgresql://wordweave:wordweave_local@localhost:5432/wordweave?schema=public`。数据目录默认 `../.wordweave/postgres`，不要删除。`npm run setup` / `npm run local` 是保留的 Docker／数据库启动流程；`npm run db:seed` 可补回旧数据库的两篇演示，不是公开范文的必需步骤。不要在已有数据的库上执行 `migrate reset`。
 
-变量修改后重启应用；生产构建页面在请求时读取配置。密钥不要使用 `NEXT_PUBLIC_` 前缀，不要提交 `.env`，不要在正文或聊天中粘贴密钥。受限网络环境需放行模型服务的实际主机名；代理注入的凭据必须通过其绑定的 HTTPS 目标使用。程序不会将 API Key 发送到浏览器或保存到文章。
+插件 `extension/` 专注**英文网页翻译**，默认免费翻译，AI 用插件用户自己的 Key；不带文章库、不与网站同步、不需要邀请码。开发安装：`npm run extension:dev`，然后 Chrome → `chrome://extensions` → 开发者模式 → 加载 `extension/dist/`。不生成商店 ZIP。详见[插件中英说明](extension/README.md)。
 
-不配置模型也能阅读 8 篇公开范文：React 状态、异步搜索、代码评审、HTTP 缓存，以及德语超市、通勤、咖啡馆、租房。德语涵盖 A1、A2、B1。范文使用固定的结构化内容，逐段原文、词卡、收藏、释义与进度在本机保存，不伪装成现场生成。登录后上传的私人文章继续保存到 PostgreSQL。原有两篇数据库演示和个人记录不变。
+`workbench/` 是保留的独立旧听说工作台（SQLite / D1），不是公开版入口。默认请使用主网站 `/listen` 与 `/speak`；旧工作台仍用自己的服务端配置，不能作为公开 BYOK 版本直接对外部署。[独立工作台说明](workbench/README.md)。
 
-公开范文来自明确的内容目录，不读取或公开任何用户文章。访客与登录用户的范文记录都只在当前浏览器保存，不自动合并到账号，也不会发送到服务器；不同浏览器之间不互通。清除浏览器网站数据会清除这些本机记录。
-
-### 使用 DeepSeek
-
-项目已支持 OpenAI 兼容接口，无需改业务代码。在本机 `.env` 中设置：
-
-```dotenv
-LLM_API_KEY=""
-LLM_BASE_URL="https://api.deepseek.com/v1"
-LLM_MODEL=""
-```
-
-将 `LLM_API_KEY` 填成你在 DeepSeek 开放平台创建的 API Key，将 `LLM_MODEL` 填成该平台当前可用、支持 JSON 输出的准确模型 ID。不要直接照抄翻译插件显示的模型名称。保存后重启服务，先用一小段英文测试。
-
-本机启动：`npm run setup`，然后 `npm run local`。已经安装并初始化过时直接运行 `npm run local` 即可。
-
-在当前受限云环境中，需在环境设置中填写 `LLM_API_KEY` 和 `LLM_MODEL`，并允许访问 `api.deepseek.com`。使用平台注入的密钥时，保留平台代理与 CA 配置；Node 24 服务应以 `NODE_USE_ENV_PROXY=1 npm run local` 启动，生产服务则使用 `NODE_USE_ENV_PROXY=1 npm run start`。这些设置不会跳过 TLS 校验。密钥不要发到聊天里。
-
-## 个人网页版
-
-Railway 继续在线运行。访客可阅读固定范文和下载插件；只有你能上传、生成文章和访问自己的学习记录，没有邀请管理入口。
-
-**已有部署不用改配置：** 沿用 `ADMIN_ACCESS_TOKEN`、旧 `TRIAL_ACCESS_TOKENS` 中 `personal` 的值或原 `EXTENSION_ACCESS_TOKEN` 登录。原来的个人文章、收藏和阅读进度保留。旧朋友凭据（包括历史签名会话、数据库邀请码与会话）均不能访问当前网页版；历史数据保留但不合并到个人空间。`/invites` 返回首页，旧邀请管理接口对已登录站主返回 410。
-
-全新部署只需一次性设置至少 32 字符的随机 `ADMIN_ACCESS_TOKEN`。例如在自己的终端运行 `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`，将结果填入 Railway 服务端变量并安全保存，用它作为访问密码。不要发给别人或提交仓库。未配置有效凭据时，生产环境只开放范文，私人接口保持关闭；本地开发可免登录。
-
-网页登录保留 7 天 HttpOnly 会话，写操作校验来源；这是个人访问保护，没有注册、朋友账户或找回密码流程。登录失效时重新输入自己的密码即可。上传页弹出个人登录框，取消或输错不会丢失正文；登录成功后仍需主动提交才会调用模型。
-
-网站与旧版插件的服务端生成共用 PostgreSQL 持久限额，按 UTC 日期计算，重启不会清空；新版插件的免费翻译和自带 Key 请求不经过这些生成接口：
-
-| 限制 | 默认值 | 服务端变量 |
-| --- | --- | --- |
-| 每人每天生成次数 | 20 | `GENERATION_DAILY_LIMIT` |
-| 每人每天输入字符 | 120,000 | `GENERATION_DAILY_CHAR_LIMIT` |
-| 全站每天生成次数 | 100 | `GENERATION_GLOBAL_DAILY_LIMIT` |
-| 全站每天输入字符 | 600,000 | `GENERATION_GLOBAL_DAILY_CHAR_LIMIT` |
-| 同时生成 | 每人 1，全站 2 | `GENERATION_MAX_CONCURRENT` 调整全站上限 |
-| 全站每天模型请求（含分块和重试） | 100 | `GENERATION_DAILY_MODEL_CALL_LIMIT` |
-
-失败也占用次数和字符额度，因为供应商可能已计费；同一活动任务的重复提交不重复计数。原创德语按 5,000 字符预留工作量。每人文章库最多保留 200 篇，超过后需先删除不需要的文章。任一额度配置为 `0` 可暂时关闭新生成，保留已有文章阅读。这些是工作量上限，不是美元费用的精确预算；模型账户的余额与消费上限仍需在供应商平台设置。
-
-上传页和私人阅读器可展开「今日已生成」查看当前用量。默认每天最多 **20 次文章生成、120,000 输入字符、全站 100 次模型请求**；按 UTC 00:00 重置。每次模型请求发出前，在数据库中原子占用额度，长文分块、自动重试都单独计入模型请求数；达到上限返回 429，不会继续调用模型。服务重启不会清零，重新生成失败不覆盖已有成功版本。读取额度的 `/api/generation/budget` 仅对本人开放，页面数字仅用于展示，最终以服务端校验为准。
-
-新迁移仅给 `GenerationUsage` 添加计数字段，保留已有记录；历史模型请求无法回溯，从此次部署开始计数。已有每日文章次数和字符用量不会清零。Railway 无需增加变量即可使用默认上限；如已设置同名变量，以配置为准。
-
-### 生成速度与模型限制
-
-`LLM_THINKING=auto` 默认只对官方 `api.deepseek.com` 发送关闭深度思考的参数，其他兼容服务保持其默认行为；可显式选择 `enabled` / `disabled`。模型名称始终由 `LLM_MODEL` 配置。转换任务默认不需要长链路推理；若仍慢，先选择几段正文再生成。
-
-`LLM_CHUNK_CONCURRENCY=2` 控制每篇技术文章并行块数，`LLM_MAX_RETRIES=2` 控制整篇额外请求预算，`LLM_MAX_OUTPUT_TOKENS=8192` 和 `LLM_MAX_RESPONSE_BYTES=1048576` 限制单次模型输出。输入上限、输出上限、有限重试和全站并发共同约束消耗。具体耗时依赖文章长度、词卡数量与供应商负载，页面不会承诺固定秒数。
-
-## 浏览器插件（Chrome / Edge 桌面版）
-
-网站的「浏览器插件」页提供下载与简短安装步骤：下载并解压 → 打开浏览器扩展页 → 开启开发者模式并加载文件夹。打开英文网页后点小精灵，即可翻译整篇或选中段落。
-
-**默认免费，无需网站登录或邀请码。** 免费模式直接使用 Google 普通翻译，按规则保留能准确对应的英文表达；AI 模式由使用者在插件设置中填写自己的 Key，直连其模型服务。默认 DeepSeek，模型自动查询；其他兼容服务与模型可在高级设置中指定。两种方式不会自动互相切换，新插件不会使用站主的模型额度。
-
-文章、词卡与收藏保存在本机插件，入口为「我的文章与收藏」；网站已有文章与学习记录保持独立。API Key 只保存在扩展受信任存储中，用于连接使用者选定的模型服务，不上传语境网站、不提供给网页内容脚本。具体限制、隐私与开发命令见 [插件说明](extension/README.md)。
-
-源码在同一仓库的 `extension/`。`npm run build` 会先打包插件，因此 Railway 部署后能下载当前版本。插件尚未上架商店；更新时重新下载、解压，并在扩展页点击「重新加载」。免费接口可能受网络或服务限流影响，不能承诺永久可用；失败会明确提示，不悄悄调用 AI。
-
-## 可用的学习闭环
-
-- **技术英语**：粘贴或上传 UTF-8 TXT / Markdown，保存标题与可选来源链接。整篇原文保留；学习版与原文按稳定段落 ID 对齐。标题、列表、链接、引用、行内代码与围栏代码可阅读，代码不发送给模型。每段可展开原文；少／中／多英文保留量需明确点击重新生成才生效。
-- **德语**：A1 / A2 / B1、3–5 或 5–8 分钟目标、3 / 5 / 8 个新词、内置／自定义主题、指定词，支持导入德语原文。原创标记为“生成短文”，导入标记为改写。中文嵌词与完整德语逐段对应。名词冠词／复数、动词原形／当前形式、短语说明和可展开基础语法都在词卡中。
-- **阅读**：三种释义模式；已认识词默认隐藏释义但仍可点击。手机底部词卡、桌面浮层；切换全文视图尽量保持当前段落位置。自动保存段落、视图、释义模式与读完状态；两种语言的默认偏好分开保存。
-- **学习记录**：收藏新词会加入待复习；“想学”可立即复习；主动选“认识”后间隔为 1、3、7、14、30 天；“暂不学习”暂停。阅读完成不算掌握。每个成功版本对同一词只计一次文章接触，复习确认另计。
-- **跨篇复习**：优先取最早到期的最多 3 个德语词，带入新的合理情境；只复习时不加新词，无待复习词有明确提示。新词数严格校验，复习未覆盖项明确展示且不计入出现记录。
-- **生词本**：按语言、状态、收藏筛选与搜索，查看实际出现的文章和原句。删文章只删除版本／出现关联／阅读位置，词条与用户主动保存的学习记录继续保留。
-
-## 生成与数据约束
-
-核心数据为 `Article`、`ArticleVersion`、`Paragraph`、`VocabularyItem`、`Occurrence`、`UserVocabulary`、`ReadingProgress`、`LanguagePreference`。词条原形与当前出现形式分开；每次出现还保存对应的词形、语法说明与例句，复习词不会沿用旧文章的变位说明；规范化语言／原形／词性／语境义项构成词条键，不会仅凭大小写或词面把所有义项合并。模型可能对同一义项使用不同释义，仍可能产生需要人工判断的近似词条。
-
-`src/lib/repository.ts` 集中读写用户数据，`userScope()` 读取经验证的请求身份，不从请求正文或客户端自报的用户 ID 决定归属。文章、词条例句、收藏、复习和阅读偏好按稳定身份隔离，当前仅允许 `personal` 登录；原有数据继续归属 `personal`。
-
-处理顺序是：Markdown 解析和代码／链接保护 → 获取已有词与复习目标 → 生成 JSON → Zod 校验、段落／保护标记／目标覆盖校验 → 事务保存成功版本并更新活动版本。技术正文以约 5,000 字符的段落组分块，不截断段落；输入总上限 40,000 字符。德语导入保持整篇上下文；过长或模型输出不足会明确失败并保留输入。
-
-重复导入请求用用户范围内的幂等键和内容摘要合并，同一篇生成有数据库锁。技术文章默认同时处理 2 个块并按原顺序合并；已成功块不会因其他块失败而重新请求。每篇最多额外重试 2 次，单次请求 90 秒，总生成预算 4 分钟。网页显示真实块数、阶段与已用时。失败不会覆盖成功版本。生成是应用服务进程内任务；进程退出可能中断，页面可明确重试，并非持久任务队列。
-
-原文与模型内容按文本／Markdown 安全渲染，不接受模型 HTML；原始 HTML 不执行。模型只接收受约束的数据和提示，不具备系统工具。提示词要求忽略文章中的任务修改指令，但结构验证不能证明事实、译文或语言语法全部正确；可对照原文并重新生成。阅读时长也是目标值，不是保证。
-
-提示词注入仍可能使模型生成不准确或偏离任务的语言内容；这些防护限制模型能造成的影响，不能证明语义完全正确。模型没有数据库、文件、网络检索或执行工具，密钥不进入提示词；不依赖关键词黑名单来判断文章是否安全。
-
-## 验证与开发
+### 验证
 
 ```bash
 npm run typecheck
 npm run lint
-npm run test:unit    # 不连接数据库
-npm test             # 包含真实 PostgreSQL 的事务／生成集成测试
-npm run build
-npm run start         # 在另一个终端保持运行
-npm run test:e2e       # 旧个人模式 Chromium 验收，默认 http://127.0.0.1:3000
-npm run test:auth:http # 独立数据库/生产服务/Chromium：公开阅读、个人登录、旧朋友拒绝、私有隔离
-npm run test:reader:browser # 实际 Reader 组件 + 模拟接口：进度、重连、超时
-npm run test:extension:dom # 网页提取、原位替换与恢复
-npm run test:extension:ui # 安装页、插件设置、文章与收藏界面
-npm run test:extension -- --content-harness # 实际打包后台 + 内容脚本 + 本地翻译夹具；非真实 MV3 安装
+npm run test:unit
+npm run build:web
+npm run test:byok:browser
 ```
 
-浏览器测试默认用 `/usr/bin/chromium`；其他路径设 `CHROMIUM_PATH`。若本机没有 Chromium，可 `npx playwright install chromium`，并将 `CHROMIUM_PATH` 指向安装的二进制。可用 `E2E_BASE_URL` 指定运行中的应用。
+浏览器验证使用本机 Chromium（默认 `/usr/bin/chromium`，可设置 `CHROMIUM_PATH`）和明确的模拟模型服务，检查直连自己的 Key、没有站主调用、代码保护、异常重试、本机持久化和浏览器隔离，不消耗真实 API 额度。`npm run test:practice` 验证共用练习结构与旧数据库集成，数据库集成需要 PostgreSQL。测试不证明翻译或发音质量。
 
-站内生成、旧版插件接口、额度和认证集成测试会创建并清理独立的本机临时 PostgreSQL 数据库，需要本机账号有 CREATE DATABASE 权限，拒绝非本机数据库地址。新版插件测试使用独立本地翻译夹具，无需 Next 服务、数据库或 API Key。旧个人模式浏览器测试会临时操作演示词和进度并在结束时恢复，应在单独开发数据库运行。模型传输在集成测试中被明确模拟，以稳定验证代码保护、非法输出、API 失败、并发锁、实际覆盖和失败时保留旧版本；不代表已验证某家真实模型的语言质量。演示阅读与数据库持久化使用真实服务。
+## English
 
-个人访问回归覆盖：原站主凭据兼容、旧朋友令牌与会话拒绝、邀请接口停用、私人文章隔离、同源校验、公开范文与上传登录弹窗。运行命令见上文；具体执行结果以本次测试报告为准。
+A language-learning tool for Chinese speakers. **The website is public, with no registration. Everyone supplies their own API key; articles, vocabulary and practice records stay in their browser.** Model requests go directly to the chosen provider, without a website proxy or an owner-funded fallback.
 
-自动测试使用明确的本地翻译／模型夹具。另已用真实 DeepSeek 验证模型发现及短文转换、行内代码与代码块保留；这不代表所有语言内容准确。Google 免费服务因当前云环境网络策略阻止，真实连通性尚未验证，已保存该域名的放行配置草稿。云浏览器禁止安装未打包扩展，真实 MV3 安装、休眠生命周期与原生权限弹窗仍未验证。公开范文的本机记录、插件本机记录与账号数据库记录各自独立，不自动同步。
+| Entry | Purpose | Visual identity |
+| --- | --- | --- |
+| `/listen` | Listen, summarize and practice dictation | Teal; transcript initially hidden, playback at the top |
+| `/speak` | Shadow, retell, respond and record yourself | Lavender; focused on speaking |
+| `/read` | Technical English and contextual German reading | Rose; expressions, code and paragraph-aligned originals |
+| `/vocabulary` | Shared vocabulary, learning state and source sentences | Reuse words in listening or speaking |
+| `/settings` | Your provider, model, API key and data export | Saving does not call a model; connection testing uses a small amount of credit |
 
-目录：`src/components` 是交互阅读界面，`src/lib/markdown.ts` 保护 Markdown，`generation.ts` 处理模型与覆盖，`repository.ts` 封装持久化，`review.ts` 负责调度，`prisma/` 包含 schema、迁移、演示初始化。
+Each entry opens an exercise immediately, without a mode-selection homepage. `/listen` starts listening, `/speak` opens shadowing or the previous task, and `/read` resumes the last article (the React sample on first use). `/` resumes the last skill, defaulting to listening. Switch skills in the top-right corner; vocabulary and API settings are in the overflow menu. Material and exercise choices expand only when requested.
+
+All three pages link to one another and share words within the **same browser and website origin**. Eight structured reading samples and fifteen English/German practice materials work without a key. Samples, system-voice playback, dictation comparison, favorites and progress are available for free; samples are explicitly labeled.
+
+### Run the website
+
+Requires Node.js 22.12+ (Node 24 recommended) and npm. The public site needs no database, Docker or server API key:
+
+```bash
+npm ci
+npm run db:generate
+npm run dev
+```
+
+Open <http://localhost:3000>. For production:
+
+```bash
+npm run build:web
+npm start
+```
+
+Both `npm run build` and `npm run build:web` build only the website. Extension packaging remains explicit through `extension:build` / `extension:release`. If an existing `.env` configures `DATABASE_URL`, production startup still checks and migrates that legacy database. Otherwise startup skips the database. See [.env.example](.env.example) and [Railway instructions](docs/railway.md).
+
+### Bring your own API
+
+Open **我的 API**, supply a Base URL, the provider's current JSON-capable model ID, and your own key. There is no hardcoded model. Configuration is session-only by default; explicitly check “remember” to keep the key in this browser. Saving configuration makes no request. Generation and AI feedback require an explicit click.
+
+DeepSeek's Base URL can be `https://api.deepseek.com/v1`; obtain the model ID from your provider console. Requests use OpenAI-compatible `/chat/completions`. Thinking is disabled by default for the official DeepSeek endpoint, and can be adjusted. The key goes directly to the configured provider, not to Wordweave's backend, and is excluded from learning-data exports. Server `LLM_*` variables are never used as a public fallback.
+
+**The provider must permit browser CORS requests.** Network, permissions or CORS failures show an error without a proxy or provider switch. Accessing a localhost model from an HTTPS site is also subject to browser local-network permissions. Models still run on the provider's servers and may incur charges: local storage does not mean offline inference. Set spending limits with the provider and avoid persistent keys on shared computers.
+
+### Storage and learning
+
+- IndexedDB stores imported/generated articles, vocabulary, practice materials and records. Small drafts, sample state, reading-position journals and key configuration use browser storage. Data does not synchronize across browsers, devices or website origins. Clearing site data deletes it. Settings can export a key-free JSON backup; there is currently no backup-import UI or cloud sync.
+- Technical English accepts pasted text and UTF-8 TXT/Markdown, preserves the complete original and source URL, and aligns stable paragraph IDs. Code blocks are excluded from model rewriting, inline code and links are protected, and each paragraph can reveal its original. No URL scraping or PDF parsing.
+- German supports A1/A2/B1, 3/5/8 new words, topics, specified vocabulary, source import and review-only mode. Chinese embedded-word passages align with natural German text. Cards include noun articles/plurals, verb forms and grammar guidance. Actual vocabulary coverage is validated before saving.
+- Favoriting adds a word to review. Explicit “known” responses schedule 1/3/7/14/30-day intervals; ignored words pause review. Exposure and active review are tracked separately. Completion never implies mastery. Up to three due German words may recur in a new article.
+- Mobile bottom-sheet word cards, desktop overlays, three gloss modes and saved reading preferences are shared. Deleting an article removes its links but keeps vocabulary and learning state. Practice can reuse a word's actual source sentence.
+- Listening and speaking keep separate drafts, positions and speeds. Playback needs installed English/German system voices. Recordings stay on the current page and can be downloaded; no audio upload, transcription or pronunciation scoring. AI feedback evaluates written answers.
+- Limits: 200 articles, 200 practice materials, 1,000 practice records (100 shown), and 100 task drafts per skill.
+
+### Reliability
+
+Model output is structured JSON, validated with Zod, paragraph correspondence, protected code, source sentences and target-word coverage. Imported instructions remain untrusted data. Long articles are split by paragraph without silent truncation. Failed regeneration retains the original and previous successful version.
+
+Browser generation uses at most two concurrent chunks, two ordinary extra retries across an article (one per chunk), a four-minute overall timeout, a 90-second request timeout, and 8,192-token / 1 MiB output caps. UI guards and browser locks prevent duplicate generation of one article. Users pay their own provider charges; there is no owner-funded daily allowance.
+
+Explicit provider refusals are distinguished from authentication or invalid JSON errors. Rejected technical chunks can be narrowed by paragraph, with up to eight extra localization calls; untranslated paragraphs preserve their originals and display their status. German generation keeps strict whole-document coverage requirements. Authentication, balance and unsupported configuration errors stop; temporary service errors retry within bounds. Browser network/CORS errors do not retry automatically. Translation correctness and every implicit refusal cannot be guaranteed. [Earlier fault records](docs/model-failure-checks.md) describe legacy server tests, not live-provider verification of this browser version.
+
+### Legacy records and other tools
+
+Existing PostgreSQL data, migrations and authenticated private APIs remain intact and are not exposed publicly or automatically migrated into browser storage. `/login` is the legacy owner's data entry. The public website needs neither invitations nor an owner password.
+
+Server-funded AI endpoints are **disabled by default**, even with `LLM_API_KEY` configured. Explicit `SERVER_AI_ENABLED=true` restores them only for authenticated legacy owner workflows; public pages still use BYOK. Legacy `GENERATION_*` quotas apply only to those private endpoints.
+
+For an existing database, set server-side `DATABASE_URL`, then run `npm run db:generate`, `npm run db:migrate` and `npm run db:check -- --schema`. The old local PostgreSQL can run through `docker compose up -d db`, with persistent data at `../.wordweave/postgres`. `setup`, `local` and `db:seed` remain legacy database helpers. Do not reset a database containing personal records.
+
+The independent `extension/` focuses on English web-page translation: free translation by default, optional user-supplied AI key, no article library, invitation or website synchronization. Build an unpacked test version with `npm run extension:dev`, then load `extension/dist/` at `chrome://extensions`. This does not generate a store ZIP. See the [bilingual extension README](extension/README.md).
+
+`workbench/` is the retained standalone SQLite/D1 app, not the public BYOK entry. Prefer `/listen` and `/speak` on the main website. The old standalone app still uses server-side configuration and must not be treated as the public BYOK site. See [workbench documentation](workbench/README.md).
+
+### Verification
+
+Run `npm run typecheck`, `npm run lint`, `npm run test:unit`, `npm run build:web`, then `npm run test:byok:browser`. Browser tests use local Chromium (`/usr/bin/chromium`, or `CHROMIUM_PATH`) and explicit model fixtures to verify direct BYOK requests, no owner-key usage, code protection, failures, persistence and browser isolation without paid API calls. `npm run test:practice` also covers the legacy database integration and requires PostgreSQL. These checks do not establish live language or speech quality.

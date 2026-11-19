@@ -1,6 +1,6 @@
 const kinds = new Set(['materials','marks','history','drafts','sessions']);
 const response = (body, status=200) => Response.json(body,{status,headers:{'Cache-Control':'no-store'}});
-export default {
+const worker = {
   async fetch(request, env) {
     const url = new URL(request.url);
     const asset = assets[url.pathname];
@@ -36,3 +36,4 @@ export default {
     }
   }
 };
+export default worker;

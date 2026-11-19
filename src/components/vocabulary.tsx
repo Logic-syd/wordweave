@@ -1,20 +1,58 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
-import { ArrowUpRight, Heart, NotebookPen, Search } from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+  ArrowUpRight,
+  Heart,
+  Headphones,
+  Mic2,
+  NotebookPen,
+  Search,
+} from "lucide-react";
 import type { VocabularyView, UserWord } from "@/lib/types";
 import { WordCard, statusLabels } from "./word-card";
+import { sampleVocabulary } from "@/lib/sample-storage";
+import { browserFetch } from "@/lib/browser-api";
 export function Vocabulary({ initial }: { initial: VocabularyView[] }) {
   const [words, setWords] = useState(initial);
   const [language, setLanguage] = useState("all");
   const [status, setStatus] = useState("all");
+  const [source, setSource] = useState("all");
   const [favorites, setFavorites] = useState(false);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<VocabularyView | null>(null);
+  useEffect(() => {
+    let disposed = false;
+    const refresh = async () => {
+      try {
+        const response = await browserFetch("/api/vocabulary", { cache: "no-store" });
+        const personal = response.ok ? await response.json() : null;
+        if (!disposed)
+          setWords((previous) => [
+            ...(Array.isArray(personal)
+              ? personal
+              : previous.filter((w) => !w.id.startsWith("sample-"))),
+            ...sampleVocabulary().filter((w) => w.user),
+          ]);
+      } catch {
+        /* Keep the current list when offline. */
+      }
+    };
+    void refresh();
+    window.addEventListener("wordweave:vocabulary", refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      disposed = true;
+      window.removeEventListener("wordweave:vocabulary", refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, []);
   const filtered = words.filter(
     (w) =>
       (language === "all" || w.language === language) &&
       (status === "all" || w.user?.status === status) &&
+      (source === "all" ||
+        w.appearances.some((a) => (a.skill ?? "read") === source)) &&
       (!favorites || w.user?.favorite) &&
       `${w.lemma} ${w.meaning}`
         .toLocaleLowerCase()
@@ -39,8 +77,10 @@ export function Vocabulary({ initial }: { initial: VocabularyView[] }) {
       <div className="page-title-row">
         <div>
           <span className="eyebrow">WORDS WORTH KEEPING</span>
-          <h1>让想学的词，再见一面。</h1>
-          <p className="page-subtitle">连同它出现过的句子，一起记住。</p>
+          <h1>听说读，共用一个单词库。</h1>
+          <p className="page-subtitle">
+            连同出现过的句子一起记住，再拿去听一遍、说一次。
+          </p>
         </div>
         <span className="word-count">
           {words.length}
@@ -84,6 +124,19 @@ export function Vocabulary({ initial }: { initial: VocabularyView[] }) {
         </label>
       </div>
       <div className="vocabulary-filters">
+        <label>
+          遇见它的地方
+          <select
+            aria-label="词条来源筛选"
+            value={source}
+            onChange={(e) => setSource(e.target.value)}
+          >
+            <option value="all">全部来源</option>
+            <option value="listen">听力</option>
+            <option value="speak">口语</option>
+            <option value="read">阅读</option>
+          </select>
+        </label>
         <label>
           学习状态
           <select
@@ -143,7 +196,22 @@ export function Vocabulary({ initial }: { initial: VocabularyView[] }) {
                   <span className={`status-tag status-${w.user?.status}`}>
                     {statusLabels[w.user?.status ?? "NEW"]}
                   </span>
-                  <span>在文章中遇见 {w.user?.exposureCount ?? 0} 次</span>
+                  <span>遇见 {w.user?.exposureCount ?? 0} 次</span>
+                  {[
+                    ...new Set(w.appearances.map((a) => a.skill ?? "read")),
+                  ].map((skill) => (
+                    <span
+                      key={skill}
+                      className="word-source-badge"
+                      data-skill={skill}
+                    >
+                      {skill === "listen"
+                        ? "听力"
+                        : skill === "speak"
+                          ? "口语"
+                          : "阅读"}
+                    </span>
+                  ))}
                   {w.user?.dueAt && (
                     <span>
                       {new Date(w.user.dueAt) <= new Date()
@@ -160,7 +228,19 @@ export function Vocabulary({ initial }: { initial: VocabularyView[] }) {
                 {w.appearances.length ? (
                   w.appearances.map((a, i) => (
                     <div className="appearance" key={`${a.articleId}-${i}`}>
-                      <Link href={`/read/${a.articleId}#${a.sourceId}`}>
+                      <Link
+                        href={a.href ?? `/read/${a.articleId}#${a.sourceId}`}
+                      >
+                        <span
+                          className="word-source-badge"
+                          data-skill={a.skill ?? "read"}
+                        >
+                          {a.skill === "listen"
+                            ? "听力"
+                            : a.skill === "speak"
+                              ? "口语"
+                              : "阅读"}
+                        </span>
                         {a.title}
                         <ArrowUpRight size={14} />
                       </Link>
@@ -173,6 +253,16 @@ export function Vocabulary({ initial }: { initial: VocabularyView[] }) {
                   </p>
                 )}
               </details>
+              <div className="word-practice-actions">
+                <Link href={`/listen?word=${encodeURIComponent(w.id)}`}>
+                  <Headphones size={14} />
+                  听这个词
+                </Link>
+                <Link href={`/speak?word=${encodeURIComponent(w.id)}`}>
+                  <Mic2 size={14} />
+                  用它说一句
+                </Link>
+              </div>
             </div>
           ))}
         </div>
@@ -180,14 +270,14 @@ export function Vocabulary({ initial }: { initial: VocabularyView[] }) {
         <div className="empty-state">
           <NotebookPen size={32} />
           <h3>{favorites ? "还没有收藏的词" : "这里还没有符合条件的词"}</h3>
-          <p>读文章时点击外语表达，收藏或选择“想学”。</p>
+          <p>听力、口语和阅读中收藏的表达，都会来到这里。</p>
           <Link href="/library" className="button primary">
             去读一篇
           </Link>
         </div>
       )}
       <p className="vocabulary-footnote">
-        “遇见”只记录文章覆盖。只有你主动选择“认识”或“想学”，才会改变复习安排。
+        “遇见”记录阅读和练习中的语境。只有你主动收藏或选择学习状态，才会改变复习安排。
       </p>
       {selected && (
         <WordCard

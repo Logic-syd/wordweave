@@ -1,5 +1,5 @@
 import {samples,topics} from './content.js';
-import {gradeDictation,pointCounts,selfCheckPoints} from './assessment.js';
+import {gradeDictation,pointCounts,selfCheckPoints,isAiGrade} from './assessment.js';
 
 const paths = {
   brand:'<path d="M3 5.5c5 0 8 1 9 4 1-3 4-4 9-4v12c-5 0-8 1-9 3-1-2-4-3-9-3zM12 9.5v11M6.5 9c1.2 0 2 .3 3 .8m-3 3c1.2 0 2 .3 3 .8m8-4.6c-1.2 0-2 .3-3 .8m3 3c-1.2 0-2 .3-3 .8"/>',
@@ -171,7 +171,7 @@ function showToday() {
   const needsReading=type==='understand';
   const q=question(m,p,type);
   return '<div class="top"><span class="date">'+date+'</span><div class="modes" aria-label="练习时长">'+[5,20].map(min=>button('mode',min+' 分钟','','data-mode="'+min+'" aria-pressed="'+(min===mode)+'"')).join('')+'</div></div>'+
-    intro(taskOverride?'材料练习':'今日练习',taskOverride?escape(m.title):'工作英语听说 · A1–B1 德语阅读')+
+    intro(taskOverride?'材料练习':'今日练习',taskOverride?escape(m.title):'工作英语听说 · A1–B1 德语练习')+
     (!taskOverride&&isDone ? '<section class="card">'+badge('今日已完成')+'<h2 class="section">今天的 '+mode+' 分钟练完了</h2><p class="prompt">答案和已有的批改结果都在练习记录里。</p><div class="row"><a class="primary" href="#review">查看到期表达 '+icon('arrow')+'</a><a class="secondary" href="#history">练习记录</a></div></section>' :
     '<section class="card"><div class="card-meta">'+badge(t.label)+'<span>'+escape(m.topic)+' · '+(m.lang==='de'?'德语 '+m.level:'英语')+'</span></div>'+
     (mode===20&&!taskOverride?'<div class="progress p'+(step+1)*20+'" role="progressbar" aria-label="任务进度" aria-valuenow="'+(step+1)+'" aria-valuemin="0" aria-valuemax="5"><span></span></div>':'')+
@@ -302,7 +302,7 @@ function collectCorrections(entry) {
 async function checkMeaning(id) {
   const h=get('history',id);
   const ref=referenceOf(h);
-  if(!canGradeMeaning(h)||!ref||checking.has(id)||h.grade?.method==='openai')return;
+  if(!canGradeMeaning(h)||!ref||checking.has(id)||isAiGrade(h.grade))return;
   const refresh=()=>{if(route()[0]==='result'&&route()[1]===id)render();};
   checking.add(id);gradingErrors.delete(id);refresh();
   try {
@@ -341,7 +341,7 @@ function selfCheckView(h,ref) {
 function saveSelfCheck(form) {
   const h=get('history',form.dataset.id);
   const ref=referenceOf(h);
-  if(!ref||checking.has(h.id)||h.grade?.method==='openai')return;
+  if(!ref||checking.has(h.id)||isAiGrade(h.grade))return;
   const rubric=selfCheckPoints(h.type,ref.source,ref.lang,ref.cues);
   const values=new FormData(form);
   const points=rubric.map((label,i)=>({label,status:values.get('point'+i)}));
@@ -363,10 +363,10 @@ function showResult(id) {
   else if(!ref)report='<h2>缺少当时的原文</h2><p class="prompt">这份旧答案仍可查看。</p>';
   else if(h.type==='dictation')report='<h2>这次听写还没有分数</h2>'+button('check-dictation','对照原文补批','primary','data-id="'+escape(id)+'"');
   else report='<h2>'+(active?'正在核对你的回答':'答案已保存')+'</h2>';
-  if(canGradeMeaning(h)&&ref&&grade?.method!=='openai'){
+  if(canGradeMeaning(h)&&ref&&!isAiGrade(grade)){
     if(active)report+='<p class="prompt" role="status">正在逐项检查意思和表达。</p>';
     else {
-      if(error||aiConfigured===false)report+='<p class="note">'+escape(error||'工作台尚未连接 OpenAI。')+'</p>';
+      if(error||aiConfigured===false)report+='<p class="note">'+escape(error||'工作台尚未配置模型服务，请查看项目说明中的 API 设置。')+'</p>';
       report+='<div class="row actions">'+button('check-meaning',error?'重新批改':'批改这份回答','secondary','data-id="'+escape(id)+'"')+'</div>';
       if(!grade)report+=selfCheckView(h,ref);
     }

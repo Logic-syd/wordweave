@@ -2,9 +2,11 @@
   "name": "wordweave-workbench",
   "private": true,
   "type": "module",
-  "engines": {"node": ">=24.10"},
+  "engines": {
+    "node": ">=24.10"
+  },
   "scripts": {
-    "dev": "node --use-env-proxy --env-file-if-exists=.env.local preview.mjs",
+    "dev": "node --use-env-proxy --env-file-if-exists=../.env --env-file-if-exists=../.env.local --env-file-if-exists=.env --env-file-if-exists=.env.local preview.mjs",
     "build": "node build.mjs",
     "test": "node --test checks/practice.mjs"
   }

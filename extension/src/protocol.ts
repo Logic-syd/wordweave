@@ -1,8 +1,4 @@
-import type {
-  ArticleDetail,
-  UserWord,
-  VocabularyView,
-} from "../../src/lib/types";
+import type { ArticleDetail, UserWord } from "../../src/lib/types";
 
 export type { ArticleDetail, UserWord };
 
@@ -35,31 +31,18 @@ export type JobRecord = {
   translationMode?: TranslationMode;
   title?: string;
   sourceUrl?: string;
-};
-export type LibrarySnapshot = {
-  articles: ArticleDetail[];
-  words: VocabularyView[];
-  jobs: JobRecord[];
-  localOnly: true;
+  revision?: number;
 };
 export type ArticleInput = {
   title: string;
   sourceUrl: string;
   blocks: { id: string; markdown: string }[];
 };
-export type WordPatch = {
-  status?: "LEARNING" | "KNOWN" | "IGNORED";
-  favorite?: boolean;
-  category?: "technical" | "general";
-};
 export type ExtensionMessage =
   | { type: "ww:config:get" }
   | { type: "ww:config:set"; config: ExtensionConfig }
   | { type: "ww:status" }
   | { type: "ww:models:list" }
-  | { type: "ww:library:get" }
-  | { type: "ww:library:delete"; id: string }
-  | { type: "ww:library:open" }
   | { type: "ww:preferences:get" }
   | { type: "ww:preferences:set"; retention?: Retention; glossMode?: GlossMode }
   | {
@@ -68,10 +51,8 @@ export type ExtensionMessage =
       retention: Retention;
       translationMode?: TranslationMode;
     }
-  | { type: "ww:job:get"; id: string }
+  | { type: "ww:job:get"; id: string; afterRevision?: number }
   | { type: "ww:job:retry"; id: string }
-  | { type: "ww:word:update"; id: string; patch: WordPatch }
-  | { type: "ww:reader:open"; id: string }
   | { type: "ww:cache:clear" };
 export type ContentMessage =
   { type: "ww:open"; scope: "article" | "selection" } | { type: "ww:restore" };

@@ -1,72 +1,16 @@
-# 语境插件：发布准备
+# 语境插件：当前暂停发布
 
-**先免费上 Chrome Web Store；当前 0.2.1 已备好提交资料，尚未上传或提交审核。** 插件继续放在这个仓库的 `extension/`，不用新建仓库。暂不做订阅、付费墙或邀请码。
+当前在精简英文翻译体验并验证速度。不要上传此前的 0.2.1 候选包；它不包含当前开发改动。该包和商店素材没有在本轮重新生成。
 
-直接使用：[三步上传](../extension/store/chrome/START-HERE.txt) · [填表参考](../extension/store/chrome/submission.md) · [商品文案](../extension/store/chrome/listing.txt)。运行 `npm run extension:release` 生成安装 ZIP、完整资料包、SHA-256 与检查报告。部署后可从 [网站下载资料包](https://wordweave-production.up.railway.app/downloads/wordweave-chrome-store-kit.zip)。
+开发版入口：`npm run extension:dev`，Chrome 加载 `extension/dist/`。当前功能和验证范围见 [插件说明](../extension/README.md)。
 
-## 这个项目是什么
+下一次明确发布时，再依次完成：
 
-- **插件**：在英文网页里显示中文译文，同时保留英文表达；点击看词卡、收藏。默认免费翻译；AI 可选，使用用户自己的 Key。无需网站账户。
-- **网页版**：你自己的英德学习空间，在 Railway 上运行。个人密码登录，上传与生成用你的服务端 Key；没有邀请朋友流程。
-- 插件和网页版的收藏不互通。网页部署成功，不等于插件已经上架。
+1. 在个人 Chrome 测试真实免费翻译与 AI、恢复原文、权限弹窗和后台休眠。
+2. 更新 manifest 版本、离线和公开隐私说明；确认线上公开地址已部署。
+3. 更新商店截图及文案，移除旧的文章库／收藏说明。`extension/store/chrome/submission.md` 暂存的是上一版提交参考。
+4. `npm run extension:release` 生成并检查新安装包，然后在 Chrome 开发者后台填表提交。
 
-## 上架前先完成这 5 件事
+开发构建不生成 ZIP；`extension:build` / `extension:release` 仍是显式打包命令，网站的 `npm run build` 也包含打包步骤。只验证网站编译且不打包插件时使用 `npx next build`。
 
-1. **确认免费翻译能长期提供。** 当前调用 Google 公开网页翻译接口，并非有服务承诺的官方付费 API。需核对使用条款、目标地区连通性与限流；不能把「永久免费、无限次」写进商品页。云环境尚未通过真实 Google 连通性验证。这是当前主要阻碍，必要时更换合规稳定的提供方式。
-2. **在自己的 Chrome 真装真用。** 加载 `extension/dist/`：测试免费翻译、选段、保留代码、恢复原文、收藏、重启浏览器后恢复；再测试自带 Key、权限拒绝、无效 Key、超时、后台休眠后重试以及升级保留数据。当前自动化使用明确的插件测试框架，不能代替真实 MV3 安装。
-3. **上传现成商店材料。** 资料包包含 128px 图标、1280×800 设置界面截图与 440×280 宣传图。截图展示发布包的实际设置 UI，没有模拟译文或凭据。后续可补实机翻译效果；素材格式以提交后台为准。
-4. **部署隐私说明并复核。** 本仓库已准备 `/extension/privacy`。部署后确认该公开地址无需登录、内容与实际版本一致。按真实数据流填写商店隐私披露：正文发送给 Google/用户模型服务，本机保存文章、网址、收藏与 Key。确认 GitHub Issues 联系渠道可用。
-5. **提交审核。** 到官方开发者后台注册/验证账户，按当时要求缴费（如有）；上传 ZIP、填写说明与权限用途，检查预览后提交。账号注册、法律身份声明、付款和后台提交由本人完成，审核通过时间不能保证。
-
-官方入口：[Chrome 发布说明](https://developer.chrome.com/docs/webstore/publish/)、[商店政策](https://developer.chrome.com/docs/webstore/program-policies/)。注册要求、费用和素材规格以提交时官方后台为准。
-
-## 商品页草稿
-
-**名称**：语境 · 在网页里学英语
-
-**简介**：把英文网页变成中英结合的学习材料。默认免费翻译，可选自带 AI Key；点击表达查看词卡，收藏到本机。
-
-**详细介绍**：
-
-打开英文文章，点击「翻译本页」，边读中文边学英文表达。可以只翻译选中的段落，逐段对照原文，收藏想学的表达。
-
-免费模式使用普通翻译，再按规则保留英文，不能保证每句话都有适合的表达。AI 模式使用你自己的模型 API Key，费用由对应服务商收取。两种模式不会自动互相切换。
-
-无需注册。文章与收藏保存在当前浏览器，不同步到网站。只在主动翻译时发送正文给所选服务；模型设置中的列表查询也会连接所选服务。暂不支持 PDF、浏览器设置页和手机浏览器；长文章可划选几段翻译。译文和讲解可能有误，建议对照原文。
-
-## 权限填写草稿
-
-| 权限 | 用途 |
-| --- | --- |
-| `activeTab` | 用户点击插件后读取当前标签页文章或选中文字 |
-| `scripting` | 注入打包在插件中的内容脚本，显示学习版与恢复原文 |
-| `storage` | 保存本机设置、API Key、文章和收藏，不使用云同步 |
-| `https://translate.googleapis.com/*` | 用户主动翻译时直连免费翻译服务 |
-| 可选 `https://*/*` | 支持用户自选 OpenAI 兼容服务；实际仅请求配置服务的域名权限 |
-| 可选本机 HTTP 地址 | 用户自建本机模型服务；首发前评估是否保留此高级功能 |
-
-全部执行代码随安装包提供，无远程脚本执行。AI 输出经结构校验后按文本渲染。不要在商店勾选「完全不处理用户数据」：网页正文确实会发给翻译服务；具体申报类别按当前后台定义如实填写。
-
-## 构建与检查
-
-```bash
-npm ci
-npm run extension:release
-npm run typecheck
-npm run lint
-npm run test:unit
-npm run test:extension:dom
-npm run test:extension:ui
-npm run test:extension -- --content-harness
-```
-
-- 加载测试目录：`extension/dist/`
-- 候选 ZIP：`extension/release/v0.2.1/wordweave-chrome-0.2.1.zip`（manifest 在 ZIP 根目录）
-- 全部提交资料：同目录 `wordweave-chrome-store-kit.zip`；其中的插件 ZIP 才用于「新建项目」上传。
-- 商店素材源码：`extension/store/chrome/`。更新界面或版本后运行 `node extension/scripts/store-assets.mjs` 重新截图，再运行发布检查。
-- SHA-256 与检查结果：同目录 `SHA256SUMS.txt`、`checks.json`
-- 网站下载副本：`public/downloads/wordweave-extension.zip`
-- 隐私说明源码：`src/app/extension/privacy/page.tsx`
-- 提交前：递增 `extension/manifest.json` 的版本、重新构建并检查 ZIP 无 `.env`、Key、测试结果或开发文件。当前为 0.2.1 候选版，不表示已审核。
-
-这些命令不会发布到商店。自动化夹具只验证程序行为，不代表真实翻译服务可用或译文正确。网页个人版修改也需另行部署才在 Railway 生效。
+插件无需邀请码，自带 AI Key，不使用网页版 Key。网页版继续保留个人文章库与学习功能；插件仅提供翻译和本机缓存。

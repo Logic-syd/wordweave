@@ -1,171 +1,117 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
-import styles from "@/app/login/login.module.css";
+import { useEffect, useRef } from "react";
 import {
   BookOpen,
-  Library,
+  Headphones,
+  Mic2,
   NotebookPen,
-  ArrowUpRight,
-  Layers,
   Puzzle,
-  LogOut,
+  KeyRound,
+  Ellipsis,
+  Library,
 } from "lucide-react";
+import { rememberSkill } from "@/lib/learning-entry";
+import { SpriteIcon } from "./sprite-icon";
 const nav = [
-  { href: "/", label: "开始阅读", icon: BookOpen },
-  { href: "/library", label: "文章库", icon: Library },
-  { href: "/vocabulary", label: "生词本", icon: NotebookPen },
-  { href: "/extension", label: "浏览器插件", icon: Puzzle },
-];
+  { href: "/listen", label: "听力", skill: "listen", icon: Headphones },
+  { href: "/speak", label: "口语", skill: "speak", icon: Mic2 },
+  { href: "/read", label: "阅读", skill: "read", icon: BookOpen },
+] as const;
 export function Shell({ children }: { children: React.ReactNode }) {
-  const path = usePathname();
-  const reading = path.startsWith("/read/");
-  const login = path === "/login";
-  const [session, setSession] = useState<{
-    authenticated: boolean;
-    enabled: boolean;
-    ownerId?: string;
-    isAdmin?: boolean;
-  } | null>(null);
-  const [loggingOut, setLoggingOut] = useState(false);
-  const [logoutError, setLogoutError] = useState("");
-  const logoutPending = useRef(false);
-
+  const path = usePathname(),
+    menu = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
-    if (login) return;
-    const controller = new AbortController();
-    const load = () =>
-      void fetch("/api/auth/session", {
-        cache: "no-store",
-        signal: controller.signal,
-      })
-        .then(async (response) => {
-          if (response.ok) setSession(await response.json());
-        })
-        .catch(() => {
-          /* The page handles access errors; no user content is fetched here. */
-        });
-    load();
-    window.addEventListener("wordweave:session", load);
-    return () => {
-      controller.abort();
-      window.removeEventListener("wordweave:session", load);
-    };
-  }, [login]);
-
-  async function logout() {
-    if (logoutPending.current) return;
-    logoutPending.current = true;
-    setLoggingOut(true);
-    setLogoutError("");
-    try {
-      const response = await fetch("/api/auth/logout", { method: "POST" });
-      const data = await response.json();
-      if (!response.ok || data.ok !== true) throw new Error("logout failed");
-      // A document navigation clears the previous user's in-memory page state.
-      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-      window.location.assign("/");
-    } catch {
-      setLogoutError("退出失败，请检查网络后重试。");
-      logoutPending.current = false;
-      setLoggingOut(false);
-    }
-  }
-
-  if (login) return <>{children}</>;
+    const skill = nav.find(
+      (item) => path === item.href || path.startsWith(item.href + "/"),
+    )?.skill;
+    if (skill) rememberSkill(skill);
+    if (menu.current) menu.current.open = false;
+  }, [path]);
+  if (path === "/login") return <>{children}</>;
+  const active = (href: string) =>
+    href === "/read"
+      ? path.startsWith("/read") ||
+        path.startsWith("/library") ||
+        path.startsWith("/new")
+      : path.startsWith(href);
   return (
-    <div className={reading ? "app reading-app" : "app"}>
-      <aside className="sidebar">
-        <Link href="/" className="brand">
-          <span className="brand-mark">
-            <Layers size={21} />
-          </span>
-          <span>
-            语境<small>WORDS IN CONTEXT</small>
-          </span>
-        </Link>
-        <div className="nav-label">读一点，学一点</div>
-        <nav>
-          {nav.map(({ href, label, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              className={
-                (href === "/" ? path === "/" : path.startsWith(href))
-                  ? "active"
-                  : ""
-              }
-            >
-              <Icon size={19} />
-              <span>{label}</span>
-            </Link>
-          ))}
-        </nav>
-        <div className="sidebar-note">
-          <span className="tiny-dot" />
-          一点一点，读懂更多。<p>让语言回到故事里。</p>
-        </div>
-        <Link className="new-article-link" href="/new?mode=tech">
-          添加一篇文章 <ArrowUpRight size={17} />
-        </Link>
-        {session && !session.authenticated && (
-          <Link className="new-article-link" href="/login">
-            我的私人空间 <ArrowUpRight size={17} />
-          </Link>
-        )}
-      </aside>
-      <div className="main-shell">
-        <header className="mobile-header">
-          <Link href="/" className="brand">
-            <span className="brand-mark">
-              <Layers size={18} />
-            </span>
-            语境
-          </Link>
-          <span className="eyebrow">在语境里，慢慢学会</span>
-        </header>
-        {session?.enabled && session.authenticated && (
-          <div className={styles.sessionBar}>
-            {session.ownerId && (
-              <span className={styles.sessionOwner} title={session.ownerId}>
-                当前空间：{session.ownerId}
-              </span>
-            )}
-            <button
-              type="button"
-              className={styles.logout}
-              onClick={logout}
-              disabled={loggingOut}
-            >
-              <LogOut size={14} aria-hidden="true" />
-              {loggingOut ? "正在退出…" : "退出登录"}
-            </button>
-            {logoutError && (
-              <p className={styles.logoutError} role="alert">
-                {logoutError}
-              </p>
-            )}
-          </div>
-        )}
-        {children}
-      </div>
-      <nav className="mobile-nav" aria-label="主导航">
-        {nav.map(({ href, label, icon: Icon }) => (
+    <div
+      className={`app learning-shell direct-learning${path.startsWith("/read") ? " reading-app" : ""}`}
+    >
+      <header className="platform-header">
+        <div className="platform-header-inner">
           <Link
-            href={href}
-            key={href}
-            className={
-              (href === "/" ? path === "/" : path.startsWith(href))
-                ? "active"
-                : ""
-            }
+            href="/"
+            className="platform-brand"
+            aria-label="语境 · 继续学习"
           >
-            <Icon size={19} />
-            {label}
+            <span className="platform-brand-icon">
+              <SpriteIcon size={27} />
+            </span>
+            <span>语境</span>
           </Link>
-        ))}
-      </nav>
+          <div className="platform-controls">
+            <nav className="platform-nav" aria-label="听说读导航">
+              {nav.map(({ href, label, skill, icon: Icon }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  data-skill={skill}
+                  className={active(href) ? "active" : ""}
+                  aria-current={active(href) ? "page" : undefined}
+                >
+                  <Icon size={16} />
+                  <span>{label}</span>
+                </Link>
+              ))}
+            </nav>
+            <details
+              className="platform-more"
+              ref={menu}
+              onKeyDown={(e) => {
+                if (e.key === "Escape" && menu.current) {
+                  menu.current.open = false;
+                  menu.current.querySelector("summary")?.focus();
+                }
+              }}
+            >
+              <summary aria-label="更多功能">
+                <Ellipsis size={21} />
+              </summary>
+              <div
+                className="platform-menu"
+                onClick={() => {
+                  if (menu.current) menu.current.open = false;
+                }}
+              >
+                <Link href="/vocabulary">
+                  <NotebookPen size={17} />
+                  单词库
+                </Link>
+                <Link href="/library">
+                  <Library size={17} />
+                  换一篇文章
+                </Link>
+                <Link href="/settings">
+                  <KeyRound size={17} />
+                  我的 API
+                </Link>
+                <Link href="/extension">
+                  <Puzzle size={17} />
+                  浏览器插件
+                </Link>
+              </div>
+            </details>
+          </div>
+        </div>
+      </header>
+      <div className="main-shell">{children}</div>
+      <footer className="platform-footer">
+        <span>语境 · 每次一点</span>
+        <Link href="/vocabulary">单词库</Link>
+      </footer>
     </div>
   );
 }
