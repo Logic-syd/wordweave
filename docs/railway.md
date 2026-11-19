@@ -2,6 +2,22 @@
 
 当前网站公开提供 `/listen`、`/speak`、`/read`，无需注册。每个人在 `/settings` 填自己的 API，由浏览器直接调用供应商；学习记录在各自浏览器。**不要为公开用户填写站主模型 Key。**
 
+## 部署信息记录
+
+| 项目 | 已知信息 |
+| --- | --- |
+| 源码仓库 | https://github.com/Logic-syd/wordweave |
+| 部署分支 | `main` |
+| 听说读 / 浏览器自带 Key 版本 | `816a8eba34f08590ea164f997e83c173fa9232de`（已推送） |
+| 之前使用的公开地址 | https://wordweave-production.up.railway.app |
+| Railway 项目链接 / Project ID | 尚未记录；不能由仓库名或公开域名推断 |
+| Railway Service ID | 尚未记录 |
+| 当前状态 | 代码构建成功并推送；旧域名首页和 `/api/health` 均返回 Railway `404 Application not found`，线上部署尚未验证 |
+
+核查时间：2026-11-19 15:06 CET。这只说明该地址当前不可访问，不代表已经确认项目被删除或部署失败。当前云环境没有 Railway 账户连接，GitHub 公开页面也没有可供找回的部署链接。
+
+从 [Railway 项目列表](https://railway.com/dashboard) 打开已有项目后，将项目链接、应用 Service ID、正式访问地址补入上表。项目链接不是 API Key；不要把令牌、数据库连接串或账户密码写在这里。连接情况确认前，不要另建同名项目或删除旧数据库。
+
 ## 已有 Railway 服务
 
 1. 将需要部署的代码提交并推送到关联的 GitHub 分支；Codex 环境快照不会代替 Git 推送。
