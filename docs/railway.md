@@ -1,4 +1,6 @@
-# Railway 部署公开 BYOK 网站
+# Railway 原项目记录与恢复说明
+
+当前 Railway 试用已到期。免费预览改用 [Vercel 部署说明](vercel.md)；以下保留原项目地址和旧部署流程。
 
 当前网站公开提供 `/listen`、`/speak`、`/read`，无需注册。每个人在 `/settings` 填自己的 API，由浏览器直接调用供应商；学习记录在各自浏览器。**不要为公开用户填写站主模型 Key。**
 
@@ -10,13 +12,14 @@
 | 部署分支 | `main` |
 | 听说读 / 浏览器自带 Key 版本 | `816a8eba34f08590ea164f997e83c173fa9232de`（已推送） |
 | 之前使用的公开地址 | https://wordweave-production.up.railway.app |
-| Railway 项目链接 / Project ID | 尚未记录；不能由仓库名或公开域名推断 |
-| Railway Service ID | 尚未记录 |
-| 当前状态 | 代码构建成功并推送；旧域名首页和 `/api/health` 均返回 Railway `404 Application not found`，线上部署尚未验证 |
+| Railway 项目链接 / Project ID | [upbeat-playfulness](https://railway.com/project/04fd00a3-8270-4cb6-b42d-a90fcdb5ded3) · `04fd00a3-8270-4cb6-b42d-a90fcdb5ded3` |
+| Railway Service ID | `wordweave` · `ff32d308-518b-447b-ac48-8e8b7bee60da` |
+| 环境 | `production`（来源：用户截图） |
+| 当前状态 | 用户截图确认 `Trial expired`、`Limited Access`、`Service offline`，无活动部署；旧域名首页和 `/api/health` 返回 `404 Application not found` |
 
-核查时间：2026-11-19 15:06 CET。这只说明该地址当前不可访问，不代表已经确认项目被删除或部署失败。当前云环境没有 Railway 账户连接，GitHub 公开页面也没有可供找回的部署链接。
+核查日期：2026-11-19（Europe/Berlin）。项目与服务 ID 来自用户提供的 Railway 地址栏截图；试用到期与离线状态来自同一截图，当前环境没有 Railway 账户连接。此前未记录的项目地址现已补齐。
 
-从 [Railway 项目列表](https://railway.com/dashboard) 打开已有项目后，将项目链接、应用 Service ID、正式访问地址补入上表。项目链接不是 API Key；不要把令牌、数据库连接串或账户密码写在这里。连接情况确认前，不要另建同名项目或删除旧数据库。
+[直接打开原 wordweave 服务](https://railway.com/project/04fd00a3-8270-4cb6-b42d-a90fcdb5ded3/service/ff32d308-518b-447b-ac48-8e8b7bee60da)。项目链接不是 API Key；不要把令牌、数据库连接串或账户密码写入文档。不需要为公开版续费或删除这个旧数据库；如仍需旧私人记录，保留原服务与备份。
 
 ## 已有 Railway 服务
 

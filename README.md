@@ -35,7 +35,7 @@ npm run build:web
 npm start
 ```
 
-`npm run build` 与 `npm run build:web` 都只构建网站，不会打包插件。插件打包使用独立的 `extension:build` / `extension:release` 命令。已有 `.env` 中若配置了 `DATABASE_URL`，生产启动仍会检查并迁移该旧数据库；未配置则直接启动公开版。[环境示例](.env.example) · [Railway 部署](docs/railway.md)。
+`npm run build` 与 `npm run build:web` 都只构建网站，不会打包插件。插件打包使用独立的 `extension:build` / `extension:release` 命令。已有 `.env` 中若配置了 `DATABASE_URL`，生产启动仍会检查并迁移该旧数据库；未配置则直接启动公开版。[环境示例](.env.example) · [Vercel 免费预览](docs/vercel.md) · [原 Railway 项目](docs/railway.md)。
 
 ### 使用自己的 API
 
@@ -131,7 +131,7 @@ npm run build:web
 npm start
 ```
 
-Both `npm run build` and `npm run build:web` build only the website. Extension packaging remains explicit through `extension:build` / `extension:release`. If an existing `.env` configures `DATABASE_URL`, production startup still checks and migrates that legacy database. Otherwise startup skips the database. See [.env.example](.env.example) and [Railway instructions](docs/railway.md).
+Both `npm run build` and `npm run build:web` build only the website. Extension packaging remains explicit through `extension:build` / `extension:release`. If an existing `.env` configures `DATABASE_URL`, production startup still checks and migrates that legacy database. Otherwise startup skips the database. See [.env.example](.env.example), [Vercel free preview](docs/vercel.md), and [legacy Railway records](docs/railway.md).
 
 ### Bring your own API
 
