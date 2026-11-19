@@ -1,0 +1,5 @@
+import {readFileSync, writeFileSync, mkdirSync} from 'node:fs';
+const files = {'/':['index.html','text/html'], '/workspace.html':['workspace.html','text/html'], '/readalong.css':['readalong.css','text/css'], '/readalong.js':['readalong.js','text/javascript'], '/readalong-import.js':['readalong-import.js','text/javascript'], '/app.css':['app.css','text/css'], '/app.js':['app.js','text/javascript'], '/content.js':['content.js','text/javascript'], '/assessment.js':['assessment.js','text/javascript'], '/learning.js':['learning.js','text/javascript'], '/recording.js':['recording.js','text/javascript']};
+const assets = Object.fromEntries(Object.entries(files).map(([path,[file,type]]) => [path,[readFileSync('web/'+file,'utf8'),type]]));
+mkdirSync('dist/server',{recursive:true});
+writeFileSync('dist/server/index.js', 'const assets = '+JSON.stringify(assets)+';\n'+readFileSync('web/learning.js','utf8')+'\n'+readFileSync('server/ai.mjs','utf8').replace("import {groupUnits} from '../web/learning.js';",'')+'\n'+readFileSync('server/import.mjs','utf8')+'\n'+readFileSync('worker.mjs','utf8'));

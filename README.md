@@ -12,6 +12,12 @@
 
 [Wordweave 听说工作台](workbench/) 是可独立运行的第二个工具。用自己的材料做 5 或 20 分钟练习，逐词核对听写，按要点批改回答，并把漏听的表达排进复习。运行方法和个人 API 配置见工作台目录。
 
+## 阅读与跟读工作台
+
+[Read Along 阅读工作台](reading/) 是独立入口，支持正文与链接导入、逐句跟读和每篇 3–5 个 AI 重点词释义。进入该目录后 `npm run dev` 即可本地运行，无需安装依赖。
+
+`v1.0.0-listening-speaking-reading` 标记「第一版听说读」：保留原阅读器、`workbench/` 听说工具与 `reading/` 阅读跟读工具的独立使用方式。版本范围与启动方式见 [版本说明](docs/releases/v1.0.0-listening-speaking-reading.md)。
+
 ## 本地启动
 
 需要 Node.js 22.12+（推荐仓库固定的 Node 24）、npm，以及带 Compose 的 Docker。默认数据库只监听本机。

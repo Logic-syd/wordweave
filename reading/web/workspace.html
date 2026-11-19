@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Wordweave 阅读工作台，导入文章，按段阅读，查看中文辅助并收藏自然表达。">
+<title>Wordweave · 阅读</title>
+<link rel="stylesheet" href="/app.css">
+<script type="module" src="/app.js"></script>
+</head>
+<body>
+<header class="site-header">
+  <a class="brand" href="#practice/read">wordweave<span>阅读</span></a>
+  <div class="header-tools">
+    <a href="#library" data-nav="library">学习库</a>
+    <details class="more-menu"><summary>更多</summary><nav aria-label="学习工具">
+      <a href="#practice/read" data-nav="read">阅读</a>
+      <a href="#review" data-nav="review">表达收藏</a>
+      <a href="#history" data-nav="history">练习记录</a>
+      <div class="menu-divider"></div>
+      <a href="#practice/listen" data-nav="listen">切换到听力</a>
+      <a href="#practice/speak" data-nav="speak">切换到口语</a>
+    </nav></details>
+  </div>
+</header>
+<main id="main" tabindex="-1"></main>
+<footer class="site-footer"><span id="sync" role="status">正在连接</span></footer>
+<dialog id="dialog"></dialog>
+<div id="toast" role="status"></div>
+</body>
+</html>
