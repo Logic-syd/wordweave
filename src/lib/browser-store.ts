@@ -460,6 +460,77 @@ export async function saveLocalVersion(
 export async function localPracticeState() {
   return browserData(false, (data) => data.practice);
 }
+/** The restored Read Along keeps its articles locally and shares this word bank. */
+export async function saveLocalReadingWord(input: {
+  articleId: string;
+  title: string;
+  index: number;
+  sentence: string;
+  form: string;
+  meaning: string;
+}) {
+  if (!input.sentence.includes(input.form))
+    throw new AppError("请选择原句中出现的表达。");
+  return browserData(true, (data) => {
+    let word = Object.values(data.words).find(
+      (w) =>
+        w.language === "en" &&
+        normalizeLemma(w.lemma, "en") === normalizeLemma(input.form, "en") &&
+        w.meaning === input.meaning,
+    );
+    if (!word) {
+      const id = `local-word-${crypto.randomUUID()}`;
+      word = {
+        id,
+        language: "en",
+        lemma: input.form,
+        meaning: input.meaning,
+        partOfSpeech: "phrase",
+        grammar: {
+          article: "",
+          plural: "",
+          infinitive: "",
+          currentForm: "",
+          note: "",
+        },
+        explanation: "来自逐句跟读的表达，释义可由用户修改。",
+        example: input.sentence,
+        exampleTranslation: "",
+        user: initialUser(),
+        appearances: [],
+      };
+      data.words[id] = word;
+    }
+    word.user ??= initialUser();
+    word.user.favorite = true;
+    if (word.user.status === "NEW") {
+      word.user.status = "LEARNING";
+      word.user.dueAt = new Date().toISOString();
+    }
+    const articleId = `readalong:${input.articleId}`,
+      sourceId = `s${input.index}`;
+    if (
+      !word.appearances.some(
+        (a) =>
+          a.articleId === articleId &&
+          a.sourceId === sourceId &&
+          a.sentence === input.sentence,
+      )
+    ) {
+      word.appearances.push({
+        skill: "read",
+        articleId,
+        sourceId,
+        title: input.title,
+        form: input.form,
+        sentence: input.sentence,
+        href: `/read?article=${encodeURIComponent(input.articleId)}&sentence=${input.index}#exercise`,
+      });
+      word.user.exposureCount++;
+    }
+    return word;
+  });
+}
 export async function localPracticeMaterial(
   id: string,
 ): Promise<PracticeMaterial> {

@@ -3,9 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --hostname 0.0.0.0",
-    "build": "next build",
-    "build:web": "next build",
+    "dev": "npm run reading:build && next dev --hostname 0.0.0.0",
+    "build": "npm run build:web",
+    "build:web": "npm run reading:build && next build",
+    "reading:build": "node scripts/build-readalong.mjs",
     "prestart": "tsx scripts/prepare-start.ts",
     "start": "next start --hostname 0.0.0.0",
     "lint": "eslint .",
@@ -33,7 +34,8 @@
     "test:practice:browser": "node tests/practice.browser.mjs",
     "test:byok:browser": "node tests/browser-byok.mjs",
     "test:auth:http": "node tests/auth-http-smoke.mjs",
-    "extension:release": "npm run extension:build && node extension/scripts/release.mjs"
+    "extension:release": "npm run extension:build && node extension/scripts/release.mjs",
+    "test:reading": "vitest run tests/readalong.test.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.1",

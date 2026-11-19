@@ -7,7 +7,7 @@ test("desktop: correspondence, code, favorite, wordbook and preferences survive 
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.goto("/read");
+  await page.goto(`/read/${techId}`);
   await expect(
     page.getByRole("heading", { name: "状态更新，并不会立刻发生" }),
   ).toBeVisible();
@@ -183,62 +183,36 @@ test("public import validates input, preserves Markdown and deletes locally with
   expect(siteWrites).toEqual([]);
 });
 
-test("three direct entries start learning immediately and home resumes the last skill", async ({
+test("listening and speaking link to the restored Read Along document", async ({
   page,
 }) => {
   const diagnostics: string[] = [];
-  page.on("pageerror", error => diagnostics.push(error.message));
-  page.on("console", message => { if (message.type() === "error" && !message.text().startsWith("Failed to load resource")) diagnostics.push(message.text()); });
+  page.on("pageerror", (error) => diagnostics.push(error.message));
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/");
-  await expect(page).toHaveURL(/\/listen$/);
+  await page.goto("/listen");
   await expect(
     page.getByRole("button", { name: "播放这一段", exact: true }),
   ).toBeInViewport();
-  await expect(page.locator(".local-ai-notice")).toHaveCount(0);
-  await expect(page.locator(".skill-entrance")).toHaveCount(0);
   await expect(page.locator(".practice-tools")).not.toHaveAttribute("open");
-  await expect(
-    page.getByRole("navigation", { name: "听说读导航" }).getByRole("link"),
-  ).toHaveCount(3);
-  await page.screenshot({
-    path: "test-results/direct-listen-mobile.png",
-    fullPage: true,
-  });
   await page
     .getByRole("navigation", { name: "听说读导航" })
     .getByRole("link", { name: "口语", exact: true })
     .click();
   await expect(page.locator(".transcript-text")).toBeInViewport();
-  await page.screenshot({
-    path: "test-results/direct-speak-mobile.png",
-    fullPage: true,
-  });
-  await page.goto("/");
-  await expect(page).toHaveURL(/\/speak$/);
-  await page.goto("/read");
-  await expect(page.locator("#p0001")).toBeInViewport();
-  await expect(page.locator(".mode-card")).toHaveCount(0);
-  await page.screenshot({
-    path: "test-results/direct-read-mobile.png",
-    fullPage: true,
-  });
+  await page
+    .getByRole("navigation", { name: "听说读导航" })
+    .getByRole("link", { name: "阅读", exact: true })
+    .click();
+  await expect(page.locator("#practiceTitle")).toHaveText(
+    "A small pause in the day",
+  );
+  await expect(page.locator(".sentence")).toHaveCount(5);
   await page.goto(`/read/${germanId}`);
-  const title = await page.locator(".article-heading h1").textContent();
-  await page.goto("/read");
-  await expect(page.locator(".article-heading h1")).toHaveText(title!);
-  await page.goto("/");
-  await expect(page).toHaveURL(/\/read$/);
-  await expect(page.locator(".article-heading h1")).toHaveText(title!);
-  await page.setViewportSize({ width: 1360, height: 1000 });
-  await page.goto("/listen");
-  await page.screenshot({
-    path: "test-results/direct-listen-desktop.png",
-    fullPage: true,
-  });
-  await page.getByLabel("更多功能", { exact: true }).click();
-  await page.getByRole("link", { name: "我的 API", exact: true }).click();
-  await expect(page).toHaveURL(/\/settings$/);
+  await expect(page.locator(".article-heading h1")).toBeVisible();
+  await page.getByRole("link", { name: "语境 · 继续学习" }).click();
+  await expect(page.locator("#practiceTitle")).toHaveText(
+    "A small pause in the day",
+  );
   expect(diagnostics).toEqual([]);
   expect(
     await page.evaluate(

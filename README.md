@@ -10,11 +10,12 @@
 | --- | --- | --- |
 | `/listen` 听力 | 播放一段、概括重点、逐句听写 | 青绿色；默认收起原文，播放按钮在顶部 |
 | `/speak` 口语 | 跟读、复述、情景表达、录音回听 | 淡紫色；以开口和自己的表达为中心 |
-| `/read` 阅读 | 技术英语学习版、中文嵌德语短文、逐段原文 | 淡粉色；保留英文表达、代码和语境词卡 |
+| `/`、`/read` 阅读 | 原版 Read Along：导入文章、逐句跟读、选词查义 | 文章收件箱、淡紫背景、粉色当前句；播放时展开正文 |
+| `/library` 语境文章 | 技术英语学习版、中文嵌德语短文、范文 | 文章原文、代码与语境词卡保留 |
 | `/vocabulary` 单词库 | 听说读共用收藏、认识状态、出现句子 | 词条可直接拿去听或说 |
 | `/settings` 我的 API | 设置自己的服务、模型与 Key，导出记录 | 保存配置不发请求；测试连接会消耗少量额度 |
 
-三个入口直接打开学习内容，不先展示选择首页。`/listen` 直接听，`/speak` 直接跟读或继续上次任务，`/read` 直接打开上次文章（首次默认 React 范文）。`/` 继续上次学习，首次默认听力。右上角切换听说读，「更多功能」里找到单词库与 API 设置；换材料、换练法按需展开。
+首页和 `/read` 使用从 `reading` 分支恢复的原版「文章收件箱＋逐句跟读」，首次打开即可试读示例，之后恢复原文章和当前句。`/listen`、`/speak` 保留独立练习入口，右上角互相切换。选中词语免费查义，不再用 AI 仅标注 3–5 个词；可选的全文中文参考使用自己的 Key。[原版恢复与使用说明](reading/README.md)。
 
 三个学习页面可以互相跳转，在**同一浏览器、同一网站地址**下共用单词库。附带 8 篇结构化阅读范文与 15 份英德听说材料；范文、浏览器朗读、听写对照、收藏和进度保存无需 Key。范文明确标注为演示内容，不冒充现场生成。
 
@@ -49,8 +50,8 @@ DeepSeek 的 Base URL 可填 `https://api.deepseek.com/v1`，模型 ID 从自己
 
 ### 本地数据与学习闭环
 
-- 导入与生成文章、完整词条、听说材料及记录存于 IndexedDB；小型草稿、范文记录、阅读位置与 Key 使用浏览器存储。关闭再打开可恢复，Key 的保留取决于是否勾选记住。
-- 不同浏览器、设备和网站域名互不共享数据。清除网站数据会删除本机记录；可在「我的 API」导出不含 Key 的 JSON 备份，目前没有导入备份界面，也没有云同步。
+- 语境文章、完整词条、听说材料及记录存于 IndexedDB；Read Along 的文章、备份与当前句沿用 `readalong.articles` 本机存储；小型草稿、范文记录、阅读位置与 Key 使用浏览器存储。关闭再打开可恢复，Key 的保留取决于是否勾选记住。
+- 不同浏览器、设备和网站域名互不共享数据。清除网站数据会删除本机记录；可在「我的 API」导出不含 Key 的 JSON 备份，这个全站备份暂不支持导入，也没有云同步。Read Along 另有「导出文章备份 / 导入文件」，支持恢复旧版跟读文章 JSON。
 - 技术英语支持粘贴、UTF-8 TXT / Markdown；保存完整原文、标题与来源。稳定段落 ID 对应学习版，支持逐段查看原文。代码块不交给模型，行内代码与链接保护后恢复；不会抓取来源网址或解析 PDF。
 - 德语支持 A1 / A2 / B1、3 / 5 / 8 个新词、自定义主题与指定词、导入原文和只复习。中文嵌词版与自然德语逐段对应；名词冠词复数、动词变化和基础语法在词卡中展示。实际新词数与复习覆盖通过校验后保存。
 - 收藏进入待复习；主动选「认识」后间隔 1、3、7、14、30 天；「暂不学习」暂停。出现次数和主动复习分别记录，读完或完成练习不等于掌握。最多挑选 3 个到期德语词用于新文章。
@@ -106,11 +107,12 @@ A language-learning tool for Chinese speakers. **The website is public, with no 
 | --- | --- | --- |
 | `/listen` | Listen, summarize and practice dictation | Teal; transcript initially hidden, playback at the top |
 | `/speak` | Shadow, retell, respond and record yourself | Lavender; focused on speaking |
-| `/read` | Technical English and contextual German reading | Rose; expressions, code and paragraph-aligned originals |
+| `/`, `/read` | Original Read Along: import articles, shadow sentences, look up words | Original inbox, lavender background, pink active sentence; expanded playback |
+| `/library` | Contextual English/German articles and samples | Preserved source, code and vocabulary cards |
 | `/vocabulary` | Shared vocabulary, learning state and source sentences | Reuse words in listening or speaking |
 | `/settings` | Your provider, model, API key and data export | Saving does not call a model; connection testing uses a small amount of credit |
 
-Each entry opens an exercise immediately, without a mode-selection homepage. `/listen` starts listening, `/speak` opens shadowing or the previous task, and `/read` resumes the last article (the React sample on first use). `/` resumes the last skill, defaulting to listening. Switch skills in the top-right corner; vocabulary and API settings are in the overflow menu. Material and exercise choices expand only when requested.
+The homepage and `/read` restore the original article-inbox and sentence-by-sentence interface from the `reading` branch. First use includes a sample; subsequent visits resume the article and sentence. `/listen` and `/speak` remain separate exercises, reachable in the top-right navigation. Selecting words uses free translation, without AI or a 3–5-word limit. Optional whole-article reference translation uses the learner’s key. See the [restored Read Along guide](reading/README.md).
 
 All three pages link to one another and share words within the **same browser and website origin**. Eight structured reading samples and fifteen English/German practice materials work without a key. Samples, system-voice playback, dictation comparison, favorites and progress are available for free; samples are explicitly labeled.
 
@@ -143,7 +145,7 @@ DeepSeek's Base URL can be `https://api.deepseek.com/v1`; obtain the model ID fr
 
 ### Storage and learning
 
-- IndexedDB stores imported/generated articles, vocabulary, practice materials and records. Small drafts, sample state, reading-position journals and key configuration use browser storage. Data does not synchronize across browsers, devices or website origins. Clearing site data deletes it. Settings can export a key-free JSON backup; there is currently no backup-import UI or cloud sync.
+- IndexedDB stores imported/generated articles, vocabulary, practice materials and records. Small drafts, sample state, reading-position journals and key configuration use browser storage. Data does not synchronize across browsers, devices or website origins. Clearing site data deletes it. Settings can export a key-free JSON backup; the full-site export has no import UI or cloud sync yet. Read Along has its own article-backup export and JSON import, compatible with the old site’s backups. Its articles and positions retain the `readalong.articles` local-storage key.
 - Technical English accepts pasted text and UTF-8 TXT/Markdown, preserves the complete original and source URL, and aligns stable paragraph IDs. Code blocks are excluded from model rewriting, inline code and links are protected, and each paragraph can reveal its original. No URL scraping or PDF parsing.
 - German supports A1/A2/B1, 3/5/8 new words, topics, specified vocabulary, source import and review-only mode. Chinese embedded-word passages align with natural German text. Cards include noun articles/plurals, verb forms and grammar guidance. Actual vocabulary coverage is validated before saving.
 - Favoriting adds a word to review. Explicit “known” responses schedule 1/3/7/14/30-day intervals; ignored words pause review. Exposure and active review are tracked separately. Completion never implies mastery. Up to three due German words may recur in a new article.

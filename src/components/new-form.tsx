@@ -80,22 +80,25 @@ export function NewForm({
     submitting.current = true;
     setBusy(true);
     try {
-      const response = await (browserLocal ? browserFetch : fetch)("/api/articles", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Idempotency-Key": key.current,
+      const response = await (browserLocal ? browserFetch : fetch)(
+        "/api/articles",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Idempotency-Key": key.current,
+          },
+          body: JSON.stringify({
+            title:
+              title.trim() ||
+              (tech ? "未命名技术文章" : `关于${settings.topic}的德语短文`),
+            text,
+            sourceUrl,
+            mode,
+            settings: settingsSchema.parse(settings),
+          }),
         },
-        body: JSON.stringify({
-          title:
-            title.trim() ||
-            (tech ? "未命名技术文章" : `关于${settings.topic}的德语短文`),
-          text,
-          sourceUrl,
-          mode,
-          settings: settingsSchema.parse(settings),
-        }),
-      });
+      );
       const data = await response.json();
       if (response.status === 401) {
         setCanCreate(false);
@@ -144,7 +147,7 @@ export function NewForm({
   return (
     <main className="page create-page">
       {browserLocal && <LocalAiNotice />}
-      <Link href="/" className="back-link">
+      <Link href="/library" className="back-link">
         ← 返回学习空间
       </Link>
       <div className="create-heading">
@@ -321,7 +324,9 @@ export function NewForm({
           )}
           <div className="generation-note">
             <Sparkles size={16} />
-            <p>生成会调用你配置的模型 API。语言内容可能有误，可以对照原文阅读。</p>
+            <p>
+              生成会调用你配置的模型 API。语言内容可能有误，可以对照原文阅读。
+            </p>
           </div>
           {error && (
             <div className="error-box" role="alert">

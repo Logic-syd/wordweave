@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="zh-CN">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  /><title>Read Along · 跟读工作台</title
+  ><link rel="stylesheet" href="/readalong.css" />
+  <body>
+    <header>
+      <a class="brand" href="./">read along<span>英语跟读工作台</span></a>
+      <nav aria-label="听说读导航">
+        <a href="/listen">听力</a><a href="/speak">口语</a
+        ><a href="/read" aria-current="page">阅读</a>
+        <details class="more-menu">
+          <summary aria-label="更多功能">···</summary>
+          <div>
+            <a href="/vocabulary">单词库</a><a href="/settings">我的 API</a>
+          </div>
+        </details>
+      </nav>
+    </header>
+    <main>
+      <section class="intro">
+        <p class="eyebrow">你的每日英语练习</p>
+        <h1>读一篇，<em>说出来。</em></h1>
+        <p>把喜欢的文章带进来。听一句，跟一句，找到自己的节奏。</p>
+      </section>
+      <div class="layout">
+        <aside>
+          <div class="card">
+            <div class="heading">
+              <h2>文章收件箱</h2>
+              <button id="new" class="link">＋ 新文章</button>
+            </div>
+            <label for="title">标题</label
+            ><input
+              id="title"
+              placeholder="今天想读什么？"
+              maxlength="150"
+            /><label for="text">英文正文或文章链接</label
+            ><textarea
+              id="text"
+              maxlength="16000"
+              placeholder="直接粘贴正文、原文链接，或整条文章推荐…"
+            ></textarea>
+            <div id="link-choice" hidden>
+              <label for="source-choice">选择一篇文章</label
+              ><select id="source-choice"></select>
+            </div>
+            <p id="import-status" class="hint" role="status"></p>
+            <div class="import-actions">
+              <label class="file-button" for="text-file"
+                >导入文件<input
+                  id="text-file"
+                  type="file"
+                  accept=".txt,.md,.json,text/plain,text/markdown,application/json" /></label
+              ><button id="fetch-source" class="link" type="button" hidden>
+                提取正文
+              </button>
+            </div>
+            <details class="import-options">
+              <summary>AI 辅助（可选）</summary>
+              <p class="hint">先粘贴或提取正文，再按需处理。</p>
+              <div class="import-actions">
+                <button id="ai-segment" type="button">整理分段</button
+                ><button id="ai-translate" type="button">全文中文参考</button>
+              </div>
+              <p id="ai-status" class="hint" role="status"></p>
+            </details>
+            <button id="generate" class="primary wide">生成跟读练习</button>
+            <p class="hint">自动分句 · 保存在当前浏览器</p>
+          </div>
+          <div class="card library">
+            <h2>我的文章</h2>
+            <div id="library"></div>
+            <button id="export" class="link">导出文章备份</button>
+          </div>
+        </aside>
+        <section class="card practice" id="exercise">
+          <div class="heading">
+            <div>
+              <p class="eyebrow">LISTEN · PAUSE · REPEAT</p>
+              <h2 id="practiceTitle">先听，再跟着说</h2>
+            </div>
+            <span id="count" class="tag"></span>
+          </div>
+          <div class="practice-toolbar">
+            <div class="toolbar-row">
+              <div class="transport">
+                <button id="prev" aria-label="上一句">上一句</button
+                ><button id="play" class="primary">开始跟读</button
+                ><button id="next" aria-label="下一句">下一句</button>
+              </div>
+              <div class="toolbar-options">
+                <button
+                  id="focus-reading"
+                  class="link"
+                  type="button"
+                  aria-pressed="false"
+                >
+                  展开阅读
+                </button>
+                <div class="rate-control">
+                  <label
+                    >语速<select id="rate">
+                      <option value="0.7">0.7× 慢速</option>
+                      <option value="0.85" selected>0.85× 舒缓</option>
+                      <option value="1">1.0× 正常</option>
+                      <option value="1.15">1.15× 稍快</option>
+                    </select></label
+                  >
+                </div>
+                <details class="playback-options">
+                  <summary>播放设置</summary>
+                  <div class="settings">
+                    <label
+                      >朗读声音<select id="voice">
+                        <option>加载声音…</option>
+                      </select></label
+                    ><label
+                      >练习模式<select id="mode">
+                        <option value="shadow">留白跟读</option>
+                        <option value="listen">连续听读</option>
+                        <option value="loop">单句循环</option>
+                      </select></label
+                    ><label
+                      >跟读留白<select id="gap">
+                        <option value="1">与原句等长</option>
+                        <option value="1.5" selected>原句的 1.5 倍</option>
+                        <option value="2">原句的 2 倍</option>
+                      </select></label
+                    >
+                  </div>
+                </details>
+              </div>
+            </div>
+            <p id="status" role="status" aria-live="polite">
+              粘贴文章，或先试试示例。
+            </p>
+            <progress id="progress" value="0" max="1"></progress>
+            <div class="vocabulary-bar">
+              <span id="vocabulary-status" role="status"
+                >选中单词或短语，免费查中文 · 不用 AI Key</span
+              >
+            </div>
+          </div>
+          <div id="sentences" class="sentences">
+            <div class="empty">
+              <span>“</span>
+              <h3>让阅读有声音</h3>
+              <p>每一句都可以单独播放。跟读模式会留出时间，让你开口练习。</p>
+              <button id="demo">试读一段日常英语</button>
+            </div>
+          </div>
+          <section
+            id="word-card"
+            class="word-card"
+            aria-label="词语释义"
+            hidden
+          >
+            <div class="heading">
+              <strong id="lookup-word"></strong
+              ><button
+                id="lookup-close"
+                class="link"
+                type="button"
+                aria-label="关闭词卡"
+              >
+                关闭
+              </button>
+            </div>
+            <label for="lookup-meaning">中文释义</label
+            ><input
+              id="lookup-meaning"
+              maxlength="300"
+              placeholder="可以修改释义"
+            />
+            <p id="lookup-status" class="hint" role="status"></p>
+            <div class="import-actions">
+              <button id="lookup-retry" type="button">免费查义</button
+              ><button id="lookup-save" class="primary" type="button">
+                想学
+              </button>
+            </div>
+          </section>
+          <details id="article-help" class="import-options" hidden>
+            <summary>全文中文参考</summary>
+            <div id="article-help-body"></div>
+          </details>
+          <p class="hint footer">
+            使用设备的英语朗读声音，无需 API
+            Key。声音与可用性取决于浏览器；本版提供即时播放，不生成音频下载。
+          </p>
+        </section>
+      </div>
+    </main>
+    <script type="module" src="/readalong.js"></script>
+  </body>
+</html>

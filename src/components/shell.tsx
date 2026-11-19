@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-html-link-for-pages -- Read Along is a standalone document; navigation to it must load HTML. */
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
@@ -42,20 +43,16 @@ export function Shell({ children }: { children: React.ReactNode }) {
     >
       <header className="platform-header">
         <div className="platform-header-inner">
-          <Link
-            href="/"
-            className="platform-brand"
-            aria-label="语境 · 继续学习"
-          >
+          <a href="/" className="platform-brand" aria-label="语境 · 继续学习">
             <span className="platform-brand-icon">
               <SpriteIcon size={27} />
             </span>
             <span>语境</span>
-          </Link>
+          </a>
           <div className="platform-controls">
             <nav className="platform-nav" aria-label="听说读导航">
               {nav.map(({ href, label, skill, icon: Icon }) => (
-                <Link
+                <a
                   key={href}
                   href={href}
                   data-skill={skill}
@@ -64,7 +61,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 >
                   <Icon size={16} />
                   <span>{label}</span>
-                </Link>
+                </a>
               ))}
             </nav>
             <details

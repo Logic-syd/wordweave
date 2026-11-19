@@ -30,7 +30,11 @@ export async function proxy(request: NextRequest) {
   }
   try {
     assertSameOrigin(request);
-    if (path === "/api/health" || path.startsWith("/api/auth/"))
+    if (
+      path === "/api/health" ||
+      path === "/api/readalong/import" ||
+      path.startsWith("/api/auth/")
+    )
       return secure(NextResponse.next());
     // Browsing is public. Private APIs require the personal owner identity; public sample readers never use a shared database owner.
     if (!path.startsWith("/api/")) return secure(NextResponse.next());

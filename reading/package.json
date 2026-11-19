@@ -1,0 +1,10 @@
+{
+  "name": "wordweave-read-along",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npm --prefix .. run dev",
+    "build": "npm --prefix .. run reading:build",
+    "test": "npm --prefix .. run test:reading"
+  }
+}

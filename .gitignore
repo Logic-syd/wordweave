@@ -13,3 +13,5 @@ extension/dist/
 public/downloads/wordweave-extension.zip
 public/downloads/wordweave-chrome-store-kit.zip
 extension/release/
+public/read-along/
+.vercel/

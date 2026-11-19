@@ -14,5 +14,6 @@ export default defineConfig([
     "next-env.d.ts",
     "extension/dist/**",
     "workbench/dist/**",
+    "public/read-along/**",
   ]),
 ]);

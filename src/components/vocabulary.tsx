@@ -228,7 +228,7 @@ export function Vocabulary({ initial }: { initial: VocabularyView[] }) {
                 {w.appearances.length ? (
                   w.appearances.map((a, i) => (
                     <div className="appearance" key={`${a.articleId}-${i}`}>
-                      <Link
+                      <a
                         href={a.href ?? `/read/${a.articleId}#${a.sourceId}`}
                       >
                         <span
@@ -243,7 +243,7 @@ export function Vocabulary({ initial }: { initial: VocabularyView[] }) {
                         </span>
                         {a.title}
                         <ArrowUpRight size={14} />
-                      </Link>
+                      </a>
                       <p lang={w.language}>{a.sentence}</p>
                     </div>
                   ))
