@@ -186,12 +186,15 @@ function fixtureArticle(
 function createWorker(
   options: {
     store?: Store;
+    sessionStore?: Store;
     granted?: string[];
     translate?: Translate;
     failStorage?: () => boolean;
+    failSessionStorage?: () => boolean;
   } = {},
 ) {
   const store = options.store ?? {};
+  const sessionStore = options.sessionStore ?? {};
   const granted = new Set(options.granted ?? []);
   let handler: Handler | undefined;
   const fetch = vi.fn(async () => {
@@ -237,6 +240,20 @@ function createWorker(
       openOptionsPage: vi.fn(),
     },
     storage: {
+      session: {
+        setAccessLevel: vi.fn(async () => undefined),
+        get: vi.fn(async (key: string) =>
+          structuredClone({ [key]: sessionStore[key] }),
+        ),
+        set: vi.fn(async (value: Store) => {
+          if (options.failSessionStorage?.())
+            throw new Error("Session storage unavailable");
+          Object.assign(sessionStore, structuredClone(value));
+        }),
+        remove: vi.fn(async (key: string) => {
+          delete sessionStore[key];
+        }),
+      },
       local: {
         setAccessLevel,
         get,
@@ -280,6 +297,7 @@ function createWorker(
   });
   return {
     store,
+    sessionStore,
     chrome,
     fetch,
     translate,
@@ -460,6 +478,123 @@ describe("local worker transport and authorization", () => {
     expect(restarted.fetch).not.toHaveBeenCalled();
   });
 
+  it("migrates keys out of persistent storage and distinguishes worker suspension from a browser restart", async () => {
+    const worker = createWorker({
+      store: { [configKey]: aiConfig, [legacyLibraryKey]: { words: ["keep"] } },
+    });
+    expect(
+      await worker.send({ type: "ww:config:get" }, uiSender),
+    ).toMatchObject({
+      ok: true,
+      data: { aiApiKey: apiKey, aiProvider: "deepseek" },
+    });
+    expect(JSON.stringify(worker.store)).not.toContain(apiKey);
+    expect(JSON.stringify(worker.store)).not.toContain(legacyToken);
+    expect(worker.store[legacyLibraryKey]).toEqual({ words: ["keep"] });
+    expect(worker.chrome.storage.session.setAccessLevel).toHaveBeenCalledWith({
+      accessLevel: "TRUSTED_CONTEXTS",
+    });
+    const resumed = createWorker({
+      store: worker.store,
+      sessionStore: worker.sessionStore,
+    });
+    expect(
+      await resumed.send({ type: "ww:config:get" }, uiSender),
+    ).toMatchObject({ ok: true, data: { aiApiKey: apiKey } });
+    success(
+      await resumed.send({ type: "ww:preferences:set", glossMode: "click" }),
+    );
+    expect(JSON.stringify(worker.store)).not.toContain(apiKey);
+    const restarted = createWorker({ store: worker.store });
+    expect(
+      await restarted.send({ type: "ww:config:get" }, uiSender),
+    ).toMatchObject({ ok: true, data: { aiApiKey: "", glossMode: "click" } });
+    expect(
+      await restarted.send({ type: "ww:models:list" }, uiSender),
+    ).toMatchObject({ ok: false });
+    expect(restarted.discoverModels).not.toHaveBeenCalled();
+  });
+
+  it("stores new keys only in the trusted session and rejects reusing a key at a different provider", async () => {
+    const worker = createWorker({
+      granted: ["https://api.deepseek.com/*", "https://api.openai.com/*"],
+    });
+    success(
+      await worker.send({ type: "ww:config:set", config: aiConfig }, uiSender),
+    );
+    expect(JSON.stringify(worker.store)).not.toContain(apiKey);
+    expect(JSON.stringify(worker.sessionStore)).toContain(apiKey);
+    expect(
+      await worker.send(
+        {
+          type: "ww:config:set",
+          config: {
+            ...aiConfig,
+            aiProvider: "openai",
+            aiBaseUrl: "https://api.openai.com/v1",
+          },
+        },
+        uiSender,
+      ),
+    ).toMatchObject({ ok: false, status: 400 });
+    expect(
+      await worker.send(
+        {
+          type: "ww:config:set",
+          config: {
+            ...aiConfig,
+            aiProvider: "openai",
+            aiBaseUrl: "https://different.example/v1",
+            aiApiKey: "other-key",
+          },
+        },
+        uiSender,
+      ),
+    ).toMatchObject({ ok: false });
+    success(
+      await worker.send(
+        {
+          type: "ww:config:set",
+          config: {
+            ...aiConfig,
+            translationMode: "free",
+            aiApiKey: "",
+            accessToken: "",
+          },
+        },
+        uiSender,
+      ),
+    );
+    expect(JSON.stringify(worker.sessionStore)).not.toContain(apiKey);
+    expect(JSON.stringify(worker.store)).not.toContain(apiKey);
+  });
+
+  it("does not fall back to persistent credentials when session storage fails, and permits an explicit retry", async () => {
+    let rejectSession = true;
+    const worker = createWorker({
+      granted: ["https://api.deepseek.com/*"],
+      failSessionStorage: () => rejectSession,
+    });
+    expect(
+      await worker.send({ type: "ww:config:set", config: aiConfig }, uiSender),
+    ).toMatchObject({ ok: false });
+    expect(JSON.stringify(worker.store)).not.toContain(apiKey);
+    expect(
+      await worker.send({ type: "ww:config:get" }, uiSender),
+    ).toMatchObject({ ok: true, data: { aiApiKey: "" } });
+    expect(
+      await worker.send({ ...startMessage, translationMode: "ai" }),
+    ).toMatchObject({ ok: false });
+    expect(worker.translate).not.toHaveBeenCalled();
+    rejectSession = false;
+    success(
+      await worker.send({ type: "ww:config:set", config: aiConfig }, uiSender),
+    );
+    await startAndComplete(worker, { ...startMessage, translationMode: "ai" });
+    expect(worker.translate).toHaveBeenCalledOnce();
+    expect(JSON.stringify(worker.store)).not.toContain(apiKey);
+  });
+
   it("requires AI permission and valid settings, and rejects stale free-mode consent", async () => {
     const worker = createWorker();
     expect(
@@ -491,15 +626,22 @@ describe("local worker transport and authorization", () => {
       await worker.send({ type: "ww:models:list" }, uiSender),
     ).toMatchObject({ ok: true });
     expect(worker.discoverModels).toHaveBeenCalledWith({
+      provider: "deepseek",
       baseUrl: aiConfig.aiBaseUrl,
       apiKey,
+      model: aiConfig.aiModel,
     });
     await startAndComplete(worker, { ...startMessage, translationMode: "ai" });
     expect(worker.translate).toHaveBeenCalledWith(
       expect.any(Object),
       expect.objectContaining({
         mode: "ai",
-        ai: { baseUrl: aiConfig.aiBaseUrl, apiKey, model: aiConfig.aiModel },
+        ai: {
+          provider: "deepseek",
+          baseUrl: aiConfig.aiBaseUrl,
+          apiKey,
+          model: aiConfig.aiModel,
+        },
       }),
     );
     expect(JSON.stringify(worker.store[cacheKey])).not.toContain(apiKey);

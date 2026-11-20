@@ -11,8 +11,10 @@ import {
   type TranslationMode,
 } from "./protocol";
 import { translateArticle, discoverModels } from "./translation";
+import { inferAIProvider, isAIProvider, validateProvider } from "./providers";
 
 const CONFIG_KEY = "wordweave.config";
+const CREDENTIAL_KEY = "wordweave.ai.session";
 // The old article library is left untouched; translations use a separate evictable cache.
 const CACHE_KEY = "wordweave.translation.cache";
 const MAX_ENTRIES = 20;
@@ -38,9 +40,10 @@ class RequestError extends Error {
     super(message);
   }
 }
-const storageReady = chrome.storage.local.setAccessLevel({
-  accessLevel: "TRUSTED_CONTEXTS",
-});
+const storageReady = Promise.all([
+  chrome.storage.local.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" }),
+  chrome.storage.session.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" }),
+]);
 const running = new Map<string, Promise<void>>();
 const activeJobs = new Map<string, LocalJob>();
 const liveResults = new Map<
@@ -74,6 +77,11 @@ function normalizedConfig(saved: unknown): ExtensionConfig {
     ...DEFAULT_CONFIG,
     // An older website-backed installation never opts a person into paid AI.
     translationMode: source.translationMode === "ai" ? "ai" : "free",
+    aiProvider: isAIProvider(source.aiProvider)
+      ? source.aiProvider
+      : inferAIProvider(
+          typeof source.aiBaseUrl === "string" ? source.aiBaseUrl : "",
+        ),
     aiBaseUrl:
       typeof source.aiBaseUrl === "string"
         ? source.aiBaseUrl
@@ -94,9 +102,36 @@ function normalizedConfig(saved: unknown): ExtensionConfig {
   };
 }
 async function config(): Promise<ExtensionConfig> {
-  return normalizedConfig(
-    (await chrome.storage.local.get(CONFIG_KEY))[CONFIG_KEY],
-  );
+  const [local, session] = await Promise.all([
+    chrome.storage.local.get(CONFIG_KEY),
+    chrome.storage.session.get(CREDENTIAL_KEY),
+  ]);
+  const value = normalizedConfig(local[CONFIG_KEY]);
+  const secret = session[CREDENTIAL_KEY];
+  value.aiApiKey =
+    record(secret) &&
+    secret.aiProvider === value.aiProvider &&
+    secret.aiBaseUrl === value.aiBaseUrl &&
+    typeof secret.aiApiKey === "string"
+      ? secret.aiApiKey
+      : "";
+  value.accessToken = "";
+  return value;
+}
+async function saveConfig(value: ExtensionConfig) {
+  // Persistent preferences never contain credentials, including the obsolete website token.
+  await chrome.storage.local.set({
+    [CONFIG_KEY]: { ...value, aiApiKey: "", accessToken: "" },
+  });
+  if (value.aiApiKey)
+    await chrome.storage.session.set({
+      [CREDENTIAL_KEY]: {
+        aiProvider: value.aiProvider,
+        aiBaseUrl: value.aiBaseUrl,
+        aiApiKey: value.aiApiKey,
+      },
+    });
+  else await chrome.storage.session.remove(CREDENTIAL_KEY);
 }
 async function cache(): Promise<TranslationCache> {
   const saved = (await chrome.storage.local.get(CACHE_KEY))[CACHE_KEY];
@@ -130,12 +165,27 @@ async function persist(value: TranslationCache, keepId?: string) {
 async function initialize() {
   initialization ??= (async () => {
     await storageReady;
-    const next = await config();
-    // Migration is deliberately local; neither the old server nor its token is contacted.
-    try {
-      await chrome.storage.local.set({ [CONFIG_KEY]: next });
-    } catch {
-      /* Sanitized reads still default to free; allow clearing the translation cache. */
+    const previous = normalizedConfig(
+      (await chrome.storage.local.get(CONFIG_KEY))[CONFIG_KEY],
+    );
+    // One-time migration: retain the old key for this browser session, erase its disk copy.
+    // Fail closed if either storage operation fails; never quietly retain a permanent key.
+    if (previous.aiApiKey || previous.accessToken) {
+      if (previous.aiApiKey)
+        await chrome.storage.session.set({
+          [CREDENTIAL_KEY]: {
+            aiProvider: previous.aiProvider,
+            aiBaseUrl: previous.aiBaseUrl,
+            aiApiKey: previous.aiApiKey,
+          },
+        });
+      await chrome.storage.local.set({
+        [CONFIG_KEY]: {
+          ...previous,
+          aiApiKey: "",
+          accessToken: "",
+        },
+      });
     }
     const data = await cache();
     let changed = false;
@@ -168,6 +218,10 @@ async function initialize() {
 }
 async function aiConfigured(value: ExtensionConfig) {
   const baseUrl = normalizeAIBaseUrl(value.aiBaseUrl);
+  const provider = validateProvider(
+    value.aiProvider ?? inferAIProvider(baseUrl),
+    baseUrl,
+  );
   if (
     !value.aiApiKey.trim() ||
     value.aiApiKey.length > 2048 ||
@@ -183,7 +237,12 @@ async function aiConfigured(value: ExtensionConfig) {
       "尚未授权访问此 AI 服务，请在插件设置中保存并授权。",
       403,
     );
-  return { baseUrl, apiKey: value.aiApiKey, model: value.aiModel.trim() };
+  return {
+    provider,
+    baseUrl,
+    apiKey: value.aiApiKey,
+    model: value.aiModel.trim(),
+  };
 }
 async function translationConfig(value: ExtensionConfig) {
   if (value.translationMode === "ai") await aiConfigured(value);
@@ -203,7 +262,7 @@ async function providerSignature(value: ExtensionConfig) {
     ? "google-free-v2-local-glossary"
     : digest(
         JSON.stringify({
-          provider: "openai-compatible-progressive-v2",
+          provider: `native-providers-v3:${value.aiProvider}`,
           baseUrl: normalizeAIBaseUrl(value.aiBaseUrl),
           model: value.aiModel.trim(),
           keyHash: await digest(value.aiApiKey),
@@ -518,7 +577,10 @@ async function handle(
         typeof msg.config.aiApiKey !== "string" ||
         msg.config.aiApiKey.length > 2048 ||
         typeof msg.config.aiModel !== "string" ||
-        msg.config.aiModel.length > 200
+        msg.config.aiModel.length > 200 ||
+        (msg.config.aiProvider !== undefined &&
+          msg.config.aiProvider !== "" &&
+          !isAIProvider(msg.config.aiProvider))
       )
         throw new RequestError("插件设置无效。", 400);
       const next = normalizedConfig(msg.config);
@@ -526,9 +588,21 @@ async function handle(
       next.aiModel = next.aiModel.trim();
       if (next.translationMode === "ai") {
         next.aiBaseUrl = normalizeAIBaseUrl(next.aiBaseUrl);
+        const previous = await config();
+        if (
+          previous.aiApiKey &&
+          previous.aiApiKey === next.aiApiKey &&
+          (previous.aiProvider !== next.aiProvider ||
+            new URL(previous.aiBaseUrl).origin !==
+              new URL(next.aiBaseUrl).origin)
+        )
+          throw new RequestError(
+            "更换服务商后，请填写对应的新 Key，不能沿用其他服务的 Key。",
+            400,
+          );
         await aiConfigured(next);
       }
-      await serial(() => chrome.storage.local.set({ [CONFIG_KEY]: next }));
+      await serial(() => saveConfig(next));
       return null;
     }
     case "ww:preferences:get": {
@@ -551,7 +625,7 @@ async function handle(
         const value = await config();
         if (msg.retention !== undefined) value.retention = msg.retention;
         if (msg.glossMode !== undefined) value.glossMode = msg.glossMode;
-        await chrome.storage.local.set({ [CONFIG_KEY]: value });
+        await saveConfig(value);
         return {
           retention: value.retention,
           glossMode: value.glossMode,
@@ -571,8 +645,8 @@ async function handle(
       };
     }
     case "ww:models:list": {
-      const { baseUrl, apiKey } = await aiConfigured(await config());
-      return { models: await discoverModels({ baseUrl, apiKey }) };
+      const connection = await aiConfigured(await config());
+      return { models: await discoverModels(connection) };
     }
     case "ww:cache:clear":
       if (running.size)

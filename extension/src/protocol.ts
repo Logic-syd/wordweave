@@ -1,4 +1,5 @@
 import type { ArticleDetail, UserWord } from "../../src/lib/types";
+import type { AIProvider } from "./providers";
 
 export type { ArticleDetail, UserWord };
 
@@ -13,6 +14,7 @@ export type ExtensionPreferences = {
 };
 export type ExtensionConfig = ExtensionPreferences & {
   translationMode: TranslationMode;
+  aiProvider?: AIProvider | "";
   aiBaseUrl: string;
   aiApiKey: string;
   aiModel: string;
@@ -59,10 +61,11 @@ export type ContentMessage =
 
 export const DEFAULT_CONFIG: ExtensionConfig = {
   translationMode: "free",
-  aiBaseUrl: "https://api.deepseek.com/v1",
+  aiProvider: "",
+  aiBaseUrl: "",
   aiApiKey: "",
   aiModel: "",
-  serverUrl: "https://wordweave-production.up.railway.app",
+  serverUrl: "",
   accessToken: "",
   retention: "medium",
   glossMode: "first",
@@ -80,7 +83,9 @@ export function normalizeAIBaseUrl(value: string): string {
     throw new Error("AI 地址必须使用 HTTPS；本机调试可使用 http://localhost。");
   if (url.username || url.password || url.search || url.hash)
     throw new Error("AI Base URL 不能包含账号、密码、查询参数或片段。");
-  if (/\/(?:chat\/completions|models)\/?$/.test(url.pathname))
+  if (
+    /\/(?:chat\/completions|models|messages|responses)\/?$/.test(url.pathname)
+  )
     throw new Error(
       "请填写 API Base URL（例如 /v1），不要填写具体的模型或聊天接口。",
     );

@@ -381,3 +381,29 @@ a {
 .privacy-page p {
   margin: 10px 0;
 }
+/* The destination and credential lifetime stay visible before saving AI settings. */
+.credential-notice {
+  padding: 13px 15px;
+  margin: 14px 0;
+  border: 1px solid #e9cfdb;
+  border-radius: 12px;
+  background: #fff6fa;
+  font-size: 13px;
+  line-height: 1.65;
+}
+.credential-notice p {
+  margin: 7px 0 0;
+}
+.credential-notice strong {
+  color: #87365b;
+}
+.api-destination {
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  color: #704a60;
+}
+input[readonly] {
+  background: #f6f5f5;
+  color: #626568;
+}

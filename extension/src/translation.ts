@@ -16,12 +16,33 @@ import type { OccurrenceView, Word } from "../../src/lib/types";
 import type { ArticleDetail, ArticleInput, Retention } from "./protocol";
 import { freeTranslation } from "./free-translation";
 import {
+  inferAIProvider,
+  validateProvider,
+  type AIProvider,
+} from "./providers";
+import {
   requestJson,
   requestQueue,
   TranslationError,
 } from "./translation-network";
 
-export type AIConnection = { baseUrl: string; apiKey: string; model?: string };
+export type AIConnection = {
+  baseUrl: string;
+  apiKey: string;
+  model?: string;
+  provider?: AIProvider;
+};
+function providerOf(connection: AIConnection) {
+  return validateProvider(
+    connection.provider ?? inferAIProvider(connection.baseUrl),
+    connection.baseUrl,
+  );
+}
+function authHeaders(connection: AIConnection): Record<string, string> {
+  return providerOf(connection) === "anthropic"
+    ? { "x-api-key": connection.apiKey, "anthropic-version": "2023-06-01" }
+    : { Authorization: `Bearer ${connection.apiKey}` };
+}
 export type TranslationContext = {
   id: string;
   mode: "free" | "ai";
@@ -111,7 +132,7 @@ export async function discoverModels(
     apiUrl(connection, "models"),
     {
       method: "GET",
-      headers: { Authorization: `Bearer ${connection.apiKey}` },
+      headers: authHeaders(connection),
     },
     { timeout: 30000, limit: 256 * 1024, label: "AI 模型列表" },
   );
@@ -128,11 +149,11 @@ export async function discoverModels(
   const excluded =
     /reason|(?:^|[-_/])r\d+(?:$|[-_/])|embedding|embed|rerank|audio|speech|tts|whisper|vision|image|video|moderation/i;
   const choices = [...new Set(parsed.data.data.map((item) => item.id))].filter(
-    (id) => !excluded.test(id),
+    (id) => !excluded.test(id.replace(/non[-_]reasoning/gi, "")),
   );
   // Names are hints only; the provider controls actual capabilities and pricing.
   const priority = (id: string) =>
-    Number(/flash|lite|mini|fast/i.test(id)) * 2 +
+    Number(/flash|lite|mini|fast|haiku/i.test(id)) * 2 +
     Number(/chat|instruct|text/i.test(id));
   choices.sort((a, b) => priority(b) - priority(a) || a.localeCompare(b));
   if (!choices.length)
@@ -157,7 +178,11 @@ async function automaticModel(connection: AIConnection, fetcher: typeof fetch) {
   const bytes = await crypto.subtle.digest(
     "SHA-256",
     new TextEncoder().encode(
-      JSON.stringify([connection.baseUrl, connection.apiKey]),
+      JSON.stringify([
+        providerOf(connection),
+        connection.baseUrl,
+        connection.apiKey,
+      ]),
     ),
   );
   const key = Array.from(new Uint8Array(bytes), (byte) =>
@@ -196,6 +221,42 @@ const responseSchema = z.object({
     )
     .min(1),
 });
+function responseText(raw: unknown, provider: AIProvider) {
+  if (provider === "anthropic") {
+    const value = z
+      .object({
+        stop_reason: z.string(),
+        content: z.array(
+          z.object({ type: z.string(), text: z.string().optional() }),
+        ),
+      })
+      .parse(raw);
+    if (value.stop_reason === "max_tokens")
+      throw new TranslationError(
+        "AI 输出达到长度上限，请选取较短的段落后重试。",
+      );
+    if (
+      value.stop_reason !== "end_turn" ||
+      value.content.some((part) => part.type !== "text")
+    )
+      throw new TranslationError(
+        "Claude 未返回完整译文，可能拒绝了请求。原文已保留。",
+      );
+    const text = value.content.map((part) => part.text ?? "").join("");
+    if (!text.trim())
+      throw new TranslationError("Claude 返回了空内容，原文已保留。");
+    return text;
+  }
+  const envelope = responseSchema.parse(raw);
+  if (envelope.choices[0].finish_reason === "length")
+    throw new TranslationError("AI 输出达到长度上限，请选取较短的段落后重试。");
+  if (
+    envelope.choices[0].finish_reason &&
+    envelope.choices[0].finish_reason !== "stop"
+  )
+    throw new TranslationError("AI 未返回完整译文，原文已保留。");
+  return envelope.choices[0].message.content;
+}
 
 function validateGenerated(
   result: Generation,
@@ -272,7 +333,11 @@ async function aiTranslation(
   if (!context.ai)
     throw new TranslationError("请在插件设置中填写自己的 AI 服务与 API Key。");
   const connection = context.ai;
-  const endpoint = apiUrl(connection, "chat/completions");
+  const provider = providerOf(connection);
+  const endpoint = apiUrl(
+    connection,
+    provider === "anthropic" ? "messages" : "chat/completions",
+  );
   const model =
     connection.model?.trim() || (await automaticModel(connection, fetcher));
   const literalKinds = ["code", "html", "definition", "thematicBreak"];
@@ -305,13 +370,16 @@ async function aiTranslation(
               {
                 method: "POST",
                 headers: {
-                  Authorization: `Bearer ${connection.apiKey}`,
+                  ...authHeaders(connection),
                   "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
                   model,
+                  ...(provider === "anthropic" ? { system: systemPrompt } : {}),
                   messages: [
-                    { role: "system", content: systemPrompt },
+                    ...(provider === "anthropic"
+                      ? []
+                      : [{ role: "system", content: systemPrompt }]),
                     {
                       role: "user",
                       content: JSON.stringify({
@@ -324,9 +392,12 @@ async function aiTranslation(
                       }),
                     },
                   ],
-                  response_format: { type: "json_object" },
-                  temperature: 0.3,
-                  max_tokens: 8192,
+                  ...(provider === "anthropic"
+                    ? {}
+                    : { response_format: { type: "json_object" } }),
+                  ...(provider === "openai"
+                    ? { max_completion_tokens: 8192, store: false }
+                    : { max_tokens: 8192 }),
                   ...(endpoint.hostname === "api.deepseek.com"
                     ? { thinking: { type: "disabled" } }
                     : {}),
@@ -340,15 +411,8 @@ async function aiTranslation(
               },
             );
             rejectCredentialEcho(raw, connection);
-            const envelope = responseSchema.parse(raw);
-            if (envelope.choices[0].finish_reason === "length")
-              throw new TranslationError(
-                "AI 输出达到长度上限，请选取较短的段落后重试。",
-              );
             const result = validateGenerated(
-              generationSchema.parse(
-                JSON.parse(envelope.choices[0].message.content),
-              ),
+              generationSchema.parse(JSON.parse(responseText(raw, provider))),
               chunk,
               context.retention,
             );

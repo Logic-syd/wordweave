@@ -27,6 +27,7 @@ const expression = "avoid unnecessary re-renders";
 const mode = "local-worker-content-harness";
 const checks = [], providerRequests = [], pageMessages = [], accessLevels = [], unexpectedRequests = [], mockErrors = [], workers = [];
 let store = {};
+const sessionStore = {};
 let worker, browser, context, providerServer, fixtureServer, temporary;
 let providerUrl, fixtureUrl, backgroundCode, storageFile;
 let googleMode = "valid", aiMode = "valid";
@@ -123,7 +124,12 @@ function createWorker() {
       onMessage: { addListener(fn) { listener = fn; } },
       onInstalled: { addListener() {} }, onStartup: { addListener() {} }, openOptionsPage: async () => {},
     },
-    storage: { local: {
+    storage: { session: {
+      async setAccessLevel(value) { assert.equal(value.accessLevel, "TRUSTED_CONTEXTS"); },
+      async get(key) { return structuredClone({ [key]: sessionStore[key] }); },
+      async set(values) { Object.assign(sessionStore, structuredClone(values)); },
+      async remove(key) { delete sessionStore[key]; },
+    }, local: {
       async setAccessLevel(value) { assert.equal(value.accessLevel, "TRUSTED_CONTEXTS"); accessLevelSet = true; accessLevels.push(value.accessLevel); },
       async get(keys) {
         assert.ok(accessLevelSet, "Storage must be restricted before any read");

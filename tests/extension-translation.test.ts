@@ -7,6 +7,7 @@ import {
 import { splitTranslationText } from "../extension/src/free-translation";
 import { readBoundedJson } from "../extension/src/translation-network";
 import type { ArticleInput } from "../extension/src/protocol";
+import { AI_PROVIDERS } from "../extension/src/providers";
 
 const source = "React batches state updates to avoid unnecessary re-renders.";
 const input = (text = source): ArticleInput => ({
@@ -58,7 +59,11 @@ function googleFetch() {
 }
 function aiResult(init: RequestInit | undefined) {
   const request = JSON.parse(String(init?.body));
-  const data = JSON.parse(request.messages[1].content) as {
+  const data = JSON.parse(
+    request.messages.find(
+      (message: { role: string }) => message.role === "user",
+    ).content,
+  ) as {
     blocks: { id: string; text: string }[];
   };
   return {
@@ -81,6 +86,120 @@ const envelope = (value: unknown) =>
       { finish_reason: "stop", message: { content: JSON.stringify(value) } },
     ],
   });
+
+describe("official AI providers", () => {
+  for (const provider of ["openai", "anthropic", "xai", "deepseek"] as const) {
+    it(`uses ${provider}'s authentication and wire format without transmitting page metadata`, async () => {
+      const connection = {
+        ...ai.ai!,
+        provider,
+        baseUrl: AI_PROVIDERS[provider].baseUrl,
+      };
+      const fetcher = vi.fn<typeof fetch>(async (_url, init) =>
+        provider === "anthropic"
+          ? json({
+              stop_reason: "end_turn",
+              content: [{ type: "text", text: JSON.stringify(aiResult(init)) }],
+            })
+          : envelope(aiResult(init)),
+      );
+      const result = await translateArticle(
+        input(),
+        { ...ai, ai: connection },
+        fetcher,
+      );
+      expect(result.version!.paragraphs).toHaveLength(1);
+      const [url, init] = fetcher.mock.calls[0];
+      expect(String(url)).toBe(
+        `${connection.baseUrl}/${provider === "anthropic" ? "messages" : "chat/completions"}`,
+      );
+      const headers = new Headers(init!.headers),
+        body = JSON.parse(String(init!.body));
+      if (provider === "anthropic") {
+        expect(headers.get("x-api-key")).toBe(connection.apiKey);
+        expect(headers.has("authorization")).toBe(false);
+        expect(headers.get("anthropic-version")).toBe("2023-06-01");
+        expect(body.system).toContain("JSON");
+        expect(body.messages.map((m: { role: string }) => m.role)).toEqual([
+          "user",
+        ]);
+        expect(body.response_format).toBeUndefined();
+      } else
+        expect(headers.get("authorization")).toBe(
+          `Bearer ${connection.apiKey}`,
+        );
+      if (provider === "openai") {
+        expect(body.max_completion_tokens).toBe(8192);
+        expect(body.max_tokens).toBeUndefined();
+        expect(body.store).toBe(false);
+        expect(body.temperature).toBeUndefined();
+      }
+      expect(body.model).toBe(connection.model);
+      expect(String(init!.body)).not.toContain(connection.apiKey);
+      expect(String(init!.body)).not.toContain("secret=query");
+      expect(String(init!.body)).not.toContain("Private page title");
+      expect(init!.redirect).toBe("error");
+      expect(JSON.stringify(result)).not.toContain(connection.apiKey);
+    });
+  }
+  it("queries Claude models with native headers and preserves non-reasoning Grok candidates", async () => {
+    const fetcher = vi.fn<typeof fetch>(async () =>
+      json({
+        data: [
+          { id: "fixture-haiku-text" },
+          { id: "grok-fixture-non-reasoning" },
+        ],
+        has_more: false,
+      }),
+    );
+    const models = await discoverModels(
+      {
+        ...ai.ai!,
+        provider: "anthropic",
+        baseUrl: AI_PROVIDERS.anthropic.baseUrl,
+      },
+      fetcher,
+    );
+    expect(models).toContain("grok-fixture-non-reasoning");
+    expect(
+      new Headers(fetcher.mock.calls[0][1]!.headers).get("x-api-key"),
+    ).toBe(ai.ai!.apiKey);
+  });
+  it("does not retry Claude refusals or truncated results and never sends keys to mismatched official hosts", async () => {
+    for (const reason of ["max_tokens", "refusal"]) {
+      const fetcher = vi.fn<typeof fetch>(async () =>
+        json({
+          stop_reason: reason,
+          content: [{ type: "text", text: "No result" }],
+        }),
+      );
+      await expect(
+        translateArticle(
+          input(),
+          {
+            ...ai,
+            ai: {
+              ...ai.ai!,
+              provider: "anthropic",
+              baseUrl: AI_PROVIDERS.anthropic.baseUrl,
+            },
+          },
+          fetcher,
+        ),
+      ).rejects.toThrow();
+      expect(fetcher).toHaveBeenCalledTimes(1);
+    }
+    const fetcher = vi.fn<typeof fetch>();
+    await expect(
+      translateArticle(
+        input(),
+        { ...ai, ai: { ...ai.ai!, provider: "openai" } },
+        fetcher,
+      ),
+    ).rejects.toThrow("不一致");
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+});
 
 describe("extension free translation", () => {
   it("uses the free endpoint, aligns complete expressions and preserves paragraph/source identities", async () => {

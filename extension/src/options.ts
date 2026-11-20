@@ -8,9 +8,16 @@ import {
   type Retention,
   type TranslationMode,
 } from "./protocol";
+import {
+  AI_PROVIDERS,
+  inferAIProvider,
+  isAIProvider,
+  validateProvider,
+} from "./providers";
 
 const form = document.querySelector<HTMLFormElement>("#config-form")!;
 const key = document.querySelector<HTMLInputElement>("#ai-key")!;
+const provider = document.querySelector<HTMLSelectElement>("#ai-provider")!;
 const base = document.querySelector<HTMLInputElement>("#ai-base-url")!;
 const model = document.querySelector<HTMLInputElement>("#ai-model")!;
 const level = document.querySelector<HTMLSelectElement>("#retention")!;
@@ -27,6 +34,43 @@ let savedConfig: ExtensionConfig = { ...DEFAULT_CONFIG };
 let ready = false;
 let busy = false;
 const forget = document.querySelector<HTMLButtonElement>("#forget-key")!;
+function showDestination() {
+  const destination = document.querySelector<HTMLElement>("#ai-destination")!;
+  try {
+    const url = new URL(normalizeAIBaseUrl(base.value));
+    destination.textContent = `请求发送至：${url.origin}${provider.value === "custom" ? "（你指定的接口会接收 Key 和正文）" : "（官方接口）"}`;
+  } catch {
+    destination.textContent =
+      provider.value === "custom"
+        ? "请求发送至：请填写有效的接口地址"
+        : "请求发送至：选择服务商后显示";
+  }
+  document.querySelector<HTMLElement>("#provider-help")!.textContent =
+    provider.value === "anthropic"
+      ? "使用 Claude 官方 Messages 接口。"
+      : "官方服务地址自动填写；自定义接口需兼容 OpenAI 格式。";
+}
+function clearCredentialForDestinationChange() {
+  key.value = "";
+  model.value = "";
+  document.querySelector("#model-list")!.replaceChildren();
+  show("接收地址已更改，请填写对应服务的 Key。");
+}
+provider.addEventListener("change", () => {
+  clearCredentialForDestinationChange();
+  base.value = isAIProvider(provider.value)
+    ? AI_PROVIDERS[provider.value].baseUrl
+    : "";
+  base.readOnly = provider.value !== "custom";
+  if (provider.value === "custom")
+    document.querySelector<HTMLDetailsElement>("#ai-settings details")!.open =
+      true;
+  showDestination();
+});
+base.addEventListener("input", () => {
+  clearCredentialForDestinationChange();
+  showDestination();
+});
 function updateForget() {
   forget.hidden = !savedConfig.aiApiKey && !savedConfig.accessToken;
 }
@@ -35,6 +79,8 @@ function setBusy(value: boolean) {
   save.disabled = value || !ready;
   test.disabled = value;
   forget.disabled = value;
+  document.querySelector<HTMLButtonElement>("#clear-cache")!.disabled = value;
+  updateMode();
 }
 function show(message: string, error = false) {
   status.textContent = message;
@@ -45,13 +91,20 @@ function selectedMode(): TranslationMode {
 }
 function updateMode() {
   const ai = selectedMode() === "ai";
+  form
+    .querySelectorAll<HTMLInputElement | HTMLSelectElement>("input, select")
+    .forEach((input) => {
+      input.disabled = busy || !ready;
+    });
   document.querySelector<HTMLElement>("#ai-settings")!.hidden = !ai;
   document.querySelector<HTMLElement>("#free-description")!.hidden = ai;
   key.required = ai;
+  provider.required = ai;
+  provider.disabled = !ai || busy || !ready;
   base.required = ai;
-  key.disabled = !ai;
-  base.disabled = !ai;
-  model.disabled = !ai;
+  key.disabled = !ai || busy || !ready;
+  base.disabled = !ai || busy || !ready;
+  model.disabled = !ai || busy || !ready;
   test.hidden = !ai;
   save.textContent = ai ? "保存 AI 设置" : "使用免费翻译";
 }
@@ -60,6 +113,12 @@ function values(): ExtensionConfig {
   return {
     ...savedConfig,
     translationMode: selectedMode(),
+    aiProvider: ai
+      ? validateProvider(
+          isAIProvider(provider.value) ? provider.value : "",
+          normalizeAIBaseUrl(base.value),
+        )
+      : savedConfig.aiProvider,
     aiBaseUrl: ai ? normalizeAIBaseUrl(base.value) : savedConfig.aiBaseUrl,
     aiApiKey: ai ? key.value.trim() : savedConfig.aiApiKey,
     aiModel: ai ? model.value.trim() : savedConfig.aiModel,
@@ -75,12 +134,17 @@ modes.forEach((radio) =>
 );
 void sendMessage<ExtensionConfig>({ type: "ww:config:get" })
   .then((config) => {
-    savedConfig = config;
+    savedConfig = {
+      ...config,
+      aiProvider: config.aiProvider || inferAIProvider(config.aiBaseUrl),
+    };
     modes.forEach((radio) => {
       radio.checked = radio.value === config.translationMode;
     });
     key.value = config.aiApiKey;
+    provider.value = savedConfig.aiProvider ?? "";
     base.value = config.aiBaseUrl;
+    base.readOnly = provider.value !== "custom";
     model.value = config.aiModel;
     level.value = config.retention;
     gloss.value = config.glossMode;
@@ -88,6 +152,7 @@ void sendMessage<ExtensionConfig>({ type: "ww:config:get" })
     save.disabled = false;
     updateForget();
     updateMode();
+    showDestination();
   })
   .catch((error: unknown) =>
     show(
@@ -134,7 +199,7 @@ form.addEventListener("submit", (event) => {
       show(
         next.translationMode === "free"
           ? "已保存。打开英文网页，点小精灵就能翻译。"
-          : "已保存。可以测试连接，或打开英文网页开始翻译。",
+          : "已保存到本次浏览器会话，尚未发送正文。可以测试连接，或打开英文网页开始翻译。",
       );
     })
     .catch((error: unknown) =>
@@ -202,7 +267,7 @@ forget.addEventListener("click", () => {
   if (
     !ready ||
     busy ||
-    !window.confirm("删除已保存的 Key 并切回免费翻译？翻译缓存会保留。")
+    !window.confirm("清除 Key 并切回免费翻译？翻译缓存会保留。")
   )
     return;
   setBusy(true);
@@ -222,7 +287,7 @@ forget.addEventListener("click", () => {
       updateMode();
       updateForget();
       show(
-        "已删除保存的 Key，已切回免费翻译。正在进行的请求可能仍会完成；要停用 Key，请到服务商控制台撤销。",
+        "已清除 Key，已切回免费翻译。正在进行的请求可能仍会完成；要停用 Key，请到服务商控制台撤销。",
       );
     })
     .catch((error: unknown) => {

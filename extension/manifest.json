@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "语境 · 在网页里学英语",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "翻译英文网页并保留有用表达，完成的段落即时显示。默认免费，可选使用自己的 AI Key。",
   "minimum_chrome_version": "116",
   "permissions": ["activeTab", "scripting", "storage"],
@@ -35,5 +35,5 @@
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'none'; base-uri 'none'"
   },
-  "homepage_url": "https://wordweave-production.up.railway.app/extension"
+  "homepage_url": "https://github.com/Logic-syd/wordweave/tree/main/extension#readme"
 }

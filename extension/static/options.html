@@ -42,31 +42,57 @@
         </p>
         <section id="ai-settings" hidden>
           <div class="field">
-            <label for="ai-key">你的 DeepSeek API Key</label
+            <label for="ai-provider">AI 服务商</label>
+            <select id="ai-provider">
+              <option value="">选择你使用的服务商</option>
+              <option value="openai">GPT · OpenAI</option>
+              <option value="anthropic">Claude · Anthropic</option>
+              <option value="xai">Grok · xAI</option>
+              <option value="deepseek">DeepSeek</option>
+              <option value="custom">自定义 · OpenAI 兼容</option>
+            </select>
+          </div>
+          <div class="credential-notice" id="credential-privacy">
+            <strong>Key 不会上传到语境服务器。</strong>
+            <p>
+              使用 AI 时，Key
+              和待译内容直接发送给你选择的服务商，不交给正在阅读的网页。
+            </p>
+            <p class="help">
+              Key
+              仅保留在本次浏览器会话。重启浏览器、更新或重新加载插件后需要重新填写；本机存储不等于绝对安全。
+            </p>
+          </div>
+          <div class="field">
+            <label for="ai-key">你的 API Key</label
             ><input
               id="ai-key"
               type="password"
               autocomplete="off"
               spellcheck="false"
-              maxlength="512"
+              maxlength="2048"
+              aria-describedby="credential-privacy ai-destination"
               placeholder="把 Key 粘贴在这里"
             />
-            <p class="help">
-              只保存在这个浏览器。AI 费用由你自己的服务商收取。
-            </p>
+            <p class="help">API 费用由服务商收取，与聊天会员订阅分开。</p>
           </div>
+          <p id="ai-destination" class="api-destination" aria-live="polite">
+            请求发送至：选择服务商后显示
+          </p>
           <details class="advanced">
-            <summary>高级设置 · 其他 AI 服务 / 模型</summary>
+            <summary>模型与接口设置（可选）</summary>
             <div class="advanced-body">
               <div class="field">
                 <label for="ai-base-url">API 地址（Base URL）</label
                 ><input
                   id="ai-base-url"
                   type="url"
-                  value="https://api.deepseek.com/v1"
+                  readonly
                   spellcheck="false"
                 />
-                <p class="help">支持兼容 OpenAI 格式的服务。</p>
+                <p class="help" id="provider-help">
+                  官方服务地址自动填写；自定义接口需兼容 OpenAI 格式。
+                </p>
               </div>
               <div class="field">
                 <label for="ai-model">模型名称</label
@@ -78,7 +104,9 @@
                   placeholder="留空，自动选择"
                   spellcheck="false"
                 /><datalist id="model-list"></datalist>
-                <p class="help">一般不用填写。测试连接后也可以从列表选择。</p>
+                <p class="help">
+                  留空会从服务商模型列表选择。可在测试连接后自行选择，费用以服务商为准。
+                </p>
               </div>
             </div>
           </details>
@@ -110,7 +138,7 @@
       <p id="status" class="status" role="status" aria-live="polite"></p>
       <div class="credential-actions">
         <button id="forget-key" class="text-button" type="button" hidden>
-          删除已保存的 Key
+          清除 Key
         </button>
       </div>
       <footer class="settings-footer">
@@ -123,9 +151,9 @@
         <summary>正文和 Key 会发到哪里？</summary>
         <p class="help">
           点击翻译会发送待译正文。免费模式发给 Google；AI 模式直接发给你设置的
-          AI 服务。Key
+          AI 服务；测试连接会使用 Key 查询模型列表。保存设置不会调用模型。Key
           不会交给正在阅读的网页，也不会上传到语境网站。可以随时清除翻译缓存或删除保存的
-          Key。
+          Key。本版不提供长期记住 Key。
         </p>
       </details>
       <p class="privacy-link">

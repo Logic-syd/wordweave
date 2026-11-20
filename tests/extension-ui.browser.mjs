@@ -13,6 +13,7 @@ import { build } from "esbuild";
 import postcss from "postcss";
 import tailwindcss from "@tailwindcss/postcss";
 import { chromium, expect } from "@playwright/test";
+import { uiName } from "./ui-name.mjs";
 
 const repository = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const testFilter = process.argv.find((argument) => argument.startsWith("--match="))?.slice("--match=".length);
@@ -20,7 +21,8 @@ const temporary = await mkdtemp(join(tmpdir(), "wordweave-extension-ui-"));
 const screenshots = join(repository, "test-results", "extension-ui");
 const defaults = {
   translationMode: "free",
-  aiBaseUrl: "https://api.deepseek.com/v1",
+  aiProvider: "",
+  aiBaseUrl: "",
   aiApiKey: "",
   aiModel: "",
   serverUrl: "",
@@ -115,7 +117,7 @@ try {
     headless: true,
   });
 
-  async function fixture(path, { config = defaults, library = fixtureLibrary, grantPermission = true } = {}) {
+  async function fixture(path, { config = defaults, library = fixtureLibrary, grantPermission = true, permissionDelay = 0 } = {}) {
     const context = await browser.newContext({
       viewport: { width: 1100, height: 900 },
       permissions: ["clipboard-read", "clipboard-write"],
@@ -132,7 +134,7 @@ try {
       }
       return route.continue();
     });
-    await context.addInitScript(({ config, library, grantPermission, baseURL }) => {
+    await context.addInitScript(({ config, library, grantPermission, permissionDelay, baseURL }) => {
       const state = window.__extensionUIFixture = {
         config,
         library,
@@ -176,7 +178,7 @@ try {
         permissions: {
           request: (options) => {
             state.permissionRequests.push({ ...options, gestureTurn: Boolean(window.event?.isTrusted && ["click", "submit"].includes(window.event.type)), userActivation: navigator.userActivation.isActive });
-            return Promise.resolve(grantPermission);
+            return new Promise((resolvePermission) => setTimeout(() => resolvePermission(grantPermission), permissionDelay));
           },
           contains: async () => grantPermission,
         },
@@ -193,7 +195,7 @@ try {
           local: { get: async () => ({}), set: async () => {} },
         },
       };
-    }, { config, library, grantPermission, baseURL });
+    }, { config, library, grantPermission, permissionDelay, baseURL });
     await page.goto(baseURL + path);
     return { page, errors, externalRequests };
   }
@@ -242,10 +244,10 @@ try {
     await expect(page.locator("#ai-key")).toHaveAttribute("type", "password");
     await expect(page.locator("#ai-base-url")).toBeHidden();
     await expect(page.locator("#ai-model")).toBeHidden();
-    await page.locator("#ai-key").fill("fixture-only-api-key");
-    await page.getByText("高级设置 · 其他 AI 服务 / 模型", { exact: true }).click();
-    await expect(page.locator("#ai-base-url")).toHaveValue("https://api.deepseek.com/v1");
+    await expect(page.locator("#ai-provider")).toHaveValue("");
+    await page.locator("#ai-provider").selectOption("custom");
     await page.locator("#ai-base-url").fill("http://localhost:43210/custom/v1/");
+    await page.locator("#ai-key").fill("fixture-only-api-key");
     await page.locator("#ai-model").fill("fixture-model");
     await page.locator("#save").click();
     await expect(page.locator("#status")).toContainText("已保存");
@@ -264,6 +266,71 @@ try {
     assert.deepEqual(externalRequests, []);
   });
 
+  await check("official provider selection discloses the destination and session storage before saving, and never carries a key to another destination", async () => {
+    const { page, errors, externalRequests } = await fixture("/options.html");
+    await expect(page.locator("#save")).toBeEnabled();
+    await page.locator('input[name="translation-mode"][value="ai"]').check();
+    await expect(page.locator("#credential-privacy")).toBeVisible();
+    await expect(page.locator("#credential-privacy")).toContainText("不会上传到语境服务器");
+    await expect(page.locator("#credential-privacy")).toContainText("本次浏览器会话");
+    for (const [provider, origin] of [
+      ["openai", "https://api.openai.com"],
+      ["anthropic", "https://api.anthropic.com"],
+      ["xai", "https://api.x.ai"],
+      ["deepseek", "https://api.deepseek.com"],
+    ]) {
+      await page.locator("#ai-provider").selectOption(provider);
+      await expect(page.locator("#ai-base-url")).toHaveValue(`${origin}/v1`);
+      await expect(page.locator("#ai-base-url")).toHaveAttribute("readonly", "");
+      await expect(page.locator("#ai-destination")).toContainText(origin);
+      await expect(page.locator("#ai-key")).toHaveValue("");
+      await expect(page.locator("#ai-model")).toHaveValue("");
+      await page.locator("#ai-key").fill(`fixture-only-${provider}-key`);
+      if (provider === "openai") {
+        await page.setViewportSize({ width: 390, height: 844 });
+        assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+        await page.screenshot({ path: join(screenshots, "options-provider-mobile.png"), fullPage: true });
+      }
+      await page.locator("#save").click();
+      await expect(page.locator("#status")).toContainText("已保存到本次浏览器会话");
+      const state = await page.evaluate(() => window.__extensionUIFixture);
+      assert.equal(state.config.aiProvider, provider);
+      assert.equal(state.config.aiBaseUrl, `${origin}/v1`);
+      assert.deepEqual(state.permissionRequests.at(-1).origins, [`${origin}/*`]);
+      assert.equal(state.messages.filter((message) => message.type === "ww:models:list").length, 0);
+    }
+    await page.locator("#ai-provider").selectOption("custom");
+    await expect(page.locator("#ai-base-url")).not.toHaveAttribute("readonly", "");
+    await page.locator("#ai-base-url").fill("https://fixture.example/v1");
+    await page.locator("#ai-key").fill("fixture-custom-key");
+    await page.locator("#ai-model").fill("fixture-model");
+    await page.locator("#ai-base-url").fill("https://different.example/v1");
+    await expect(page.locator("#ai-key")).toHaveValue("");
+    await expect(page.locator("#ai-model")).toHaveValue("");
+    await expect(page.locator("#ai-destination")).toContainText("https://different.example");
+    assert.deepEqual(errors, []);
+    assert.deepEqual(externalRequests, []);
+  });
+
+  await check("pending AI permission locks configuration and prevents duplicate saves", async () => {
+    const { page, errors } = await fixture("/options.html", { permissionDelay: 800 });
+    await expect(page.locator("#save")).toBeEnabled();
+    await page.locator('input[name="translation-mode"][value="ai"]').check();
+    await page.locator("#ai-provider").selectOption("anthropic");
+    await page.locator("#ai-key").fill("fixture-claude-key");
+    await page.locator("#save").click();
+    await expect(page.locator("#ai-provider")).toBeDisabled();
+    await expect(page.locator("#ai-key")).toBeDisabled();
+    await page.evaluate(() => document.querySelector("#config-form").requestSubmit());
+    await expect(page.locator("#status")).toContainText("已保存");
+    await expect(page.locator("#ai-provider")).toBeEnabled();
+    const state = await page.evaluate(() => window.__extensionUIFixture);
+    assert.equal(state.permissionRequests.length, 1);
+    assert.equal(state.messages.filter((message) => message.type === "ww:config:set").length, 1);
+    assert.equal(state.config.aiProvider, "anthropic");
+    assert.deepEqual(errors, []);
+  });
+
   await check("saved keys can be removed after confirmation without deleting local articles or making network requests", async () => {
     const { page, errors, externalRequests } = await fixture("/options.html", { config: {
       ...defaults, translationMode: "ai", aiApiKey: "fixture-only-saved-key", accessToken: "fixture-old-owner-token",
@@ -275,7 +342,7 @@ try {
     assert.equal(state.config.aiApiKey, "fixture-only-saved-key");
     page.once("dialog", (dialog) => dialog.accept());
     await page.locator("#forget-key").click();
-    await expect(page.locator("#status")).toContainText("已删除保存的 Key");
+    await expect(page.locator("#status")).toContainText("已清除 Key");
     await expect(page.locator("#forget-key")).toBeHidden();
     await expect(page.locator('input[name="translation-mode"][value="free"]')).toBeChecked();
     state = await page.evaluate(() => window.__extensionUIFixture);
@@ -319,6 +386,7 @@ try {
     const { page, errors } = await fixture("/options.html", { grantPermission: false });
     await expect(page.locator("#save")).toBeEnabled();
     await page.locator('input[name="translation-mode"][value="ai"]').check();
+    await page.locator("#ai-provider").selectOption("openai");
     await page.locator("#ai-key").fill("fixture-only-api-key");
     await page.locator("#save").click();
     await expect(page.locator("#status")).toContainText("需要允许连接");
@@ -333,7 +401,7 @@ try {
     const { page, errors } = await fixture("/options.html");
     await expect(page.locator("#save")).toBeEnabled();
     await page.locator('input[name="translation-mode"][value="ai"]').check();
-    await page.getByText("高级设置 · 其他 AI 服务 / 模型", { exact: true }).click();
+    await page.locator("#ai-provider").selectOption("custom");
     await page.locator("#ai-base-url").fill("unfinished-url");
     await page.locator('input[name="translation-mode"][value="free"]').check();
     await page.locator("#save").click();
@@ -371,16 +439,16 @@ try {
 
   await check("the four-step install page copies browser management addresses and fits a mobile screen", async () => {
     const { page, errors, externalRequests } = await fixture("/setup.html");
-    await expect(page.getByRole("heading", { name: "把小精灵装进浏览器", exact: true })).toBeVisible();
-    await expect(page.getByRole("heading", { name: /^1\s*下载$/ })).toBeVisible();
-    await expect(page.getByRole("heading", { name: /^2\s*解压$/ })).toBeVisible();
-    await expect(page.getByRole("heading", { name: /^3\s*打开安装页$/ })).toBeVisible();
-    await expect(page.getByRole("heading", { name: /^4\s*加进浏览器$/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: uiName("把小精灵装进浏览器") })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /^1\s*下载(?:\s|$)/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /^2\s*解压(?:\s|$)/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /^3\s*打开安装页(?:\s|$)/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /^4\s*加进浏览器(?:\s|$)/ })).toBeVisible();
     await expect(page.getByText(/邀请码/)).toHaveCount(0);
-    await page.getByRole("button", { name: "复制 Chrome 安装页地址", exact: true }).click();
-    await expect(page.getByRole("status")).toHaveText("已复制！粘贴到浏览器最上方的地址栏，按回车。");
+    await page.getByRole("button", { name: uiName("复制 Chrome 安装页地址") }).click();
+    await expect(page.getByRole("status")).toContainText("已复制！粘贴到浏览器最上方的地址栏，按回车。");
     assert.equal(await page.evaluate(() => navigator.clipboard.readText()), "chrome://extensions");
-    await page.getByRole("button", { name: "复制 Edge 安装页地址", exact: true }).click();
+    await page.getByRole("button", { name: uiName("复制 Edge 安装页地址") }).click();
     assert.equal(await page.evaluate(() => navigator.clipboard.readText()), "edge://extensions");
     await page.setViewportSize({ width: 390, height: 844 });
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth));
@@ -395,8 +463,8 @@ try {
       configurable: true,
       value: async () => { throw new DOMException("Fixture clipboard denied", "NotAllowedError"); },
     }));
-    await page.getByRole("button", { name: "复制 Chrome 安装页地址", exact: true }).click();
-    const address = page.getByRole("textbox", { name: "安装页地址", exact: true });
+    await page.getByRole("button", { name: uiName("复制 Chrome 安装页地址") }).click();
+    const address = page.getByRole("textbox", { name: uiName("安装页地址") });
     await expect(address).toHaveValue("chrome://extensions");
     await expect(page.getByRole("status")).toContainText("请复制下面的地址");
     await expect.poll(() => address.evaluate((input) => input.selectionEnd - input.selectionStart)).toBe("chrome://extensions".length);
