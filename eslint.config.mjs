@@ -6,6 +6,8 @@ export default defineConfig([
   ...nextTs,
   globalIgnores([
     ".next/**",
+    ".netlify/**",
+    ".vercel/**",
     ".local/**",
     ".cache/**",
     "node_modules/**",

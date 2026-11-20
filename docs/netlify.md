@@ -33,8 +33,18 @@ Netlify 提供免费方案，适用于额度内试运行；免费额度、适用
 | 项目 | 记录 |
 | --- | --- |
 | Git 仓库与分支 | https://github.com/Logic-syd/wordweave · `main` |
-| Netlify 项目 / 域名 | 尚未连接账户或创建线上项目；成功部署后记录实际链接 |
-| 已有验证 | 网站在无数据库、无站主 Key 的本地生产构建和启动检查通过；这不等于 Netlify 托管部署已成功 |
+| Netlify 项目 / 域名 | `wordweave-m4zt` · https://wordweave-m4zt.netlify.app （用户截图确认，2026-11-20） |
+| Git 发布设置 | 用户截图显示 `main` 每次推送自动发布，Pull Request 生成预览 |
+| 首次上线问题 | 用户截图显示根路径误入 Next.js 404；已添加 Netlify 原生首页与 `/read` 静态路由，等待新部署核验 |
+| 已有验证 | 无数据库、无站主 Key 的 Next.js 生产构建通过；Netlify CLI 原生路由和浏览器检查通过（首页、`/read`、静态资源、句子位置链接、其他路由隔离）；线上仍待核验 |
+
+Read Along 构建为 `public/read-along/index.html`。Netlify Next.js Runtime 把它放进 CDN 静态目录，未放进 Next.js 函数包。`netlify.toml` 因此需要将 `/`、`/read` 以原生 200 rewrite 指向该文件；仅使用 `next.config.ts` 的静态文件 rewrite 会误入函数里的 404。规则精确匹配两个入口，其他 `/read/:id`、听说、API 路由继续交给 Next.js。
+
+当前云环境访问上述线上域名受到网络限制，未独立核验线上修复结果。首次错误不是用户删除了文章，也不是需要填写 API Key。原域名的浏览器数据应保留。
+
+本次检查还发现 Next.js 16.4.2 的已知安全公告会中断构建；已将 Next.js 与 `eslint-config-next` 更新到同系列补丁 16.4.6。没有关闭安全提醒或修改用户界面。完整 Netlify CLI 构建的 Edge Functions 打包曾因网络请求失败而未完成，因此不将本地静态路由验证描述为已经验证线上 Edge Functions。
+
+路由回归可在生产构建后运行 `npm exec --yes --package=netlify-cli@27.20.1 -- node tests/netlify-routes.mjs`。测试使用隔离的公开静态文件目录与真正的 Netlify redirect 引擎，校验查询参数和浏览器脚本加载，不涉及用户账户或发布。该静态测试不包含 Next.js 服务端或 Edge Functions，生产鉴权保持原样。可用 `NETLIFY_STATIC_DIR=.netlify/static` 指定实际部署静态产物。
 
 部署后验证首页、`/listen`、`/speak`、`/vocabulary`，刷新后记录仍在；`/api/health` 应返回 `{"status":"ok","storage":"browser"}`。用隐私窗口检查无 Key 仍能使用基础功能，再在正常窗口以自己的配置测试 AI。不能把尚未获得的域名写成已上线地址。
 
