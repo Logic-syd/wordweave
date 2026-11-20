@@ -1,0 +1,243 @@
+.direct-learning .reader-workspace {
+  display: grid;
+  grid-template-columns: 330px minmax(0, 1fr);
+  align-items: start;
+  max-width: 1400px;
+  padding: 28px 28px 52px;
+  gap: 28px;
+}
+.reader-document {
+  min-width: 0;
+  border: 1px solid #e4e4e0;
+  border-radius: 18px;
+  background: #fffefd;
+  padding: 28px 36px;
+}
+.reader-workspace .reading-content {
+  max-width: 760px;
+}
+.reader-workspace .article-heading {
+  padding-top: 0;
+}
+.reader-workspace .article-heading h1 {
+  margin-top: 12px;
+}
+.reading-inbox {
+  min-width: 0;
+}
+.inbox-body {
+  background: white;
+  border: 1px solid #e4e4e0;
+  border-radius: 18px;
+  padding: 22px;
+}
+.inbox-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.inbox-heading h2 {
+  font-size: 19px;
+  line-height: 1.45;
+}
+.inbox-heading a {
+  font-size: 12px;
+  color: #a63e69;
+}
+.inbox-modes {
+  margin-bottom: 20px;
+}
+.inbox-modes button {
+  flex: 1;
+}
+.inbox-toggle {
+  display: none;
+}
+.inbox-form .create-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.inbox-form .form-panel {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  min-width: 0;
+  width: 100%;
+}
+.inbox-form .section-heading {
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.inbox-form h2 {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.inbox-form label {
+  font-size: 12px;
+  line-height: 1.6;
+}
+.inbox-form input,
+.inbox-form textarea,
+.inbox-form select {
+  font-size: 14px;
+}
+.inbox-form textarea {
+  min-height: 220px;
+  resize: vertical;
+}
+.inbox-form .label-row {
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.inbox-form .label-row button {
+  font-size: 12px;
+}
+.inbox-form .input-footer {
+  font-size: 10px;
+  gap: 10px;
+  align-items: start;
+}
+.inbox-form .form-row {
+  display: flex;
+  flex-wrap: wrap;
+}
+.inbox-form .form-row > label {
+  min-width: 90px;
+  flex: 1;
+}
+.inbox-form .story-intro {
+  padding: 18px;
+  min-height: 0;
+}
+.inbox-form .settings-fields {
+  margin-top: 12px;
+}
+.import-generation-options > summary {
+  cursor: pointer;
+  color: #765e6a;
+  font-size: 13px;
+  padding: 8px 0;
+}
+.inbox-form .generation-note {
+  padding: 10px 0;
+}
+.inbox-form .button.full {
+  white-space: normal;
+  line-height: 1.6;
+}
+.inbox-reading-options {
+  border-top: 1px solid #e5e5e1;
+  margin-top: 22px;
+  padding-top: 18px;
+}
+.inbox-reading-options h3 {
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+.inbox-reading-options .reader-toolbar {
+  position: static;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  border: 0;
+  background: none;
+  padding: 0;
+  gap: 14px;
+}
+.inbox-reading-options .reader-views button {
+  flex: 1;
+  padding: 9px 6px;
+  white-space: normal;
+  line-height: 1.5;
+}
+.inbox-reading-options .gloss-control {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  font-size: 12px;
+}
+.inbox-reading-options .gloss-control select {
+  width: 100%;
+  max-width: none;
+  font-size: 12px;
+  padding: 10px;
+}
+.inbox-reading-options > button {
+  margin-top: 16px;
+}
+.inbox-reading-options .reader-settings {
+  padding: 12px 0;
+  border: 0;
+  background: none;
+}
+.inbox-reading-options .local-ai-notice {
+  flex-wrap: wrap;
+}
+@media (max-width: 1000px) {
+  .direct-learning .reader-workspace {
+    grid-template-columns: 290px minmax(0, 1fr);
+    gap: 18px;
+    padding: 22px 18px;
+  }
+  .reader-document {
+    padding: 24px;
+  }
+  .inbox-body {
+    padding: 18px;
+  }
+}
+@media (max-width: 760px) {
+  .direct-learning .reader-workspace {
+    display: flex;
+    flex-direction: column;
+    padding: 16px 12px 35px;
+    gap: 14px;
+  }
+  .reading-inbox,
+  .reader-document {
+    width: 100%;
+  }
+  .inbox-toggle {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    text-align: left;
+    border: 1px solid #e2d8dd;
+    border-radius: 12px;
+    background: white;
+    padding: 12px 14px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #85405c;
+  }
+  .inbox-toggle span {
+    flex: 1;
+  }
+  .inbox-toggle[aria-expanded="true"] > svg:last-child {
+    transform: rotate(180deg);
+  }
+  .inbox-body {
+    display: none;
+    margin-top: 10px;
+  }
+  .inbox-body.is-open {
+    display: block;
+  }
+  .reader-document {
+    padding: 21px 18px;
+    border-radius: 14px;
+  }
+  .reader-workspace .article-heading h1 {
+    font-size: 25px;
+  }
+  .reader-workspace .reading-paragraph {
+    scroll-margin-top: 20px;
+  }
+}

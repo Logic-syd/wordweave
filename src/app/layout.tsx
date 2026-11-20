@@ -2,9 +2,15 @@ import type { Metadata } from "next";
 import { Shell } from "@/components/shell";
 import "./globals.css";
 import "./learning.css";
+import "./learning-nav.css";
+import "./reading-workspace.css";
 export const metadata: Metadata = {
-  title: { default: "语境 · 听懂、说出、读明白", template: "%s · 语境" },
-  description: "英语与德语的听力、口语和语境阅读，共用一个单词库。",
+  title: {
+    default: "语境 · 听说读 / WordWeave · Listen, Speak, Read",
+    template: "%s · WordWeave",
+  },
+  description:
+    "英语与德语的听力、口语和语境阅读，共用一个单词库。 / Practise English and German listening, speaking and contextual reading with shared vocabulary.",
 };
 export default function RootLayout({
   children,

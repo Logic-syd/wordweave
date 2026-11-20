@@ -1,4 +1,5 @@
 "use client";
+import { ui } from "@/lib/ui";
 
 import { useRef, useState } from "react";
 import { Copy } from "lucide-react";
@@ -13,10 +14,10 @@ export function ExtensionSetup() {
     try {
       await navigator.clipboard.writeText(address);
       setFallbackAddress("");
-      setMessage("已复制！粘贴到浏览器最上方的地址栏，按回车。");
+      setMessage(ui("已复制！粘贴到浏览器最上方的地址栏，按回车。"));
     } catch {
       setFallbackAddress(address);
-      setMessage("请复制下面的地址，粘贴到浏览器最上方的地址栏，按回车。");
+      setMessage(ui("请复制下面的地址，粘贴到浏览器最上方的地址栏，按回车。"));
       requestAnimationFrame(() => fallback.current?.select());
     }
   }
@@ -27,16 +28,20 @@ export function ExtensionSetup() {
           className={styles.copyButton}
           onClick={() => void copyAddress("chrome")}
         >
-          <Copy size={17} /> 复制 Chrome 安装页地址
+          <Copy size={17} />
+          {ui("复制 Chrome 安装页地址")}
         </button>
         <button
           className={styles.copyButton}
           onClick={() => void copyAddress("edge")}
         >
-          <Copy size={17} /> 复制 Edge 安装页地址
+          <Copy size={17} />
+          {ui("复制 Edge 安装页地址")}
         </button>
       </div>
-      <p className={styles.shortHint}>复制后，粘贴到浏览器地址栏，按回车。</p>
+      <p className={styles.shortHint}>
+        {ui("复制后，粘贴到浏览器地址栏，按回车。")}
+      </p>
       <p role="status" className={styles.status}>
         {message}
       </p>

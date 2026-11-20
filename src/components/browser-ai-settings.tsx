@@ -1,4 +1,6 @@
 "use client";
+import { ui } from "@/lib/ui";
+
 import Link from "next/link";
 import { useState, useSyncExternalStore } from "react";
 import { Download, KeyRound, ShieldCheck, Trash2 } from "lucide-react";
@@ -45,12 +47,13 @@ export function LocalAiNotice() {
       <KeyRound size={14} />
       {browserAiReady(config) ? (
         <>
-          使用我的 API · {destination} / {config.model}
+          {ui("使用我的 API ·")}
+          {destination} / {config.model}
         </>
       ) : (
-        <>范文、朗读和收藏免费使用；AI 功能需填写自己的 Key。</>
+        <>{ui("范文、朗读和收藏免费使用；AI 功能需填写自己的 Key。")}</>
       )}
-      <Link href="/settings">我的 API →</Link>
+      <Link href="/settings">{ui("我的 API →")}</Link>
     </p>
   );
 }
@@ -59,8 +62,8 @@ export function BrowserAiSettings() {
     <SettingsForm />
   ) : (
     <main className="page">
-      <h1>我的 API</h1>
-      <p>正在读取本地配置…</p>
+      <h1>{ui("我的 API")}</h1>
+      <p>{ui("正在读取本地配置…")}</p>
     </main>
   );
 }
@@ -80,13 +83,13 @@ function SettingsForm() {
       saveBrowserAi(config, remember);
       setMessage(
         remember
-          ? "已保存在这个浏览器，听说读都能使用。"
-          : "已保存到当前浏览器会话，关闭此标签页后需要重新填写。",
+          ? ui("已保存在这个浏览器，听说读都能使用。")
+          : ui("已保存到当前浏览器会话，关闭此标签页后需要重新填写。"),
       );
       setError("");
       return true;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "保存失败");
+      setError(e instanceof Error ? e.message : ui("保存失败"));
       return false;
     }
   }
@@ -109,11 +112,11 @@ function SettingsForm() {
         value.ok !== true
       )
         throw new Error(
-          "已连接，但模型未按要求返回 JSON。请确认模型支持结构化输出。",
+          ui("已连接，但模型未按要求返回 JSON。请确认模型支持结构化输出。"),
         );
-      setMessage("连接成功，返回了有效 JSON。现在可以去生成或批改了。");
+      setMessage(ui("连接成功，返回了有效 JSON。现在可以去生成或批改了。"));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "连接失败");
+      setError(e instanceof Error ? e.message : ui("连接失败"));
     } finally {
       setBusy(false);
     }
@@ -144,12 +147,12 @@ function SettingsForm() {
       link.download = "wordweave-learning.json";
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-      setMessage("已导出文章、词条和练习记录，不包含 API Key。");
+      setMessage(ui("已导出文章、词条和练习记录，不包含 API Key。"));
     } catch {
-      setError("导出失败，请检查浏览器存储权限。");
+      setError(ui("导出失败，请检查浏览器存储权限。"));
     }
   }
-  let host = "填写后显示";
+  let host = ui("填写后显示");
   try {
     host = modelEndpoint(config).origin;
   } catch {
@@ -158,10 +161,13 @@ function SettingsForm() {
   return (
     <main className="page api-settings-page">
       <span className="skill-kicker" data-skill="read">
-        <KeyRound size={16} /> 我的 API / MY API
+        <KeyRound size={16} />
+        {ui("我的 API / MY API")}
       </span>
-      <h1>用自己的 Key，开始听说读。</h1>
-      <p className="page-subtitle">不用注册。三个页面共用这里的配置。</p>
+      <h1>{ui("用自己的 Key，开始听说读。")}</h1>
+      <p className="page-subtitle">
+        {ui("不用注册。三个页面共用这里的配置。")}
+      </p>
       <form
         className="api-settings-panel"
         onSubmit={(e) => {
@@ -171,7 +177,7 @@ function SettingsForm() {
       >
         <fieldset disabled={busy}>
           <label>
-            API 地址（Base URL）
+            {ui("API 地址（Base URL）")}
             <input
               value={config.baseUrl}
               onChange={(e) => change({ baseUrl: e.target.value })}
@@ -182,22 +188,22 @@ function SettingsForm() {
             />
           </label>
           <label>
-            模型名称
+            {ui("模型名称")}
             <input
               value={config.model}
               onChange={(e) => change({ model: e.target.value })}
-              placeholder="填写服务商当前提供的模型 ID"
+              placeholder={ui("填写服务商当前提供的模型 ID")}
               required
               autoComplete="off"
               spellCheck={false}
             />
           </label>
           <label>
-            自己的 API Key
+            {ui("自己的 API Key")}
             <input
               value={config.apiKey}
               onChange={(e) => change({ apiKey: e.target.value })}
-              placeholder="从模型服务商获取的 Key"
+              placeholder={ui("从模型服务商获取的 Key")}
               type="password"
               required
               autoComplete="off"
@@ -205,9 +211,9 @@ function SettingsForm() {
             />
           </label>
           <details>
-            <summary>高级设置</summary>
+            <summary>{ui("高级设置")}</summary>
             <label>
-              深度思考
+              {ui("深度思考")}
               <select
                 value={config.thinking}
                 onChange={(e) =>
@@ -217,10 +223,10 @@ function SettingsForm() {
                 }
               >
                 <option value="auto">
-                  自动（DeepSeek 默认关闭，加快响应）
+                  {ui("自动（DeepSeek 默认关闭，加快响应）")}
                 </option>
-                <option value="disabled">关闭</option>
-                <option value="enabled">开启</option>
+                <option value="disabled">{ui("关闭")}</option>
+                <option value="enabled">{ui("开启")}</option>
               </select>
             </label>
           </details>
@@ -230,22 +236,24 @@ function SettingsForm() {
               checked={remember}
               onChange={(e) => setRemember(e.target.checked)}
             />
-            <span>在这个浏览器记住 Key（公共设备请勿勾选）</span>
+            <span>{ui("在这个浏览器记住 Key（公共设备请勿勾选）")}</span>
           </label>
           <p className="api-destination">
             <ShieldCheck size={16} />
-            请求直接发送到 <strong>{host}</strong>。Key 不会发给语境服务器。
+            {ui("请求直接发送到")}
+            <strong>{host}</strong>
+            {ui("。Key 不会发给语境服务器。")}
           </p>
           <div className="practice-submit">
             <button type="submit" className="button primary">
-              保存配置
+              {ui("保存配置")}
             </button>
             <button
               type="button"
               className="button"
               onClick={() => void test()}
             >
-              {busy ? "正在测试…" : "测试连接（使用少量额度）"}
+              {busy ? ui("正在测试…") : ui("测试连接（使用少量额度）")}
             </button>
           </div>
         </fieldset>
@@ -256,11 +264,11 @@ function SettingsForm() {
           onClick={() => {
             clearBrowserAi();
             setConfig({ ...config, apiKey: "" });
-            setMessage("API Key 已从当前浏览器移除，学习记录保留。");
+            setMessage(ui("API Key 已从当前浏览器移除，学习记录保留。"));
           }}
         >
           <Trash2 size={14} />
-          移除 Key
+          {ui("移除 Key")}
         </button>
         {message && (
           <p className="practice-notice" role="status">
@@ -274,14 +282,16 @@ function SettingsForm() {
         )}
       </form>
       <section className="local-data-note">
-        <h2>你的学习记录，留在你的浏览器。</h2>
+        <h2>{ui("你的学习记录，留在你的浏览器。")}</h2>
         <p>
-          文章、词卡和进度保存在本地，不上传到语境。清除网站数据或更换浏览器后不会自动恢复。模型功能只把必要的材料和回答发送给你填写的服务商，费用由该
-          API 账户承担。
+          {ui(
+            "文章、词卡和进度保存在本地，不上传到语境。清除网站数据或更换浏览器后不会自动恢复。模型功能只把必要的材料和回答发送给你填写的服务商，费用由该 API 账户承担。",
+          )}
         </p>
         <p>
-          浏览器直连需要服务商允许跨域请求（CORS）。如不支持，请换成支持网页直连的接口；网站不会使用站主的
-          Key 代付。
+          {ui(
+            "浏览器直连需要服务商允许跨域请求（CORS）。如不支持，请换成支持网页直连的接口；网站不会使用站主的 Key 代付。",
+          )}
         </p>
         <button
           type="button"
@@ -289,9 +299,9 @@ function SettingsForm() {
           onClick={() => void exportData()}
         >
           <Download size={16} />
-          导出学习记录（不含 Key）
+          {ui("导出学习记录（不含 Key）")}
         </button>
-        <Link href="/listen">去听一段 →</Link>
+        <Link href="/listen">{ui("去听一段 →")}</Link>
       </section>
     </main>
   );

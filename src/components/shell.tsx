@@ -1,4 +1,6 @@
 "use client";
+import { ui } from "@/lib/ui";
+
 /* eslint-disable @next/next/no-html-link-for-pages -- Read Along is a standalone document; navigation to it must load HTML. */
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -16,9 +18,27 @@ import {
 import { rememberSkill } from "@/lib/learning-entry";
 import { SpriteIcon } from "./sprite-icon";
 const nav = [
-  { href: "/listen", label: "听力", skill: "listen", icon: Headphones },
-  { href: "/speak", label: "口语", skill: "speak", icon: Mic2 },
-  { href: "/read", label: "阅读", skill: "read", icon: BookOpen },
+  {
+    href: "/listen",
+    label: "听力",
+    english: "Listen",
+    skill: "listen",
+    icon: Headphones,
+  },
+  {
+    href: "/speak",
+    label: "口语",
+    english: "Speak",
+    skill: "speak",
+    icon: Mic2,
+  },
+  {
+    href: "/read",
+    label: "阅读",
+    english: "Read",
+    skill: "read",
+    icon: BookOpen,
+  },
 ] as const;
 export function Shell({ children }: { children: React.ReactNode }) {
   const path = usePathname(),
@@ -48,11 +68,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <span className="platform-brand-icon">
               <SpriteIcon size={27} />
             </span>
-            <span>语境</span>
+            <span>
+              语境<small>WordWeave</small>
+            </span>
           </a>
           <div className="platform-controls">
-            <nav className="platform-nav" aria-label="听说读导航">
-              {nav.map(({ href, label, skill, icon: Icon }) => (
+            <nav className="platform-nav study-nav" aria-label="听说读导航">
+              {nav.map(({ href, label, english, skill, icon: Icon }) => (
                 <a
                   key={href}
                   href={href}
@@ -61,7 +83,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
                   aria-current={active(href) ? "page" : undefined}
                 >
                   <Icon size={16} />
-                  <span>{label}</span>
+                  <span>
+                    <strong>{label}</strong> <small lang="en">{english}</small>
+                  </span>
                 </a>
               ))}
             </nav>
@@ -86,19 +110,19 @@ export function Shell({ children }: { children: React.ReactNode }) {
               >
                 <Link href="/vocabulary">
                   <NotebookPen size={17} />
-                  单词库
+                  {ui("单词库")}
                 </Link>
                 <Link href="/library">
                   <Library size={17} />
-                  换一篇文章
+                  {ui("换一篇文章")}
                 </Link>
                 <Link href="/settings">
                   <KeyRound size={17} />
-                  我的 API
+                  {ui("我的 API")}
                 </Link>
                 <Link href="/extension">
                   <Puzzle size={17} />
-                  浏览器插件
+                  {ui("浏览器插件")}
                 </Link>
               </div>
             </details>
@@ -107,8 +131,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
       </header>
       <div className="main-shell">{children}</div>
       <footer className="platform-footer">
-        <span>语境 · 每次一点</span>
-        <Link href="/vocabulary">单词库</Link>
+        <span>{ui("语境 · 每次一点")}</span>
+        <Link href="/vocabulary">{ui("单词库")}</Link>
       </footer>
     </div>
   );

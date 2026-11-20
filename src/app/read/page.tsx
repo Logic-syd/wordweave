@@ -1,6 +1,6 @@
 import { DirectReading } from "@/components/learning-entry";
 import { redirect } from "next/navigation";
-export const metadata = { title: "语境阅读" };
+export const metadata = { title: "语境阅读 / Contextual reading" };
 export default async function ReadingPage({
   searchParams,
 }: {

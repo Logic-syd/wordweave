@@ -1,4 +1,6 @@
 "use client";
+import { ui } from "@/lib/ui";
+
 import { useEffect, useState } from "react";
 import { localShelf } from "@/lib/browser-store";
 import type { LibraryArticle } from "@/lib/types";
@@ -15,8 +17,24 @@ function SavedShelf({
 }) {
   const [initial, setInitial] = useState<LibraryArticle[] | null>(null);
   const [error, setError] = useState("");
-  useEffect(() => { let live = true; void localShelf().then(articles => { if(live) setInitial([...articles, ...personal, ...sampleShelf()]); }).catch(e => setError(e.message)); return () => { live=false; }; }, [personal]);
-  if (!initial) return <main className="page"><h1>本地书架</h1><p>{error || "正在读取…"}</p></main>;
+  useEffect(() => {
+    let live = true;
+    void localShelf()
+      .then((articles) => {
+        if (live) setInitial([...articles, ...personal, ...sampleShelf()]);
+      })
+      .catch((e) => setError(e.message));
+    return () => {
+      live = false;
+    };
+  }, [personal]);
+  if (!initial)
+    return (
+      <main className="page">
+        <h1>{ui("本地书架")}</h1>
+        <p>{error || ui("正在读取…")}</p>
+      </main>
+    );
   return <Library initial={initial} initialMode={mode} />;
 }
 export function SampleLibrary({
@@ -30,8 +48,8 @@ export function SampleLibrary({
     <SavedShelf personal={personal} mode={mode} />
   ) : (
     <main className="page">
-      <h1>文章库</h1>
-      <p>正在打开书架…</p>
+      <h1>{ui("文章库")}</h1>
+      <p>{ui("正在打开书架…")}</p>
     </main>
   );
 }

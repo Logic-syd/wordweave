@@ -1,4 +1,6 @@
 "use client";
+import { ui } from "@/lib/ui";
+
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
@@ -36,10 +38,12 @@ export function PersonalLoginPrompt({
         body: JSON.stringify({ token: token.trim() }),
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error ?? "验证失败");
+      if (!response.ok) throw new Error(result.error ?? ui("验证失败"));
       onSuccess();
     } catch (error) {
-      setError(error instanceof Error ? error.message : "连接失败，请重试。");
+      setError(
+        error instanceof Error ? error.message : ui("连接失败，请重试。"),
+      );
     } finally {
       pending.current = false;
       setBusy(false);
@@ -55,10 +59,12 @@ export function PersonalLoginPrompt({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <h2 id="invite-prompt-title">登录个人空间</h2>
-      <p>网页版供你自己使用。登录后可以上传、生成文章，继续上次的学习。</p>
+      <h2 id="invite-prompt-title">{ui("登录个人空间")}</h2>
+      <p>
+        {ui("网页版供你自己使用。登录后可以上传、生成文章，继续上次的学习。")}
+      </p>
       <form onSubmit={login}>
-        <label htmlFor="upload-invite">访问密码</label>
+        <label htmlFor="upload-invite">{ui("访问密码")}</label>
         <input
           id="upload-invite"
           type="password"
@@ -66,7 +72,7 @@ export function PersonalLoginPrompt({
           required
           value={token}
           onChange={(e) => setToken(e.target.value)}
-          placeholder="粘贴访问密码"
+          placeholder={ui("粘贴访问密码")}
           maxLength={512}
         />
         {error && (
@@ -76,14 +82,14 @@ export function PersonalLoginPrompt({
         )}
         <div className="invite-prompt-actions">
           <button type="button" className="button secondary" onClick={onClose}>
-            暂时不用
+            {ui("暂时不用")}
           </button>
           <button type="submit" className="button primary" disabled={busy}>
-            {busy ? "正在验证…" : "验证并继续"}
+            {busy ? ui("正在验证…") : ui("验证并继续")}
           </button>
         </div>
       </form>
-      <Link href="/library">先读免费范文 →</Link>
+      <Link href="/library">{ui("先读免费范文 →")}</Link>
     </dialog>
   );
 }

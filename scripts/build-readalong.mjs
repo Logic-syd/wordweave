@@ -10,6 +10,7 @@ const html = (await readFile(root + "reading/web/index.html", "utf8"))
   .replace('src="/readalong.js"', 'src="/read-along/readalong.js"');
 await writeFile(output + "index.html", html);
 await copyFile(root + "reading/web/readalong.css", output + "readalong.css");
+await copyFile(root + "src/app/learning-nav.css", output + "learning-nav.css");
 await build({
   absWorkingDir: root,
   entryPoints: ["reading/web/readalong.js"],

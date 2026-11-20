@@ -1,4 +1,6 @@
 "use client";
+import { ui } from "@/lib/ui";
+
 import Link from "next/link";
 import { useState } from "react";
 import { BookOpen, Plus, Search, Trash2 } from "lucide-react";
@@ -27,12 +29,15 @@ export function Library({
     setBusy(true);
     setError("");
     try {
-      const r = await (id.startsWith("local-article-") ? browserFetch : fetch)(`/api/articles/${id}`, { method: "DELETE" });
+      const r = await (id.startsWith("local-article-") ? browserFetch : fetch)(
+        `/api/articles/${id}`,
+        { method: "DELETE" },
+      );
       if (!r.ok) throw new Error((await r.json()).error);
       setArticles((prev) => prev.filter((a) => a.id !== id));
       setConfirm(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "删除失败");
+      setError(e instanceof Error ? e.message : ui("删除失败"));
     } finally {
       setBusy(false);
     }
@@ -42,22 +47,22 @@ export function Library({
       <div className="page-title-row">
         <div>
           <span className="eyebrow">YOUR READING SHELF</span>
-          <h1>每一篇，都是新的语境。</h1>
+          <h1>{ui("每一篇，都是新的语境。")}</h1>
           <p className="page-subtitle">
-            范文直接读。自己的文章、收藏和进度只保存在这个浏览器。
+            {ui("范文直接读。自己的文章、收藏和进度只保存在这个浏览器。")}
           </p>
         </div>
         <Link href="/new?mode=tech" className="button primary">
           <Plus size={17} />
-          添加文章
+          {ui("添加文章")}
         </Link>
       </div>
       <div className="collection-toolbar">
         <div className="filter-tabs">
           {[
-            ["all", "全部文章"],
-            ["tech", "技术英语"],
-            ["german", "德语日常"],
+            ["all", ui("全部文章")],
+            ["tech", ui("技术英语")],
+            ["german", ui("德语日常")],
           ].map(([v, l]) => (
             <button
               key={v}
@@ -75,7 +80,7 @@ export function Library({
           <Search size={17} />
           <input
             aria-label="搜索文章"
-            placeholder="找一篇文章…"
+            placeholder={ui("找一篇文章…")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -94,10 +99,10 @@ export function Library({
               <div className="library-item-footer">
                 <span>
                   {a.progress?.completed
-                    ? "已读完"
+                    ? ui("已读完")
                     : a.progress?.paragraphId
-                      ? "阅读中"
-                      : "未开始"}{" "}
+                      ? ui("阅读中")
+                      : ui("未开始")}{" "}
                   · {new Date(a.createdAt).toLocaleDateString("zh-CN")}
                 </span>
                 {!a.id.startsWith("sample-") && (
@@ -112,9 +117,11 @@ export function Library({
               </div>
               {confirm === a.id && (
                 <div className="inline-confirm">
-                  <strong>删除这篇文章？</strong>
+                  <strong>{ui("删除这篇文章？")}</strong>
                   <p>
-                    阅读进度和文章关联将删除；收藏的词与主动学习记录会保留。
+                    {ui(
+                      "阅读进度和文章关联将删除；收藏的词与主动学习记录会保留。",
+                    )}
                   </p>
                   <div>
                     <button
@@ -122,14 +129,14 @@ export function Library({
                       disabled={busy}
                       onClick={() => setConfirm(null)}
                     >
-                      取消
+                      {ui("取消")}
                     </button>
                     <button
                       className="button danger"
                       disabled={busy}
                       onClick={() => void remove(a.id)}
                     >
-                      {busy ? "正在删除…" : "确认删除"}
+                      {busy ? ui("正在删除…") : ui("确认删除")}
                     </button>
                   </div>
                 </div>
@@ -140,13 +147,13 @@ export function Library({
       ) : (
         <div className="empty-state">
           <BookOpen size={32} />
-          <h3>{query ? "没有找到这篇文章" : "书架还空着"}</h3>
-          <p>换个关键词，或者开始一篇新的阅读。</p>
+          <h3>{query ? ui("没有找到这篇文章") : ui("书架还空着")}</h3>
+          <p>{ui("换个关键词，或者开始一篇新的阅读。")}</p>
           <Link
             href={`/new?mode=${mode === "german" ? "german" : "tech"}`}
             className="button primary"
           >
-            开始一篇新阅读
+            {ui("开始一篇新阅读")}
           </Link>
         </div>
       )}

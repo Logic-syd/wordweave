@@ -1,22 +1,24 @@
 "use client";
+import { ui } from "@/lib/ui";
+
 import { useEffect, useRef, useState } from "react";
 import { Bookmark, Check, Heart, Volume2, X, ChevronDown } from "lucide-react";
 import type { Word, UserWord } from "@/lib/types";
 import { saveSampleWord } from "@/lib/sample-storage";
 import { browserFetch } from "@/lib/browser-api";
 export const statusLabels: Record<string, string> = {
-  NEW: "初次遇见",
-  LEARNING: "想学",
-  KNOWN: "认识",
-  IGNORED: "暂不学习",
+  NEW: ui("初次遇见"),
+  LEARNING: ui("想学"),
+  KNOWN: ui("认识"),
+  IGNORED: ui("暂不学习"),
 };
 const posLabels: Record<string, string> = {
-  noun: "名词",
-  verb: "动词",
-  phrase: "短语",
-  adjective: "形容词",
-  adverb: "副词",
-  other: "表达",
+  noun: ui("名词"),
+  verb: ui("动词"),
+  phrase: ui("短语"),
+  adjective: ui("形容词"),
+  adverb: ui("副词"),
+  other: ui("表达"),
 };
 export function WordCard({
   word,
@@ -48,10 +50,12 @@ export function WordCard({
     try {
       if (word.id.startsWith("sample-")) {
         onUpdate(saveSampleWord(word.id, data));
-        setMessage("已保存在这个浏览器");
+        setMessage(ui("已保存在这个浏览器"));
         return;
       }
-      const response = await (word.id.startsWith("local-word-") ? browserFetch : fetch)(`/api/vocabulary/${word.id}`, {
+      const response = await (
+        word.id.startsWith("local-word-") ? browserFetch : fetch
+      )(`/api/vocabulary/${word.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -63,19 +67,19 @@ export function WordCard({
       setMessage(
         data.favorite !== undefined
           ? data.favorite
-            ? "已收藏，初次学习的词已加入待复习"
-            : "已取消收藏"
-          : "学习状态已保存",
+            ? ui("已收藏，初次学习的词已加入待复习")
+            : ui("已取消收藏")
+          : ui("学习状态已保存"),
       );
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : "保存失败");
+      setMessage(e instanceof Error ? e.message : ui("保存失败"));
     } finally {
       setBusy(false);
     }
   }
   function speak() {
     if (!("speechSynthesis" in window)) {
-      setMessage("当前浏览器不支持语音朗读。");
+      setMessage(ui("当前浏览器不支持语音朗读。"));
       return;
     }
     const voices = window.speechSynthesis.getVoices();
@@ -84,7 +88,7 @@ export function WordCard({
     );
     if (!voice) {
       setMessage(
-        `没有可用的${word.language === "de" ? "德语" : "英语"}语音，请在设备设置中安装对应语音包。`,
+        `没有可用的${word.language === "de" ? "德语" : "英语"}语音，请安装对应语音包。 / No ${word.language === "de" ? "German" : "English"} voice is available. Install a voice pack on your device.`,
       );
       return;
     }
@@ -93,7 +97,8 @@ export function WordCard({
     utterance.lang = voice.lang;
     utterance.voice = voice;
     utterance.rate = 0.85;
-    utterance.onerror = () => setMessage("语音播放失败，请检查设备语音设置。");
+    utterance.onerror = () =>
+      setMessage(ui("语音播放失败，请检查设备语音设置。"));
     window.speechSynthesis.speak(utterance);
   }
   const g = word.grammar;
@@ -112,7 +117,7 @@ export function WordCard({
         <div className="word-topline">
           <span className="eyebrow">
             {word.language === "de" ? "DEUTSCH" : "ENGLISH"} ·{" "}
-            {posLabels[word.partOfSpeech] ?? "表达"}
+            {posLabels[word.partOfSpeech] ?? ui("表达")}
           </span>
           <button
             className="icon-button"
@@ -135,16 +140,24 @@ export function WordCard({
             <Volume2 size={20} />
           </button>
         </div>
-        {g.plural && <p className="word-form">复数 · {g.plural}</p>}
+        {g.plural && (
+          <p className="word-form">
+            {ui("复数 ·")}
+            {g.plural}
+          </p>
+        )}
         {word.partOfSpeech === "verb" && g.infinitive && (
           <p className="word-form">
-            原形 {g.infinitive} · 本句 {g.currentForm}
+            {ui("原形")}
+            {g.infinitive}
+            {ui("· 本句")}
+            {g.currentForm}
           </p>
         )}
         <p className="context-meaning">{context?.meaning ?? word.meaning}</p>
         <div className="word-section">
           <span className="small-label">
-            {word.language === "en" ? "原文完整句子" : "自然德语例句"}
+            {word.language === "en" ? ui("原文完整句子") : ui("自然德语例句")}
           </span>
           <p className="example-sentence">
             {context?.sentence ?? word.example}
@@ -153,30 +166,31 @@ export function WordCard({
             <p className="example-translation">{word.exampleTranslation}</p>
           ) : (
             <div className="additional-example">
-              <span className="small-label">再看一个例句</span>
+              <span className="small-label">{ui("再看一个例句")}</span>
               <p className="example-sentence">{word.example}</p>
               <p className="example-translation">{word.exampleTranslation}</p>
             </div>
           )}
         </div>
         <div className="word-section">
-          <span className="small-label">表达说明</span>
+          <span className="small-label">{ui("表达说明")}</span>
           <p>{word.explanation}</p>
         </div>
         {g.note && (
           <details className="grammar-details">
             <summary>
-              一点基础语法 <ChevronDown size={15} />
+              {ui("一点基础语法")}
+              <ChevronDown size={15} />
             </summary>
             <p>{g.note}</p>
           </details>
         )}
         {word.language === "en" && (
           <div className="category-row">
-            <span className="small-label">归类</span>
+            <span className="small-label">{ui("归类")}</span>
             {[
-              ["technical", "技术术语"],
-              ["general", "通用表达"],
+              ["technical", ui("技术术语")],
+              ["general", ui("通用表达")],
             ].map(([v, l]) => (
               <button
                 className={`chip ${word.user?.category === v ? "selected" : ""}`}
@@ -191,9 +205,9 @@ export function WordCard({
         )}
         <div className="word-actions">
           {[
-            ["LEARNING", "想学", Bookmark],
-            ["KNOWN", "认识", Check],
-            ["IGNORED", "暂不学习", X],
+            ["LEARNING", ui("想学"), Bookmark],
+            ["KNOWN", ui("认识"), Check],
+            ["IGNORED", ui("暂不学习"), X],
           ].map(([status, label, Icon]) => {
             const ItemIcon = Icon as typeof Bookmark;
             return (
@@ -220,12 +234,14 @@ export function WordCard({
             size={17}
             fill={word.user?.favorite ? "currentColor" : "none"}
           />
-          {word.user?.favorite ? "已收藏" : "收藏到生词本"}
+          {word.user?.favorite ? ui("已收藏") : ui("收藏到生词本")}
         </button>
         <p className="review-rule">
           {word.user?.status === "KNOWN"
-            ? `主动确认认识后，按 1、3、7、14、30 天间隔复习。${word.user?.dueAt ? "下次：" + new Date(word.user.dueAt).toLocaleDateString("zh-CN") : ""}`
-            : "选“想学”或收藏新词后进入待复习队列；听过、说过、读过，都不会自动判定掌握。"}
+            ? `主动确认认识后，按 1、3、7、14、30 天间隔复习。 / After choosing Know, review after 1, 3, 7, 14 and 30 days. ${word.user?.dueAt ? ui("下次：") + new Date(word.user.dueAt).toLocaleDateString("zh-CN") : ""}`
+            : ui(
+                "选“想学”或收藏新词后进入待复习队列；听过、说过、读过，都不会自动判定掌握。",
+              )}
         </p>
         <div className="word-message" role="status">
           {message}

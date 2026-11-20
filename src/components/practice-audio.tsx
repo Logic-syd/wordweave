@@ -1,4 +1,6 @@
 "use client";
+import { ui } from "@/lib/ui";
+
 import { useEffect, useRef, useState } from "react";
 import { Download, Mic2, Play, Square, Volume2 } from "lucide-react";
 
@@ -38,7 +40,9 @@ export function PracticePlayer({
   }, []);
   function play() {
     if (!("speechSynthesis" in window)) {
-      setError("当前浏览器没有语音朗读功能，请使用支持语音的 Chrome 或 Edge。");
+      setError(
+        ui("当前浏览器没有语音朗读功能，请使用支持语音的 Chrome 或 Edge。"),
+      );
       return;
     }
     const synth = window.speechSynthesis;
@@ -52,7 +56,7 @@ export function PracticePlayer({
     );
     if (!voice) {
       setError(
-        `没有可用的${language === "de" ? "德语" : "英语"}语音。请在设备语言设置中安装对应语音包后重试。`,
+        `没有可用的${language === "de" ? "德语" : "英语"}语音。请在设备语言设置中安装对应语音包后重试。 / No ${language === "de" ? "German" : "English"} voice is available. Install a voice pack in your device's language settings and try again.`,
       );
       return;
     }
@@ -66,7 +70,7 @@ export function PracticePlayer({
     speech.onerror = (event) => {
       setPlaying(false);
       if (!["canceled", "interrupted"].includes(event.error))
-        setError("播放失败，请检查设备声音和语音设置后重试。");
+        setError(ui("播放失败，请检查设备声音和语音设置后重试。"));
     };
     utterance.current = speech;
     setPlaying(true);
@@ -80,7 +84,11 @@ export function PracticePlayer({
           className="play-main"
           onClick={play}
           aria-label={
-            playing ? "停止播放" : speaking ? "听示范朗读" : "播放这一段"
+            playing
+              ? ui("停止播放")
+              : speaking
+                ? ui("听示范朗读")
+                : ui("播放这一段")
           }
         >
           <span className="play-disc">
@@ -92,14 +100,18 @@ export function PracticePlayer({
           </span>
           <span>
             <strong>
-              {playing ? "停止播放" : speaking ? "听示范朗读" : "播放这一段"}
+              {playing
+                ? ui("停止播放")
+                : speaking
+                  ? ui("听示范朗读")
+                  : ui("播放这一段")}
             </strong>
             <small>
               {playing
-                ? "正在朗读，跟着节奏听"
+                ? ui("正在朗读，跟着节奏听")
                 : speaking
-                  ? "听节奏，再自己说一次"
-                  : "先听一遍，试着抓住重点"}
+                  ? ui("听节奏，再自己说一次")
+                  : ui("先听一遍，试着抓住重点")}
             </small>
           </span>
         </button>
@@ -109,7 +121,7 @@ export function PracticePlayer({
           ))}
         </div>
         <label className="play-speed">
-          语速
+          {ui("语速")}
           <select
             aria-label="朗读语速"
             value={speed}
@@ -121,15 +133,17 @@ export function PracticePlayer({
               onSpeed(Number(e.target.value));
             }}
           >
-            <option value={0.65}>慢速</option>
-            <option value={0.9}>正常</option>
-            <option value={1.1}>稍快</option>
+            <option value={0.65}>{ui("慢速")}</option>
+            <option value={0.9}>{ui("正常")}</option>
+            <option value={1.1}>{ui("稍快")}</option>
           </select>
         </label>
       </div>
       <p className="audio-caption">
-        <Volume2 size={13} /> 浏览器{language === "de" ? "德语" : "英语"}语音 ·
-        可重复播放
+        <Volume2 size={13} />
+        {language === "de"
+          ? "浏览器德语语音 · 可重复播放 / German system voice · Replay anytime"
+          : "浏览器英语语音 · 可重复播放 / English system voice · Replay anytime"}
       </p>
       {error && (
         <p className="practice-notice error" role="alert">
@@ -171,7 +185,7 @@ export function PracticeRecorder() {
     }
     if (!navigator.mediaDevices?.getUserMedia || !("MediaRecorder" in window)) {
       setMessage(
-        "当前浏览器无法录音。请使用 HTTPS 或本机地址，并允许麦克风访问。",
+        ui("当前浏览器无法录音。请使用 HTTPS 或本机地址，并允许麦克风访问。"),
       );
       return;
     }
@@ -207,7 +221,7 @@ export function PracticeRecorder() {
         audio.getTracks().forEach((t) => t.stop());
         if (mounted.current) {
           setRecording(false);
-          setMessage("录音中断，请检查麦克风权限后重试。");
+          setMessage(ui("录音中断，请检查麦克风权限后重试。"));
         }
       };
       media.start();
@@ -215,7 +229,7 @@ export function PracticeRecorder() {
     } catch {
       stream.current?.getTracks().forEach((t) => t.stop());
       if (mounted.current)
-        setMessage("未能打开麦克风，请允许本站使用麦克风后重试。");
+        setMessage(ui("未能打开麦克风，请允许本站使用麦克风后重试。"));
     } finally {
       pending.current = false;
     }
@@ -229,24 +243,29 @@ export function PracticeRecorder() {
           onClick={() => void toggle()}
         >
           {recording ? <Square size={17} /> : <Mic2 size={18} />}
-          {recording ? "停止录音" : url ? "重新录一遍" : "录下我的回答"}
+          {recording
+            ? ui("停止录音")
+            : url
+              ? ui("重新录一遍")
+              : ui("录下我的回答")}
         </button>
         <span>
           {recording
-            ? "录音中 · 最长 3 分钟"
-            : "说完回听，发现停顿和卡住的地方"}
+            ? ui("录音中 · 最长 3 分钟")
+            : ui("说完回听，发现停顿和卡住的地方")}
         </span>
       </div>
       {url && (
         <div className="recording-playback">
           <audio src={url} controls />
           <a href={url} download="wordweave-speaking">
-            保存录音 <Download size={14} />
+            {ui("保存录音")}
+            <Download size={14} />
           </a>
         </div>
       )}
       <small>
-        录音只留在当前页面，离开前可下载。不上传，不自动转写或评分。
+        {ui("录音只留在当前页面，离开前可下载。不上传，不自动转写或评分。")}
       </small>
       {message && (
         <p role="alert" className="practice-notice error">

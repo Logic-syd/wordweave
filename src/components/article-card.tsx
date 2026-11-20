@@ -1,3 +1,4 @@
+import { ui } from "@/lib/ui";
 import Link from "next/link";
 import { ArrowUpRight, Coffee, Check, ChevronRight } from "lucide-react";
 import { SpriteIcon } from "@/components/sprite-icon";
@@ -20,39 +21,41 @@ export function ArticleCard({
       </div>
       <div className="article-card-body">
         <div className="article-meta">
-          <span>{de ? `德语 · ${a.level ?? "A2"}` : "技术英语"}</span>
+          <span>
+            {de ? `${ui("德语")} · ${a.level ?? "A2"}` : ui("技术英语")}
+          </span>
           <span className="meta-dot">·</span>
           <span>
             {a.id.startsWith("sample-")
-              ? "免费范文"
+              ? ui("免费范文")
               : a.origin.startsWith("demo")
-                ? "演示文章"
+                ? ui("演示文章")
                 : a.origin === "generated"
-                  ? "生成短文"
-                  : "导入文章"}
+                  ? ui("生成短文")
+                  : ui("导入文章")}
           </span>
         </div>
         <h3>{a.title}</h3>
-        {!compact && <p>{a.preview || "输入已保存，等待生成学习版。"}</p>}
+        {!compact && <p>{a.preview || ui("输入已保存，等待生成学习版。")}</p>}
         <div className="article-status">
           {a.progress?.completed ? (
             <>
               <Check size={13} />
-              已读完 · 可随时复习
+              {ui("已读完 · 可随时复习")}
             </>
           ) : a.progress?.paragraphId ? (
             <>
               <span className="tiny-dot" />
-              继续上次阅读
+              {ui("继续上次阅读")}
             </>
           ) : a.activeVersionId ? (
-            "准备好了，开始阅读"
+            ui("准备好了，开始阅读")
           ) : a.generationStartedAt ? (
-            "正在生成学习版…"
+            ui("正在生成学习版…")
           ) : a.generationError ? (
-            "生成遇到问题 · 点击重试"
+            ui("生成遇到问题 · 点击重试")
           ) : (
-            "原文已保存"
+            ui("原文已保存")
           )}
         </div>
       </div>

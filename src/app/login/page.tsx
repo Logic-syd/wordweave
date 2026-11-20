@@ -1,11 +1,12 @@
-/* eslint-disable @next/next/no-html-link-for-pages -- Homepage is the standalone Read Along document. */
+import { ui } from "@/lib/ui";
+/* eslint-disable @next/next/no-html-link-for-pages -- Enter the public workspace with a full document load. */
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Layers } from "lucide-react";
 import { LoginForm } from "./login-form";
 import styles from "./login.module.css";
 
-export const metadata: Metadata = { title: "旧版私人数据入口" };
+export const metadata: Metadata = { title: ui("旧版私人数据入口") };
 
 export default function LoginPage() {
   return (
@@ -19,24 +20,25 @@ export default function LoginPage() {
             语境<small>WORDS IN CONTEXT</small>
           </span>
         </div>
-        <p className={styles.eyebrow}>一点一点，读懂更多</p>
-        <h1 id="login-title">旧版私人数据入口</h1>
+        <p className={styles.eyebrow}>{ui("一点一点，读懂更多")}</p>
+        <h1 id="login-title">{ui("旧版私人数据入口")}</h1>
         <p className={styles.intro}>
-          仅供站主访问原有数据库记录。公开版听、说、读无需登录，使用自己的
-          API，记录保存在浏览器。
+          {ui(
+            "仅供站主访问原有数据库记录。公开版听、说、读无需登录，使用自己的 API，记录保存在浏览器。",
+          )}
         </p>
         <Suspense
           fallback={
             <p className={styles.status} role="status">
-              正在检查访问设置…
+              {ui("正在检查访问设置…")}
             </p>
           }
         >
           <LoginForm />
         </Suspense>
-        <a href="/">进入公开学习页面 →</a>
+        <a href="/">{ui("进入公开学习页面 →")}</a>
       </section>
-      <p className={styles.footer}>让语言回到故事里。</p>
+      <p className={styles.footer}>{ui("让语言回到故事里。")}</p>
     </main>
   );
 }

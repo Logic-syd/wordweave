@@ -1,5 +1,6 @@
 "use client";
-import Link from "next/link";
+import { ui } from "@/lib/ui";
+
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -12,7 +13,6 @@ import {
   useState,
 } from "react";
 import {
-  ArrowLeft,
   BookOpen,
   Check,
   ChevronDown,
@@ -33,20 +33,33 @@ import { browserFetch } from "@/lib/browser-api";
 import { LocalAiNotice } from "./browser-ai-settings";
 import { saveSampleProgress } from "@/lib/sample-storage";
 import { saveLocalProgress } from "@/lib/browser-store";
+import { ArticleInbox } from "./article-inbox";
 import { rememberReading } from "@/lib/learning-entry";
 type SavedSegment = Segment & { occurrenceId?: string };
 const markdownPlugins = [remarkGfm];
 const EMPTY_OCCURRENCES: OccurrenceView[] = [];
 const GENERATION_STALE_MS = 6 * 60_000;
 const generationStages = [
-  { id: "preparing", label: "准备文章", description: "正在整理正文与学习目标" },
-  { id: "translating", label: "生成内容", description: "正在生成学习版" },
+  {
+    id: "preparing",
+    label: ui("准备文章"),
+    description: ui("正在整理正文与学习目标"),
+  },
+  {
+    id: "translating",
+    label: ui("生成内容"),
+    description: ui("正在生成学习版"),
+  },
   {
     id: "validating",
-    label: "检查内容",
-    description: "正在检查段落对应、代码与词卡",
+    label: ui("检查内容"),
+    description: ui("正在检查段落对应、代码与词卡"),
   },
-  { id: "saving", label: "保存文章", description: "正在保存学习版与词卡" },
+  {
+    id: "saving",
+    label: ui("保存文章"),
+    description: ui("正在保存学习版与词卡"),
+  },
 ];
 function timestamp(value: string | null | undefined) {
   const result = value ? Date.parse(value) : NaN;
@@ -55,8 +68,8 @@ function timestamp(value: string | null | undefined) {
 function elapsedTime(milliseconds: number) {
   const seconds = Math.max(0, Math.floor(milliseconds / 1000));
   return seconds < 60
-    ? `${seconds} 秒`
-    : `${Math.floor(seconds / 60)} 分 ${String(seconds % 60).padStart(2, "0")} 秒`;
+    ? `${seconds} 秒 / s`
+    : `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")} 分钟 / min`;
 }
 function GenerationElapsed({ startedAt }: { startedAt: number }) {
   const hydrated = useHydrated();
@@ -68,7 +81,8 @@ function GenerationElapsed({ startedAt }: { startedAt: number }) {
   }, [startedAt]);
   return (
     <span className="reader-generation-elapsed">
-      已用时 {hydrated && startedAt ? elapsedTime(now - startedAt) : "—"}
+      {ui("已用时")}
+      {hydrated && startedAt ? elapsedTime(now - startedAt) : "—"}
     </span>
   );
 }
@@ -127,7 +141,8 @@ const readingComponents: Components = {
   // readers or be instructions embedded in untrusted source material.
   img: ({ alt }) => (
     <span className="reader-image-placeholder">
-      [图片{alt ? `：${alt}` : ""}]
+      {ui("[图片")}
+      {alt ? `：${alt}` : ""}]
     </span>
   ),
   pre: ({ children }) => (
@@ -172,6 +187,7 @@ export function Reader({
   const [selected, setSelected] = useState<OccurrenceView | null>(null);
   const [settings, setSettings] = useState(initialSettings);
   const [showSettings, setShowSettings] = useState(false);
+  const [inboxExpanded, setInboxExpanded] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
   const [progressError, setProgressError] = useState("");
@@ -210,16 +226,16 @@ export function Reader({
       if (local) {
         try {
           saveSampleProgress(initial.id, data);
-          setSaveState("进度保存在这个浏览器");
+          setSaveState(ui("进度保存在这个浏览器"));
         } catch (error) {
-          setSaveState(error instanceof Error ? error.message : "保存失败");
+          setSaveState(error instanceof Error ? error.message : ui("保存失败"));
         }
         return;
       }
       if (browserLocal) {
         void saveLocalProgress(initial.id, data)
-          .then(() => setSaveState("进度保存在这个浏览器"))
-          .catch(() => setSaveState("本地保存失败，请检查浏览器存储空间"));
+          .then(() => setSaveState(ui("进度保存在这个浏览器")))
+          .catch(() => setSaveState(ui("本地保存失败，请检查浏览器存储空间")));
         return;
       }
       pendingProgress.current = { ...pendingProgress.current, ...data };
@@ -234,9 +250,11 @@ export function Reader({
           keepalive: true,
         })
           .then((r) => {
-            setSaveState(r.ok ? "阅读进度已保存" : "进度保存失败，请检查连接");
+            setSaveState(
+              r.ok ? ui("阅读进度已保存") : ui("进度保存失败，请检查连接"),
+            );
           })
-          .catch(() => setSaveState("进度保存失败，请检查连接"));
+          .catch(() => setSaveState(ui("进度保存失败，请检查连接")));
       }, 400);
     },
     [initial.id, local, browserLocal],
@@ -264,7 +282,7 @@ export function Reader({
         cache: "no-store",
         signal: controller.signal,
       });
-      if (!r.ok) throw new Error("无法查询文章状态");
+      if (!r.ok) throw new Error(ui("无法查询文章状态"));
       const data = (await r.json()) as ArticleDetail;
       setArticle(data);
       setProgressError("");
@@ -288,7 +306,7 @@ export function Reader({
       }
       return data;
     } catch {
-      setProgressError("暂时无法读取最新生成进度，请稍后重试。");
+      setProgressError(ui("暂时无法读取最新生成进度，请稍后重试。"));
       return undefined;
     } finally {
       clearTimeout(timeout);
@@ -346,7 +364,7 @@ export function Reader({
       const result = await r.json().catch(() => null);
       if (!r.ok && r.status !== 409)
         throw new Error(
-          result?.error || "生成请求中断，正在读取最新保存结果。",
+          result?.error || ui("生成请求中断，正在读取最新保存结果。"),
         );
       const latest = await refresh();
       showSuccessfulVersion(latest);
@@ -356,10 +374,10 @@ export function Reader({
       } else {
         setError(
           controller.signal.aborted
-            ? "本次等待已结束，正在读取最新保存结果。"
+            ? ui("本次等待已结束，正在读取最新保存结果。")
             : e instanceof Error
               ? e.message
-              : "生成失败，请稍后重试",
+              : ui("生成失败，请稍后重试"),
         );
         await refresh();
       }
@@ -541,431 +559,462 @@ export function Reader({
   const untranslated = new Map(
     (coverage?.untranslated ?? []).map((item) => [item.sourceId, item.reason]),
   );
+  function revealGenerationSettings() {
+    setShowSettings(true);
+    setInboxExpanded(true);
+    requestAnimationFrame(() => {
+      document
+        .querySelector(".inbox-reading-options")
+        ?.scrollIntoView({ block: "start" });
+    });
+  }
   return (
-    <main className="reader-page">
-      <div className="reader-top">
-        <Link href="/library" className="back-link">
-          <ArrowLeft size={16} />
-          换一篇
-        </Link>
-        <span className="reader-top-meta">
-          {de ? "德语日常" : "技术英语"}
-          <span> / </span>
-          {article.origin.includes("generated")
-            ? "生成短文"
-            : article.origin.startsWith("demo")
-              ? "演示文章"
-              : "导入文章"}
-        </span>
-        {local ? (
-          <Link
-            href={`/new?mode=${de ? "german" : "tech"}`}
-            className="text-button"
-          >
-            导入文章
-          </Link>
-        ) : (
+    <main className="reader-page reader-workspace">
+      <ArticleInbox
+        mode={de ? "german" : "tech"}
+        expanded={inboxExpanded}
+        onExpandedChange={setInboxExpanded}
+      >
+        <div className="reader-toolbar">
+          <div className="segmented reader-views">
+            <button
+              className={view === "learning" ? "selected" : ""}
+              onClick={() => switchView("learning")}
+            >
+              {de ? ui("中文嵌词版") : ui("学习版")}
+            </button>
+            <button
+              className={view === "original" ? "selected" : ""}
+              onClick={() => switchView("original")}
+            >
+              {de ? ui("德语全文") : ui("英文原文")}
+            </button>
+          </div>
+          <label className="gloss-control">
+            {ui("释义")}
+            <select
+              aria-label="释义显示方式"
+              value={gloss}
+              onChange={(e) => {
+                setGloss(e.target.value);
+                persist({ glossMode: e.target.value });
+              }}
+            >
+              <option value="all">{ui("全部显示")}</option>
+              <option value="first">{ui("首次出现显示")}</option>
+              <option value="click">{ui("点击显示")}</option>
+            </select>
+          </label>
+        </div>
+        {!local && (
           <button
-            className={`icon-button ${showSettings ? "selected" : ""}`}
+            className="button secondary full"
             aria-label="生成设置"
             aria-expanded={showSettings}
             onClick={() => setShowSettings(!showSettings)}
           >
-            <Settings2 size={20} />
+            <Settings2 size={17} />
+            {ui("调整当前学习版")}
           </button>
         )}
-      </div>
-      <div className="reader-toolbar">
-        <div className="segmented reader-views">
-          <button
-            className={view === "learning" ? "selected" : ""}
-            onClick={() => switchView("learning")}
-          >
-            {de ? "中文嵌词版" : "学习版"}
-          </button>
-          <button
-            className={view === "original" ? "selected" : ""}
-            onClick={() => switchView("original")}
-          >
-            {de ? "德语全文" : "英文原文"}
-          </button>
-        </div>
-        <label className="gloss-control">
-          释义
-          <select
-            aria-label="释义显示方式"
-            value={gloss}
-            onChange={(e) => {
-              setGloss(e.target.value);
-              persist({ glossMode: e.target.value });
-            }}
-          >
-            <option value="all">全部显示</option>
-            <option value="first">首次出现显示</option>
-            <option value="click">点击显示</option>
-          </select>
-        </label>
-      </div>
-      {showSettings && !local && (
-        <section className="reader-settings">
-          <div className="section-heading">
-            <h3>调整这篇学习材料</h3>
-            <button
-              className="icon-button"
-              aria-label="关闭生成设置"
-              onClick={() => setShowSettings(false)}
-            >
-              <X size={17} />
-            </button>
-          </div>
-          {browserLocal && <LocalAiNotice />}
-          <SettingsFields
-            mode={article.mode}
-            value={settings}
-            onChange={setSettings}
-            disabled={pending}
-            compact
-          />
-          <p className="field-hint">
-            {de
-              ? "已有原文会保留，重新生成同一内容的学习版。"
-              : "重新生成会使用完整原文，代码不会交给模型。"}{" "}
-            此操作会调用
-            API；失败会保留当前成功版本。语言内容可能有误，请对照原文。
-          </p>
-          {!configured && (
-            <p className="field-hint">
-              {browserLocal
-                ? "请在右上角「更多功能 → 我的 API」填写自己的 Key 和模型，保存后即可生成。"
-                : "旧私人模式的服务端 AI 默认已关闭。"}
-            </p>
-          )}
-          <button
-            className="button primary"
-            disabled={pending || !configured}
-            onClick={() => void runGeneration()}
-          >
-            {pending ? (
-              <LoaderCircle className="spin" size={16} />
-            ) : (
-              <Sparkles size={16} />
-            )}
-            明确重新生成
-          </button>
-        </section>
-      )}
-      {pending && (
-        <section className="reader-generation-status" aria-label="生成进度">
-          <div className="reader-generation-heading">
-            <div role="status" aria-live="polite">
-              <LoaderCircle className="spin" size={19} />
-              <strong>{currentStage.description}</strong>
-            </div>
-            <GenerationElapsed startedAt={startedAt} />
-          </div>
-          <ol className="reader-generation-stages" aria-label="生成步骤">
-            {generationStages.map((stage, index) => (
-              <li
-                key={stage.id}
-                className={
-                  index < stageIndex
-                    ? "complete"
-                    : index === stageIndex
-                      ? "current"
-                      : ""
-                }
-                aria-current={index === stageIndex ? "step" : undefined}
+        {showSettings && !local && (
+          <section className="reader-settings">
+            <div className="section-heading">
+              <h3>{ui("调整这篇学习材料")}</h3>
+              <button
+                className="icon-button"
+                aria-label="关闭生成设置"
+                onClick={() => setShowSettings(false)}
               >
-                <span aria-hidden="true">
-                  {index < stageIndex ? <Check size={12} /> : index + 1}
+                <X size={17} />
+              </button>
+            </div>
+            {browserLocal && <LocalAiNotice />}
+            <SettingsFields
+              mode={article.mode}
+              value={settings}
+              onChange={setSettings}
+              disabled={pending}
+              compact
+            />
+            <p className="field-hint">
+              {de
+                ? ui("已有原文会保留，重新生成同一内容的学习版。")
+                : ui("重新生成会使用完整原文，代码不会交给模型。")}{" "}
+              {ui(
+                "此操作会调用 API；失败会保留当前成功版本。语言内容可能有误，请对照原文。",
+              )}
+            </p>
+            {!configured && (
+              <p className="field-hint">
+                {browserLocal
+                  ? ui(
+                      "请在右上角「更多功能 → 我的 API」填写自己的 Key 和模型，保存后即可生成。",
+                    )
+                  : ui("旧私人模式的服务端 AI 默认已关闭。")}
+              </p>
+            )}
+            <button
+              className="button primary"
+              disabled={pending || !configured}
+              onClick={() => void runGeneration()}
+            >
+              {pending ? (
+                <LoaderCircle className="spin" size={16} />
+              ) : (
+                <Sparkles size={16} />
+              )}
+              {ui("明确重新生成")}
+            </button>
+          </section>
+        )}
+      </ArticleInbox>
+      <div className="reader-document">
+        {pending && (
+          <section className="reader-generation-status" aria-label="生成进度">
+            <div className="reader-generation-heading">
+              <div role="status" aria-live="polite">
+                <LoaderCircle className="spin" size={19} />
+                <strong>{currentStage.description}</strong>
+              </div>
+              <GenerationElapsed startedAt={startedAt} />
+            </div>
+            <ol className="reader-generation-stages" aria-label="生成步骤">
+              {generationStages.map((stage, index) => (
+                <li
+                  key={stage.id}
+                  className={
+                    index < stageIndex
+                      ? "complete"
+                      : index === stageIndex
+                        ? "current"
+                        : ""
+                  }
+                  aria-current={index === stageIndex ? "step" : undefined}
+                >
+                  <span aria-hidden="true">
+                    {index < stageIndex ? <Check size={12} /> : index + 1}
+                  </span>
+                  {stage.label}
+                </li>
+              ))}
+            </ol>
+            {totalBlocks > 0 && (
+              <div className="reader-generation-blocks">
+                <div>
+                  <strong>
+                    已完成 {completedBlocks} / {totalBlocks} 块 / Completed
+                    chunks
+                  </strong>
+                  <span>{ui("按实际完成的内容更新")}</span>
+                </div>
+                <progress
+                  value={completedBlocks}
+                  max={totalBlocks}
+                  aria-label={`已完成 ${completedBlocks} 块，共 ${totalBlocks} 块`}
+                />
+              </div>
+            )}
+            {generationProgress?.message && (
+              <p className="reader-generation-detail">
+                {generationProgress.message}
+              </p>
+            )}
+            <p className="reader-generation-help">
+              {ui(
+                "你可以先读原文或已有学习版，刷新页面后仍可查看进度。模型耗时取决于内容长度与服务负载；长文章可先选几段体验。",
+              )}
+            </p>
+            {progressError && (
+              <p className="reader-generation-connection" role="status">
+                {progressError}
+                {ui("正在自动重试查询，请勿重复提交。")}
+              </p>
+            )}
+          </section>
+        )}
+        {staleGeneration && (
+          <section
+            className="reader-generation-status reader-generation-stale"
+            aria-label="生成任务状态"
+          >
+            <div className="reader-generation-heading">
+              <strong role="status">{ui("进度较长时间没有更新")}</strong>
+              <GenerationElapsed startedAt={startedAt} />
+            </div>
+            <p>
+              {ui("任务可能已中断。最后记录：")}
+              {currentStage.label}
+              {totalBlocks
+                ? `，已完成 ${completedBlocks} / ${totalBlocks} 块 / Completed chunks`
+                : ""}
+              {ui("。可以先检查最新状态，再决定是否重新生成。")}
+            </p>
+            {progressError && (
+              <p className="reader-generation-connection">{progressError}</p>
+            )}
+            <div className="reader-generation-actions">
+              <button className="text-button" onClick={() => void refresh()}>
+                {ui("检查最新进度")}
+              </button>
+              <button
+                className="text-button"
+                onClick={() => {
+                  generationRequest.current?.abort();
+                  revealGenerationSettings();
+                }}
+              >
+                {ui("检查设置并重新生成")}
+              </button>
+            </div>
+            <p className="reader-generation-help">
+              {ui("重新生成会再次调用模型。已保存的成功版本会保留。")}
+            </p>
+          </section>
+        )}
+        {!browserLocal && !local && configured && <GenerationAllowance />}
+        {(error || article.generationError) && (
+          <div className="error-box reader-error" role="alert">
+            <AlertCircle size={17} />
+            <div>
+              {article.generationError || error}
+              <button
+                className="text-button"
+                onClick={() =>
+                  pending ? void refresh() : revealGenerationSettings()
+                }
+              >
+                {pending ? ui("查看最新进度") : ui("检查设置并重试")}{" "}
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
+        <article className="reading-content">
+          <header className="article-heading">
+            <div className="eyebrow">
+              {de ? ui("德语日常") : ui("技术英语")}{" "}
+              <span className="meta-dot">·</span>{" "}
+              {de
+                ? (article.version?.settings.level ?? settings.level)
+                : "语境阅读 / Context reading"}
+            </div>
+            <h1>{article.title}</h1>
+            <div className="reading-meta">
+              <span>
+                {local
+                  ? ui("公开范文 · ")
+                  : article.origin.startsWith("demo")
+                    ? ui("结构化演示 · ")
+                    : ""}
+                {article.origin.includes("generated")
+                  ? ui("生成短文")
+                  : de
+                    ? ui("导入原文 · 学习改写版")
+                    : ui("英文原文 · 中文学习版")}
+              </span>
+              {article.version && (
+                <span>
+                  {coverage?.newWords.length ?? 0}
+                  {ui("个学习表达")}
+                  {coverage?.reviewWords.length
+                    ? ` · ${coverage.reviewWords.length} 个复习词 / review words`
+                    : ""}
                 </span>
-                {stage.label}
-              </li>
-            ))}
-          </ol>
-          {totalBlocks > 0 && (
-            <div className="reader-generation-blocks">
+              )}
+            </div>
+            {article.sourceUrl && (
+              <a
+                className="source-link"
+                href={article.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {ui("查看来源 ↗")}
+              </a>
+            )}
+            <div className="reading-hint">
+              <BookOpen size={15} />
+              {view === "learning"
+                ? ui("点击带下划线的外语表达，打开语境词卡。")
+                : ui("完整原文已保存。随时切换回学习版，段落位置会尽量保持。")}
+            </div>
+          </header>
+          {!article.version && view === "learning" && (
+            <div className="notice no-version">
+              <Sparkles size={19} />
               <div>
                 <strong>
-                  已完成 {completedBlocks} / {totalBlocks} 块
+                  {pending
+                    ? ui("原文已保存，学习版正在生成。")
+                    : ui("原文已保存，学习版尚未生成。")}
                 </strong>
-                <span>按实际完成的内容更新</span>
+                <p>
+                  {pending
+                    ? ui("下方保留完整原文，完成后会自动显示学习版。")
+                    : configured
+                      ? ui("在左侧阅读设置中生成你的学习材料。")
+                      : ui(
+                          "演示文章无需 API。生成自己的学习版，请先在「我的 API」填写自己的 Key。",
+                        )}
+                </p>
+                {article.sourceText && (
+                  <button
+                    className="text-button"
+                    onClick={() => switchView("original")}
+                  >
+                    {ui("先阅读原文 →")}
+                  </button>
+                )}
               </div>
-              <progress
-                value={completedBlocks}
-                max={totalBlocks}
-                aria-label={`已完成 ${completedBlocks} 块，共 ${totalBlocks} 块`}
-              />
             </div>
           )}
-          {generationProgress?.message && (
-            <p className="reader-generation-detail">
-              {generationProgress.message}
-            </p>
-          )}
-          <p className="reader-generation-help">
-            你可以先读原文或已有学习版，刷新页面后仍可查看进度。模型耗时取决于内容长度与服务负载；长文章可先选几段体验。
-          </p>
-          {progressError && (
-            <p className="reader-generation-connection" role="status">
-              {progressError} 正在自动重试查询，请勿重复提交。
-            </p>
-          )}
-        </section>
-      )}
-      {staleGeneration && (
-        <section
-          className="reader-generation-status reader-generation-stale"
-          aria-label="生成任务状态"
-        >
-          <div className="reader-generation-heading">
-            <strong role="status">进度较长时间没有更新</strong>
-            <GenerationElapsed startedAt={startedAt} />
-          </div>
-          <p>
-            任务可能已中断。最后记录：{currentStage.label}
-            {totalBlocks
-              ? `，已完成 ${completedBlocks} / ${totalBlocks} 块`
-              : ""}
-            。可以先检查最新状态，再决定是否重新生成。
-          </p>
-          {progressError && (
-            <p className="reader-generation-connection">{progressError}</p>
-          )}
-          <div className="reader-generation-actions">
-            <button className="text-button" onClick={() => void refresh()}>
-              检查最新进度
-            </button>
-            <button
-              className="text-button"
-              onClick={() => {
-                generationRequest.current?.abort();
-                setShowSettings(true);
-              }}
+          {untranslated.size > 0 && (
+            <div
+              className="notice no-version"
+              role="status"
+              aria-label="翻译完成情况"
             >
-              检查设置并重新生成
-            </button>
-          </div>
-          <p className="reader-generation-help">
-            重新生成会再次调用模型。已保存的成功版本会保留。
-          </p>
-        </section>
-      )}
-      {!browserLocal && !local && configured && <GenerationAllowance />}
-      {(error || article.generationError) && (
-        <div className="error-box reader-error" role="alert">
-          <AlertCircle size={17} />
-          <div>
-            {article.generationError || error}
-            <button
-              className="text-button"
-              onClick={() => (pending ? void refresh() : setShowSettings(true))}
-            >
-              {pending ? "查看最新进度" : "检查设置并重试"}{" "}
-              <ChevronRight size={14} />
-            </button>
-          </div>
-        </div>
-      )}
-      <article className="reading-content">
-        <header className="article-heading">
-          <div className="eyebrow">
-            {de ? "DEUTSCH IM ALLTAG" : "TECHNICAL ENGLISH"}{" "}
-            <span className="meta-dot">·</span>{" "}
-            {de
-              ? (article.version?.settings.level ?? settings.level)
-              : "CONTEXT READING"}
-          </div>
-          <h1>{article.title}</h1>
-          <div className="reading-meta">
-            <span>
-              {local
-                ? "公开范文 · "
-                : article.origin.startsWith("demo")
-                  ? "结构化演示 · "
-                  : ""}
-              {article.origin.includes("generated")
-                ? "生成短文"
-                : de
-                  ? "导入原文 · 学习改写版"
-                  : "英文原文 · 中文学习版"}
-            </span>
-            {article.version && (
-              <span>
-                {coverage?.newWords.length ?? 0} 个学习表达
-                {coverage?.reviewWords.length
-                  ? ` · ${coverage.reviewWords.length} 个复习词`
-                  : ""}
-              </span>
-            )}
-          </div>
-          {article.sourceUrl && (
-            <a
-              className="source-link"
-              href={article.sourceUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              查看来源 ↗
-            </a>
+              <AlertCircle size={19} />
+              <div>
+                <strong>
+                  {ui("部分翻译完成 ·")}
+                  {untranslated.size}
+                  {ui("段保留原文")}
+                </strong>
+                <p>
+                  {ui(
+                    "模型拒绝了部分内容，或已达到分段定位的请求上限。未翻译的段落逐段标明，其余译文可以正常阅读；原文没有删减。",
+                  )}
+                </p>
+              </div>
+            </div>
           )}
-          <div className="reading-hint">
-            <BookOpen size={15} />
-            {view === "learning"
-              ? "点击带下划线的外语表达，打开语境词卡。"
-              : "完整原文已保存。随时切换回学习版，段落位置会尽量保持。"}
+          <div className="paragraphs">
+            {(article.version
+              ? article.version.paragraphs
+              : article.sourceBlocks.map((b, i) => ({
+                  id: b.id,
+                  sourceId: b.id,
+                  position: i,
+                  original: b.original,
+                  segments: [{ type: "text" as const, text: b.original }],
+                }))
+            ).map((p) => (
+              <section
+                id={p.sourceId}
+                data-paragraph
+                key={p.sourceId}
+                className={`reading-paragraph ${view === "original" ? "original-view" : ""}`}
+                lang={
+                  view === "original" || untranslated.has(p.sourceId)
+                    ? de
+                      ? "de"
+                      : "en"
+                    : "zh-CN"
+                }
+              >
+                {view === "learning" && untranslated.has(p.sourceId) && (
+                  <p className="field-hint" lang="zh-CN">
+                    {untranslated.get(p.sourceId) === "content_refused"
+                      ? ui("模型拒绝翻译本段，已保留原文。")
+                      : ui(
+                          "已达到分段定位的请求上限，本段暂未翻译，已保留原文。",
+                        )}
+                  </p>
+                )}
+                {renderMarkdown(
+                  view === "original"
+                    ? p.original
+                    : learningMarkdown(p.segments),
+                  view === "learning",
+                )}{" "}
+                {view === "learning" &&
+                  article.version &&
+                  ![
+                    "code",
+                    "heading",
+                    "thematicBreak",
+                    "html",
+                    "definition",
+                  ].includes(
+                    article.sourceBlocks.find((b) => b.id === p.sourceId)
+                      ?.kind ?? "",
+                  ) && (
+                    <details className="original-details">
+                      <summary>
+                        <ChevronDown size={12} />
+                        {de ? ui("对照德语") : ui("查看英文原文")}
+                      </summary>
+                      <div lang={de ? "de" : "en"}>
+                        {renderMarkdown(p.original)}
+                      </div>
+                    </details>
+                  )}
+              </section>
+            ))}
           </div>
-        </header>
-        {!article.version && view === "learning" && (
-          <div className="notice no-version">
-            <Sparkles size={19} />
-            <div>
-              <strong>
-                {pending
-                  ? "原文已保存，学习版正在生成。"
-                  : "原文已保存，学习版尚未生成。"}
-              </strong>
+          {article.sourceText && (
+            <footer className="reading-end">
+              <span className="end-line" />
+              <span>{ui("读到这里，刚刚好。")}</span>
+              <button
+                className={`button ${completed ? "secondary" : "primary"}`}
+                onClick={() => {
+                  setCompleted(!completed);
+                  persist({
+                    completed: !completed,
+                    paragraphId: active.current,
+                  });
+                }}
+              >
+                <Check size={17} />
+                {completed ? ui("已读完 · 再读一遍也很好") : ui("标记读完")}
+              </button>
               <p>
-                {pending
-                  ? "下方保留完整原文，完成后会自动显示学习版。"
-                  : configured
-                    ? "点击右上角设置，生成你的学习材料。"
-                    : "演示文章无需 API。生成自己的学习版，请先在「我的 API」填写自己的 Key。"}
+                {ui("阅读是一种接触，不等于掌握。想学的词，记得在词卡里留下。")}
               </p>
-              {article.sourceText && (
-                <button
-                  className="text-button"
-                  onClick={() => switchView("original")}
-                >
-                  先阅读原文 →
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-        {untranslated.size > 0 && (
-          <div
-            className="notice no-version"
-            role="status"
-            aria-label="翻译完成情况"
-          >
-            <AlertCircle size={19} />
-            <div>
-              <strong>部分翻译完成 · {untranslated.size} 段保留原文</strong>
+            </footer>
+          )}
+          {de && coverage && (
+            <details className="coverage-panel">
+              <summary>
+                {ui("本篇词汇覆盖")}
+                <ChevronDown size={15} />
+              </summary>
               <p>
-                模型拒绝了部分内容，或已达到分段定位的请求上限。未翻译的段落逐段标明，其余译文可以正常阅读；原文没有删减。
+                新词 {coverage.newWords.length} / 目标 {coverage.requestedNew}
+                {" · "}New words {coverage.newWords.length} / target{" "}
+                {coverage.requestedNew}：
+                {coverage.newWords.join("、") || ui("无（只复习）")}
               </p>
-            </div>
-          </div>
-        )}
-        <div className="paragraphs">
-          {(article.version
-            ? article.version.paragraphs
-            : article.sourceBlocks.map((b, i) => ({
-                id: b.id,
-                sourceId: b.id,
-                position: i,
-                original: b.original,
-                segments: [{ type: "text" as const, text: b.original }],
-              }))
-          ).map((p) => (
-            <section
-              id={p.sourceId}
-              data-paragraph
-              key={p.sourceId}
-              className={`reading-paragraph ${view === "original" ? "original-view" : ""}`}
-              lang={
-                view === "original" || untranslated.has(p.sourceId)
-                  ? de
-                    ? "de"
-                    : "en"
-                  : "zh-CN"
-              }
-            >
-              {view === "learning" && untranslated.has(p.sourceId) && (
-                <p className="field-hint" lang="zh-CN">
-                  {untranslated.get(p.sourceId) === "content_refused"
-                    ? "模型拒绝翻译本段，已保留原文。"
-                    : "已达到分段定位的请求上限，本段暂未翻译，已保留原文。"}
+              <p>
+                复习 {coverage.reviewWords.length} / 待复习目标{" "}
+                {coverage.requestedReview}
+                {" · "}Review words {coverage.reviewWords.length} / target{" "}
+                {coverage.requestedReview}：
+                {coverage.reviewWords.join("、") || ui("无")}
+              </p>
+              {coverage.missing.length > 0 && (
+                <p className="error-text">
+                  {ui("未覆盖：")}
+                  {coverage.missing.join("、")}
+                  {ui("。未计入本篇出现记录。")}
                 </p>
               )}
-              {renderMarkdown(
-                view === "original" ? p.original : learningMarkdown(p.segments),
-                view === "learning",
-              )}{" "}
-              {view === "learning" &&
-                article.version &&
-                ![
-                  "code",
-                  "heading",
-                  "thematicBreak",
-                  "html",
-                  "definition",
-                ].includes(
-                  article.sourceBlocks.find((b) => b.id === p.sourceId)?.kind ??
-                    "",
-                ) && (
-                  <details className="original-details">
-                    <summary>
-                      <ChevronDown size={12} />
-                      {de ? "对照德语" : "查看英文原文"}
-                    </summary>
-                    <div lang={de ? "de" : "en"}>
-                      {renderMarkdown(p.original)}
-                    </div>
-                  </details>
-                )}
-            </section>
-          ))}
-        </div>
-        {article.sourceText && (
-          <footer className="reading-end">
-            <span className="end-line" />
-            <span>读到这里，刚刚好。</span>
-            <button
-              className={`button ${completed ? "secondary" : "primary"}`}
-              onClick={() => {
-                setCompleted(!completed);
-                persist({ completed: !completed, paragraphId: active.current });
-              }}
-            >
-              <Check size={17} />
-              {completed ? "已读完 · 再读一遍也很好" : "标记读完"}
-            </button>
-            <p>阅读是一种接触，不等于掌握。想学的词，记得在词卡里留下。</p>
-          </footer>
-        )}
-        {de && coverage && (
-          <details className="coverage-panel">
-            <summary>
-              本篇词汇覆盖 <ChevronDown size={15} />
-            </summary>
-            <p>
-              新词 {coverage.newWords.length} / 目标 {coverage.requestedNew}：
-              {coverage.newWords.join("、") || "无（只复习）"}
-            </p>
-            <p>
-              复习 {coverage.reviewWords.length} / 待复习目标{" "}
-              {coverage.requestedReview}：
-              {coverage.reviewWords.join("、") || "无"}
-            </p>
-            {coverage.missing.length > 0 && (
-              <p className="error-text">
-                未覆盖：{coverage.missing.join("、")}。未计入本篇出现记录。
+              <p className="muted">
+                {ui("覆盖只根据学习版中实际出现的标注词统计；不代表已掌握。")}
               </p>
-            )}
-            <p className="muted">
-              覆盖只根据学习版中实际出现的标注词统计；不代表已掌握。
-            </p>
-          </details>
-        )}
-        <div className="reader-save-state" role="status">
-          {saveState ||
-            (local
-              ? "范文免费阅读，收藏与进度保存在这个浏览器"
-              : "进度与偏好会自动保存")}
-        </div>
-      </article>
+            </details>
+          )}
+          <div className="reader-save-state" role="status">
+            {saveState ||
+              (local
+                ? ui("范文免费阅读，收藏与进度保存在这个浏览器")
+                : ui("进度与偏好会自动保存"))}
+          </div>
+        </article>
+      </div>
       {selected && (
         <WordCard
           key={selected.id}

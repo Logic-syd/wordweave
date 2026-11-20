@@ -1,4 +1,6 @@
 "use client";
+import { ui } from "@/lib/ui";
+
 import { useState } from "react";
 import type { ArticleDetail } from "@/lib/types";
 import { sampleWithProgress } from "@/lib/sample-storage";
@@ -25,7 +27,7 @@ export function SampleReader({ article }: { article: ArticleDetail }) {
   ) : (
     <main className="page">
       <h1>{article.title}</h1>
-      <p>正在打开范文…</p>
+      <p>{ui("正在打开范文…")}</p>
     </main>
   );
 }

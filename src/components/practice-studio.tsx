@@ -1,4 +1,6 @@
 "use client";
+import { ui } from "@/lib/ui";
+
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -106,7 +108,7 @@ async function requestJson(path: string, body?: unknown, method = "POST") {
   });
   const result = await response.json().catch(() => ({}));
   if (!response.ok)
-    throw new Error(result.error ?? "保存失败，请检查网络后重试。");
+    throw new Error(result.error ?? ui("保存失败，请检查网络后重试。"));
   return result;
 }
 const saveRecord = (kind: string, id: string, value: unknown) =>
@@ -120,9 +122,11 @@ export function PracticeStudio(props: Props) {
   ) : (
     <main className="page practice-page" data-skill={props.skill}>
       <h1>
-        {props.skill === "listen" ? "听力 · 听懂一段" : "口语 · 开口说两句"}
+        {props.skill === "listen"
+          ? ui("听力 · 听懂一段")
+          : ui("口语 · 开口说两句")}
       </h1>
-      <p className="page-subtitle">正在找回上次的练习…</p>
+      <p className="page-subtitle">{ui("正在找回上次的练习…")}</p>
     </main>
   );
 }
@@ -201,7 +205,7 @@ function Studio({
   const busyRef = useRef(false);
   const [message, setMessage] = useState("");
   const [saveStatus, setSaveStatus] = useState(
-    owner ? "进度自动保存在本机" : "练习记录保存在这个浏览器",
+    owner ? ui("进度自动保存在本机") : ui("练习记录保存在这个浏览器"),
   );
   const [languageFilter, setLanguageFilter] = useState("all");
   const [importOpen, setImportOpen] = useState(false);
@@ -251,21 +255,23 @@ function Studio({
     const timeout = setTimeout(() => {
       if (!owner) {
         setSaveStatus(
-          stored ? "已保存在这个浏览器" : "浏览器无法保存，请允许本地存储",
+          stored
+            ? ui("已保存在这个浏览器")
+            : ui("浏览器无法保存，请允许本地存储"),
         );
         return;
       }
       void saveRecord("progress", skill, progress)
         .then(() => {
           if (latest.current.at === progress.at)
-            setSaveStatus("已保存在这个浏览器");
+            setSaveStatus(ui("已保存在这个浏览器"));
         })
         .catch(() => {
           if (latest.current.at === progress.at)
             setSaveStatus(
               stored
-                ? "草稿已暂存，完整记录保存失败"
-                : "保存失败，请勿关闭页面",
+                ? ui("草稿已暂存，完整记录保存失败")
+                : ui("保存失败，请勿关闭页面"),
             );
         });
     }, 550);
@@ -287,8 +293,8 @@ function Studio({
     };
     const retry = () =>
       void saveRecord("progress", skill, latest.current)
-        .then(() => setSaveStatus("已保存在这个浏览器"))
-        .catch(() => setSaveStatus("草稿已暂存，完整记录保存失败"));
+        .then(() => setSaveStatus(ui("已保存在这个浏览器")))
+        .catch(() => setSaveStatus(ui("草稿已暂存，完整记录保存失败")));
     window.addEventListener("pagehide", flush);
     window.addEventListener("online", retry);
     return () => {
@@ -368,7 +374,7 @@ function Studio({
   async function submit(ai = false) {
     if (busyRef.current) return;
     if (!progress.answer.trim()) {
-      setMessage("先写下你听到的重点，或记录刚才说出的回答。");
+      setMessage(ui("先写下你听到的重点，或记录刚才说出的回答。"));
       return;
     }
     if (
@@ -376,7 +382,7 @@ function Studio({
       (source.length > 2000 || progress.answer.length > 2000)
     ) {
       setMessage(
-        "逐句听写最多支持 2,000 字符，请换成听懂大意，或导入更短的句子。",
+        ui("逐句听写最多支持 2,000 字符，请换成听懂大意，或导入更短的句子。"),
       );
       return;
     }
@@ -425,14 +431,14 @@ function Studio({
       }
       setMessage(
         owner
-          ? "本次练习已保存。词语是否掌握，仍由你自己确认。"
-          : "本次练习已保存在这个浏览器。",
+          ? ui("本次练习已保存。词语是否掌握，仍由你自己确认。")
+          : ui("本次练习已保存在这个浏览器。"),
       );
     } catch (error) {
       setMessage(
         error instanceof Error
           ? error.message
-          : "处理失败，答案已留在输入框中，可以重试。",
+          : ui("处理失败，答案已留在输入框中，可以重试。"),
       );
     } finally {
       busyRef.current = false;
@@ -456,14 +462,14 @@ function Studio({
         : feedback.grade?.method === "self"
           ? (feedback.grade.points[i]?.status ?? "missed")
           : "missed") as "met" | "missed" | "partial",
-      explanation: "自己对照原文确认",
+      explanation: ui("自己对照原文确认"),
     }));
     busyRef.current = true;
     setBusy(true);
     try {
       await persistHistory({ ...feedback, grade: { method: "self", points } });
     } catch {
-      setMessage("自查结果保存失败，可以重试；原答案仍然保留。");
+      setMessage(ui("自查结果保存失败，可以重试；原答案仍然保留。"));
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -487,7 +493,7 @@ function Studio({
   async function saveWord() {
     if (busyRef.current) return;
     if (!form.trim() || !meaning.trim()) {
-      setWordMessage("填上原文中的表达和这个语境下的中文意思。");
+      setWordMessage(ui("填上原文中的表达和这个语境下的中文意思。"));
       return;
     }
     busyRef.current = true;
@@ -522,7 +528,9 @@ function Studio({
         word = sampleVocabulary().find((w) => w.id === existing.id)!;
       } else {
         if (!owner)
-          throw new Error("登录个人空间后，就能把这里的表达存进共用单词库。");
+          throw new Error(
+            ui("登录个人空间后，就能把这里的表达存进共用单词库。"),
+          );
         word = await requestJson("/api/vocabulary", {
           skill,
           materialId: material.id,
@@ -543,7 +551,7 @@ function Studio({
       announceWords();
     } catch (error) {
       setWordMessage(
-        error instanceof Error ? error.message : "收藏失败，请重试。",
+        error instanceof Error ? error.message : ui("收藏失败，请重试。"),
       );
     } finally {
       busyRef.current = false;
@@ -562,7 +570,7 @@ function Studio({
       <div className="practice-entrybar">
         <h1 className="skill-kicker">
           <Icon size={17} />
-          {skill === "listen" ? "听力" : "口语"}
+          {skill === "listen" ? ui("听力") : ui("口语")}
         </h1>
         <button
           type="button"
@@ -578,7 +586,8 @@ function Studio({
             }
           }}
         >
-          换一段 <ChevronDown size={14} />
+          {ui("换一段")}
+          <ChevronDown size={14} />
         </button>
       </div>
       <div className="practice-grid">
@@ -586,13 +595,13 @@ function Studio({
           <section
             className="practice-workspace"
             ref={workspace}
-            aria-label={skill === "listen" ? "听力练习" : "口语练习"}
+            aria-label={skill === "listen" ? ui("听力练习") : ui("口语练习")}
           >
             <div className="practice-material-heading">
               <div>
                 <div className="practice-meta">
                   <span>
-                    {material.lang === "en" ? "英语" : "德语"}
+                    {material.lang === "en" ? ui("英语") : ui("德语")}
                     {material.level && ` · ${material.level}`}
                   </span>
                   <span>{material.topic}</span>
@@ -600,16 +609,18 @@ function Studio({
                 <h2>{material.title}</h2>
               </div>
               <span className="paragraph-counter">
-                {paragraphIndex + 1} / {material.paragraphs.length} 段
+                {paragraphIndex + 1} / {material.paragraphs.length}
+                {ui("段")}
               </span>
             </div>
             <div className="practice-task-line">
               <p className="practice-instruction">
-                {practiceTasks[progress.task].prompt}
+                {ui(practiceTasks[progress.task].prompt)}
               </p>
               <details className="practice-methods" ref={methodPanel}>
                 <summary>
-                  换个练法 <ChevronDown size={13} />
+                  {ui("换个练法")}
+                  <ChevronDown size={13} />
                 </summary>
                 <div className="practice-tabs" aria-label="练习方式">
                   {tasksForSkill(skill).map((task) => (
@@ -621,7 +632,7 @@ function Studio({
                       disabled={busy}
                       onClick={() => choose(material, paragraph.id, task)}
                     >
-                      {practiceTasks[task].label}
+                      {ui(practiceTasks[task].label)}
                     </button>
                   ))}
                 </div>
@@ -637,7 +648,7 @@ function Studio({
             />
             {question && (
               <div className="speaking-cue">
-                <span>想象你在这个情景里</span>
+                <span>{ui("想象你在这个情景里")}</span>
                 <p lang={material.lang}>{question}</p>
               </div>
             )}
@@ -652,14 +663,14 @@ function Studio({
                     size={16}
                     className={progress.revealed ? "expanded" : ""}
                   />
-                  {progress.revealed ? "收起原文" : "展开原文"}
+                  {progress.revealed ? ui("收起原文") : ui("展开原文")}
                 </button>
                 {progress.revealed && (
                   <button
                     type="button"
                     onClick={() => change({ bilingual: !progress.bilingual })}
                   >
-                    {progress.bilingual ? "隐藏中文" : "显示中文"}
+                    {progress.bilingual ? ui("隐藏中文") : ui("显示中文")}
                   </button>
                 )}
                 <button
@@ -668,7 +679,7 @@ function Studio({
                   onClick={openWord}
                 >
                   <Heart size={15} />
-                  收藏表达
+                  {ui("收藏表达")}
                 </button>
               </div>
               {progress.revealed && (
@@ -678,14 +689,14 @@ function Studio({
                     <p className="transcript-translation">
                       {["shadow", "dictation"].includes(progress.task) &&
                         source !== paragraph.text && (
-                          <small>整段参考译文 · </small>
+                          <small>{ui("整段参考译文 ·")}</small>
                         )}
                       {paragraph.zh}
                     </p>
                   )}
                   {!paragraph.zh && progress.bilingual && (
                     <p className="transcript-translation">
-                      这份材料还没有中文参考。
+                      {ui("这份材料还没有中文参考。")}
                     </p>
                   )}
                 </div>
@@ -700,7 +711,7 @@ function Studio({
                 }}
               >
                 <div className="section-heading">
-                  <h3>留下这句里的好表达</h3>
+                  <h3>{ui("留下这句里的好表达")}</h3>
                   <button
                     type="button"
                     className="icon-button"
@@ -711,26 +722,26 @@ function Studio({
                   </button>
                 </div>
                 <label>
-                  原文表达
+                  {ui("原文表达")}
                   <input
                     maxLength={140}
                     value={form}
                     onChange={(e) => setForm(e.target.value)}
-                    placeholder="原文中实际出现的词或短语"
+                    placeholder={ui("原文中实际出现的词或短语")}
                   />
                 </label>
                 <label>
-                  在这里的中文意思
+                  {ui("在这里的中文意思")}
                   <input
                     maxLength={300}
                     value={meaning}
                     onChange={(e) => setMeaning(e.target.value)}
-                    placeholder="把语境一起记住"
+                    placeholder={ui("把语境一起记住")}
                   />
                 </label>
                 <button disabled={busy} className="button favorite-button">
                   <Heart size={15} />
-                  收藏到共用单词库
+                  {ui("收藏到共用单词库")}
                 </button>
                 {wordMessage && <p role="alert">{wordMessage}</p>}
               </form>
@@ -750,13 +761,13 @@ function Studio({
               <label htmlFor="practice-answer">
                 {skill === "listen"
                   ? progress.task === "dictation"
-                    ? "把听到的这句写下来"
-                    : "我听到的重点"
-                  : "记下我刚才说的话"}
+                    ? ui("把听到的这句写下来")
+                    : ui("我听到的重点")
+                  : ui("记下我刚才说的话")}
                 <small>
                   {skill === "listen"
-                    ? "英语尽量用英文；德语也可以先用中文概括。"
-                    : "可只记关键句；AI 反馈会根据文字回答，不评价发音。"}
+                    ? ui("英语尽量用英文；德语也可以先用中文概括。")
+                    : ui("可只记关键句；AI 反馈会根据文字回答，不评价发音。")}
                 </small>
               </label>
               <textarea
@@ -767,8 +778,8 @@ function Studio({
                 maxLength={progress.task === "dictation" ? 2000 : 8000}
                 placeholder={
                   skill === "listen"
-                    ? "先不看原文，试着写下听到的内容…"
-                    : "刚才我想表达的是…"
+                    ? ui("先不看原文，试着写下听到的内容…")
+                    : ui("刚才我想表达的是…")
                 }
               />
               <div className="practice-submit">
@@ -779,10 +790,10 @@ function Studio({
                 >
                   <Check size={17} />
                   {busy
-                    ? "正在处理…"
+                    ? ui("正在处理…")
                     : progress.task === "dictation"
-                      ? "保存并对照听写"
-                      : "保存，自己对照"}
+                      ? ui("保存并对照听写")
+                      : ui("保存，自己对照")}
                 </button>
                 {!["shadow", "dictation"].includes(progress.task) && (
                   <button
@@ -792,7 +803,7 @@ function Studio({
                     onClick={() => void submit(true)}
                   >
                     <Sparkles size={16} />
-                    保存并获取 AI 反馈
+                    {ui("保存并获取 AI 反馈")}
                   </button>
                 )}
               </div>
@@ -800,8 +811,8 @@ function Studio({
                 !["shadow", "dictation"].includes(progress.task) && (
                   <p className="practice-hint">
                     {owner
-                      ? "在「我的 API」填写自己的 Key 后可用 AI 反馈。"
-                      : "登录后可使用已配置的 AI 反馈。"}
+                      ? ui("在「我的 API」填写自己的 Key 后可用 AI 反馈。")
+                      : ui("登录后可使用已配置的 AI 反馈。")}
                   </p>
                 )}
             </form>
@@ -826,7 +837,7 @@ function Studio({
                 }
               >
                 <ArrowLeft size={16} />
-                上一段
+                {ui("上一段")}
               </button>
               <span role="status">{saveStatus}</span>
               <button
@@ -838,7 +849,7 @@ function Studio({
                   choose(material, material.paragraphs[paragraphIndex + 1].id)
                 }
               >
-                下一段
+                {ui("下一段")}
                 <ArrowRight size={16} />
               </button>
             </div>
@@ -850,21 +861,21 @@ function Studio({
               ) : (
                 <Headphones size={15} />
               )}
-              这段也拿来{skill === "listen" ? "说" : "听"}
+              {ui(skill === "listen" ? "这段也拿来说" : "这段也拿来听")}
               <ArrowRight size={14} />
             </Link>
           </div>
           {recent.length > 0 && (
             <section className="practice-history">
               <div className="section-heading">
-                <h2>最近练过</h2>
-                <span>保存的是练习，不自动判定掌握</span>
+                <h2>{ui("最近练过")}</h2>
+                <span>{ui("保存的是练习，不自动判定掌握")}</span>
               </div>
               {recent.map((h) => (
                 <details key={h.id}>
                   <summary>
                     <span>
-                      {practiceTasks[h.type].label} · {h.title}
+                      {ui(practiceTasks[h.type].label)} · {h.title}
                     </span>
                     <time>{new Date(h.at).toLocaleDateString("zh-CN")}</time>
                   </summary>
@@ -873,7 +884,8 @@ function Studio({
                   <Link
                     href={`${practicePath(skill)}?material=${encodeURIComponent(h.mid)}&paragraph=${encodeURIComponent(h.pid)}`}
                   >
-                    回到这一段 <ArrowRight size={13} />
+                    {ui("回到这一段")}
+                    <ArrowRight size={13} />
                   </Link>
                 </details>
               ))}
@@ -886,12 +898,13 @@ function Studio({
           ref={materialsPanel}
         >
           <summary>
-            换一段练习 · 共用单词库 <ChevronDown size={15} />
+            {ui("换一段练习 · 共用单词库")}
+            <ChevronDown size={15} />
           </summary>
           <aside className="practice-aside">
             <section className="practice-materials">
               <div className="section-heading">
-                <h2>换一段练习</h2>
+                <h2>{ui("换一段练习")}</h2>
                 <button
                   type="button"
                   className="icon-button"
@@ -901,12 +914,12 @@ function Studio({
                   <Plus size={19} />
                 </button>
               </div>
-              <p>日常、工作和你自己的材料</p>
+              <p>{ui("日常、工作和你自己的材料")}</p>
               <div className="material-language-tabs">
                 {[
-                  ["all", "全部"],
-                  ["en", "英语"],
-                  ["de", "德语"],
+                  ["all", ui("全部")],
+                  ["en", ui("英语")],
+                  ["de", ui("德语")],
                 ].map(([value, label]) => (
                   <button
                     key={value}
@@ -930,8 +943,12 @@ function Studio({
                   >
                     <span>{m.title}</span>
                     <small>
-                      {m.lang === "de" ? `德语 ${m.level}` : "英语"} ·{" "}
-                      {m.paragraphs.length} 段{m.wordId ? " · 单词库" : ""}
+                      {m.lang === "de"
+                        ? `${ui("德语")} ${m.level}`
+                        : ui("英语")}{" "}
+                      · {m.paragraphs.length}
+                      {ui("段")}
+                      {m.wordId ? ui(" · 单词库") : ""}
                     </small>
                   </button>
                 ))}
@@ -942,20 +959,24 @@ function Studio({
                 onClick={() => setImportOpen(true)}
               >
                 <Plus size={15} />
-                导入自己的材料
+                {ui("导入自己的材料")}
               </button>
             </section>
             <section className="practice-word-shelf">
               <div className="section-heading">
                 <h2>
                   <NotebookPen size={17} />
-                  共用单词库
+                  {ui("共用单词库")}
                 </h2>
                 <Link href="/vocabulary" aria-label="打开单词库">
                   <ArrowRight size={17} />
                 </Link>
               </div>
-              <p>阅读里存过的，也能拿来{skill === "listen" ? "听" : "说"}。</p>
+              <p>
+                {skill === "listen"
+                  ? "阅读里存过的，也能拿来听。 / Listen to expressions saved while reading."
+                  : "阅读里存过的，也能拿来说。 / Practise saying expressions saved while reading."}
+              </p>
               {shelf.length ? (
                 shelf.map((w) => (
                   <div key={w.id} className="practice-shelf-word">
@@ -965,7 +986,7 @@ function Studio({
                     </button>
                     <Link
                       href={`${practicePath(skill)}?word=${encodeURIComponent(w.id)}`}
-                      aria-label={`${skill === "listen" ? "听" : "说"} ${w.lemma}`}
+                      aria-label={`${skill === "listen" ? "听" : "说"} ${w.lemma} / ${skill === "listen" ? "Listen to" : "Say"} ${w.lemma}`}
                     >
                       <Icon size={16} />
                     </Link>
@@ -973,11 +994,12 @@ function Studio({
                 ))
               ) : (
                 <p className="shelf-empty">
-                  把没听懂、说不出的表达收藏到这里，下次接着练。
+                  {ui("把没听懂、说不出的表达收藏到这里，下次接着练。")}
                 </p>
               )}
               <Link className="shelf-footer" href="/vocabulary">
-                查看全部词条 <ArrowRight size={14} />
+                {ui("查看全部词条")}
+                <ArrowRight size={14} />
               </Link>
             </section>
           </aside>
@@ -1022,15 +1044,29 @@ function GradeResult({ grade }: { grade: PracticeGrade }) {
   if (grade.method === "dictation")
     return (
       <div className="dictation-result">
-        <strong>听写对照 · {grade.score}%</strong>
+        <strong>
+          {ui("听写对照 ·")}
+          {grade.score}%
+        </strong>
         <p>
-          漏词 {grade.missing} · 多写 {grade.extra} · 替换 {grade.substitutions}
-          （忽略大小写和标点）
+          {ui("漏词")}
+          {grade.missing}
+          {ui("· 多写")}
+          {grade.extra}
+          {ui("· 替换")}
+          {grade.substitutions}
+          {ui("（忽略大小写和标点）")}
         </p>
         {grade.differences.map((d, i) => (
           <div className="dictation-difference" key={i}>
-            <span>原句：{d.expected || "（无）"}</span>
-            <span>我写：{d.actual || "（漏写）"}</span>
+            <span>
+              {ui("原句：")}
+              {d.expected || ui("（无）")}
+            </span>
+            <span>
+              {ui("我写：")}
+              {d.actual || ui("（漏写）")}
+            </span>
           </div>
         ))}
       </div>
@@ -1041,10 +1077,10 @@ function GradeResult({ grade }: { grade: PracticeGrade }) {
         <div key={i}>
           <span className={`point-status ${p.status}`}>
             {p.status === "met"
-              ? "已覆盖"
+              ? ui("已覆盖")
               : p.status === "partial"
-                ? "部分覆盖"
-                : "再留意"}
+                ? ui("部分覆盖")
+                : ui("再留意")}
           </span>
           <strong>{p.label}</strong>
           <p>{p.explanation}</p>
@@ -1053,11 +1089,11 @@ function GradeResult({ grade }: { grade: PracticeGrade }) {
       {"correction" in grade && (
         <>
           <p>
-            <strong>可以调整：</strong>
+            <strong>{ui("可以调整：")}</strong>
             {grade.correction}
           </p>
           <p>
-            <strong>参考表达：</strong>
+            <strong>{ui("参考表达：")}</strong>
             {grade.example}
           </p>
           {grade.review.map((r, i) => (
@@ -1084,15 +1120,18 @@ function Feedback({
     <section className="practice-feedback" aria-label="本次练习反馈">
       <h3>
         {self
-          ? "回头对照一下"
+          ? ui("回头对照一下")
           : entry.grade?.method === "dictation"
-            ? "看清楚漏听在哪里"
-            : "本次文字回答的 AI 反馈"}
+            ? ui("看清楚漏听在哪里")
+            : ui("本次文字回答的 AI 反馈")}
       </h3>
-      <p className="feedback-answer">我的回答：{entry.answer}</p>
+      <p className="feedback-answer">
+        {ui("我的回答：")}
+        {entry.answer}
+      </p>
       {self ? (
         <>
-          <p>这些要点，我表达到了吗？勾选只记录本次自查。</p>
+          <p>{ui("这些要点，我表达到了吗？勾选只记录本次自查。")}</p>
           {selfCheckPoints(
             entry.type,
             entry.reference.source,
@@ -1152,7 +1191,7 @@ function ImportMaterial({
   async function submit() {
     if (lock.current) return;
     if (!owner) {
-      setError("请先登录个人空间，再导入自己的材料。");
+      setError(ui("请先登录个人空间，再导入自己的材料。"));
       return;
     }
     const paragraphs = text
@@ -1160,12 +1199,12 @@ function ImportMaterial({
       .split(/\n\s*\n/)
       .filter(Boolean);
     if (!title.trim() || !text.trim()) {
-      setError("请填写标题和原文。");
+      setError(ui("请填写标题和原文。"));
       return;
     }
     if (text.length > 16000 || paragraphs.length > 6) {
       setError(
-        "每份材料最多 16,000 字符、6 段。请分成几份导入，内容不会被截断。",
+        ui("每份材料最多 16,000 字符、6 段。请分成几份导入，内容不会被截断。"),
       );
       return;
     }
@@ -1178,7 +1217,7 @@ function ImportMaterial({
         title,
         lang,
         level: lang === "de" ? level : "",
-        topic: "我的材料",
+        topic: ui("我的材料"),
         at: Date.now(),
         paragraphs: paragraphs.map((text, i) => ({
           id: `p${i + 1}`,
@@ -1202,7 +1241,7 @@ function ImportMaterial({
           result.paragraphs.some((p, i) => p.index !== i)
         )
           throw new Error(
-            "生成的段落对应关系有误，原文已保存。可以重试或直接开始练习。",
+            ui("生成的段落对应关系有误，原文已保存。可以重试或直接开始练习。"),
           );
         m = {
           ...m,
@@ -1215,7 +1254,7 @@ function ImportMaterial({
       }
       onSave(m);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "导入失败，输入仍然保留。");
+      setError(e instanceof Error ? e.message : ui("导入失败，输入仍然保留。"));
     } finally {
       lock.current = false;
       setBusy(false);
@@ -1238,7 +1277,7 @@ function ImportMaterial({
         }}
       >
         <div className="section-heading">
-          <h2 id="import-title">用自己的材料练习</h2>
+          <h2 id="import-title">{ui("用自己的材料练习")}</h2>
           <button
             type="button"
             className="icon-button"
@@ -1249,10 +1288,12 @@ function ImportMaterial({
             <X size={20} />
           </button>
         </div>
-        <p>听力和口语共用这份材料。粘贴原文，或选择 TXT / Markdown 文件。</p>
+        <p>
+          {ui("听力和口语共用这份材料。粘贴原文，或选择 TXT / Markdown 文件。")}
+        </p>
         <fieldset disabled={busy}>
           <label>
-            标题
+            {ui("标题")}
             <input
               value={title}
               maxLength={100}
@@ -1261,18 +1302,18 @@ function ImportMaterial({
           </label>
           <div className="import-language">
             <label>
-              语言
+              {ui("语言")}
               <select
                 value={lang}
                 onChange={(e) => setLang(e.target.value as "en" | "de")}
               >
-                <option value="en">英语</option>
-                <option value="de">德语</option>
+                <option value="en">{ui("英语")}</option>
+                <option value="de">{ui("德语")}</option>
               </select>
             </label>
             {lang === "de" && (
               <label>
-                程度
+                {ui("程度")}
                 <select
                   value={level}
                   onChange={(e) =>
@@ -1287,7 +1328,7 @@ function ImportMaterial({
             )}
           </div>
           <label>
-            选择文本文件
+            {ui("选择文本文件")}
             <input
               type="file"
               accept=".txt,.md,.markdown,text/plain,text/markdown"
@@ -1295,7 +1336,7 @@ function ImportMaterial({
                 const file = e.target.files?.[0];
                 if (!file) return;
                 if (file.size > 65000) {
-                  setError("文件过大，请分成小段导入。");
+                  setError(ui("文件过大，请分成小段导入。"));
                   return;
                 }
                 try {
@@ -1308,23 +1349,24 @@ function ImportMaterial({
                   setError("");
                 } catch {
                   setError(
-                    "无法读取文件，请使用 UTF-8 编码的 TXT 或 Markdown。",
+                    ui("无法读取文件，请使用 UTF-8 编码的 TXT 或 Markdown。"),
                   );
                 }
               }}
             />
           </label>
           <label>
-            原文
+            {ui("原文")}
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
               rows={7}
-              placeholder="每段之间留一个空行。原文作为文本保存。"
+              placeholder={ui("每段之间留一个空行。原文作为文本保存。")}
             />
           </label>
           <p className="practice-hint">
-            {text.length.toLocaleString()} / 16,000 字符 · 最多 6 段
+            {text.length.toLocaleString()}
+            {ui("/ 16,000 字符 · 最多 6 段")}
           </p>
           {aiAvailable && (
             <label className="self-check-point">
@@ -1333,7 +1375,9 @@ function ImportMaterial({
                 checked={ai}
                 onChange={(e) => setAi(e.target.checked)}
               />
-              <span>使用 AI 补充中文和练习题（使用自己的 API 额度）</span>
+              <span>
+                {ui("使用 AI 补充中文和练习题（使用自己的 API 额度）")}
+              </span>
             </label>
           )}
         </fieldset>
@@ -1344,7 +1388,7 @@ function ImportMaterial({
         )}
         <div className="practice-submit">
           <button type="submit" className="button primary" disabled={busy}>
-            {busy ? "正在保存材料…" : "保存并开始练习"}
+            {busy ? ui("正在保存材料…") : ui("保存并开始练习")}
           </button>
           {saved && error && (
             <button
@@ -1353,13 +1397,14 @@ function ImportMaterial({
               disabled={busy}
               onClick={() => onSave(saved)}
             >
-              使用已保存的原文
+              {ui("使用已保存的原文")}
             </button>
           )}
         </div>
         {!owner && (
           <Link href="/login">
-            登录个人空间 <ArrowRight size={14} />
+            {ui("登录个人空间")}
+            <ArrowRight size={14} />
           </Link>
         )}
       </form>

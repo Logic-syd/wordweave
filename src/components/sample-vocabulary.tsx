@@ -1,4 +1,6 @@
 "use client";
+import { ui } from "@/lib/ui";
+
 import { useState } from "react";
 import type { VocabularyView } from "@/lib/types";
 import { sampleVocabulary } from "@/lib/sample-storage";
@@ -17,8 +19,8 @@ export function SampleVocabulary({ personal }: { personal: VocabularyView[] }) {
     <SavedWords personal={personal} />
   ) : (
     <main className="page">
-      <h1>生词本</h1>
-      <p>正在读取收藏…</p>
+      <h1>{ui("生词本")}</h1>
+      <p>{ui("正在读取收藏…")}</p>
     </main>
   );
 }

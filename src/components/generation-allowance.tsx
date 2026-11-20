@@ -1,4 +1,5 @@
 "use client";
+import { ui } from "@/lib/ui";
 
 import { useEffect, useState } from "react";
 import type { GenerationBudget } from "@/lib/generation-budget";
@@ -46,7 +47,9 @@ export function GenerationAllowance() {
 
   if (unavailable)
     return (
-      <p className="field-hint">暂时无法读取今日额度，生成时仍会检查上限。</p>
+      <p className="field-hint">
+        {ui("暂时无法读取今日额度，生成时仍会检查上限。")}
+      </p>
     );
   if (!budget) return null;
   const exhausted =
@@ -56,18 +59,26 @@ export function GenerationAllowance() {
   return (
     <details className="generation-allowance">
       <summary>
-        今日已生成 {budget.generations.used} / {budget.generations.limit} 次
-        {budget.paused ? " · 生成已暂停" : exhausted ? " · 今日额度已用完" : ""}
+        {ui("今日已生成")}
+        {budget.generations.used} / {budget.generations.limit}
+        {ui("次")}
+        {budget.paused
+          ? ui(" · 生成已暂停")
+          : exhausted
+            ? ui(" · 今日额度已用完")
+            : ""}
       </summary>
       <p>
-        模型请求 {budget.modelRequests.used} / {budget.modelRequests.limit} 次；
-        输入字符 {budget.inputCharacters.used.toLocaleString("zh-CN")} /{" "}
+        {ui("模型请求")}
+        {budget.modelRequests.used} / {budget.modelRequests.limit}
+        {ui("次； 输入字符")}
+        {budget.inputCharacters.used.toLocaleString("zh-CN")} /{" "}
         {budget.inputCharacters.limit.toLocaleString("zh-CN")}。
       </p>
       <p>
-        每日 UTC 00:00
-        重置。失败的生成也计次；长文分块和自动重试会分别消耗模型请求额度。
-        这些是用量限制，不等于精确 token 账单。
+        {ui(
+          "每日 UTC 00:00 重置。失败的生成也计次；长文分块和自动重试会分别消耗模型请求额度。 这些是用量限制，不等于精确 token 账单。",
+        )}
       </p>
     </details>
   );

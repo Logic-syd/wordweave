@@ -1,3 +1,4 @@
+import { uiName } from "./ui-name.mjs";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";
@@ -170,20 +171,18 @@ const provider = createServer(async (req, res) => {
       })),
     };
   await new Promise((resolve) => setTimeout(resolve, 120));
-  res
-    .writeHead(200, { "Content-Type": "application/json" })
-    .end(
-      JSON.stringify({
-        choices: [
-          {
-            finish_reason: "stop",
-            message: {
-              content: failure === "json" ? "not json" : JSON.stringify(value),
-            },
+  res.writeHead(200, { "Content-Type": "application/json" }).end(
+    JSON.stringify({
+      choices: [
+        {
+          finish_reason: "stop",
+          message: {
+            content: failure === "json" ? "not json" : JSON.stringify(value),
           },
-        ],
-      }),
-    );
+        },
+      ],
+    }),
+  );
 });
 await new Promise((resolve) => provider.listen(0, "127.0.0.1", resolve));
 const providerBase = `http://127.0.0.1:${provider.address().port}/v1`;
@@ -254,18 +253,22 @@ try {
     storage: "browser",
   });
   await expect(
-    page.getByRole("button", { name: "播放这一段", exact: true }),
+    page.getByRole("button", { name: uiName("播放这一段"), exact: true }),
   ).toBeVisible();
-  await expect(page.getByRole("link", { name: "登录" })).toHaveCount(0);
-  await page.goto(base + "/new?mode=tech");
-  await page.getByLabel("文章标题", { exact: true }).fill("我的本地文章");
+  await expect(page.getByRole("link", { name: uiName("登录") })).toHaveCount(0);
+  await page.goto(base + "/");
+  await page
+    .getByLabel(uiName("文章标题"), { exact: true })
+    .fill("我的本地文章");
   const code = 'const untouched = "<safe>";';
   const source =
     "# State updates\n\nReact batches state updates to avoid unnecessary re-renders. Use `setCount(n => n + 1)`.\n\n```tsx\n" +
     code +
     "\n```";
-  await page.getByLabel("英文正文", { exact: true }).fill(source);
-  await page.getByRole("button", { name: "保存原文", exact: true }).click();
+  await page.getByLabel(uiName("英文正文"), { exact: true }).fill(source);
+  await page
+    .getByRole("button", { name: uiName("保存原文"), exact: true })
+    .click();
   await page.waitForURL(/\/read\/local-article-/);
   const articleUrl = page.url();
   await expect(page.locator("pre")).toContainText(code);
@@ -275,21 +278,29 @@ try {
   );
 
   await page.goto(base + "/settings");
-  await page.getByLabel("API 地址（Base URL）").fill(providerBase);
-  await page.getByLabel("模型名称").fill("user-model");
-  await page.getByLabel("自己的 API Key").fill(userKey);
+  await page.getByLabel(uiName("API 地址（Base URL）")).fill(providerBase);
+  await page.getByLabel(uiName("模型名称")).fill("user-model");
+  await page.getByLabel(uiName("自己的 API Key")).fill(userKey);
   await page.getByRole("checkbox", { name: /在这个浏览器记住 Key/ }).check();
-  await page.getByRole("button", { name: "保存配置", exact: true }).click();
+  await page
+    .getByRole("button", { name: uiName("保存配置"), exact: true })
+    .click();
   assert.equal(calls.length, 0);
-  await page.getByRole("button", { name: "测试连接（使用少量额度）" }).click();
+  await page
+    .getByRole("button", { name: uiName("测试连接（使用少量额度）") })
+    .click();
   await expect(page.getByRole("status")).toContainText("连接成功");
   await page.goto(articleUrl);
-  await page.getByRole("button", { name: "生成设置", exact: true }).click();
-  await page.getByRole("button", { name: "明确重新生成", exact: true }).click();
+  await page
+    .getByRole("button", { name: uiName("生成设置"), exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: uiName("明确重新生成"), exact: true })
+    .click();
   await expect(
     page
       .getByRole("button", {
-        name: "查看词卡：avoid unnecessary re-renders",
+        name: uiName("查看词卡：avoid unnecessary re-renders"),
         exact: true,
       })
       .first(),
@@ -304,33 +315,37 @@ try {
   );
   await page
     .getByRole("button", {
-      name: "查看词卡：avoid unnecessary re-renders",
+      name: uiName("查看词卡：avoid unnecessary re-renders"),
       exact: true,
     })
     .first()
     .click();
   await page
     .getByRole("dialog")
-    .getByRole("button", { name: "收藏到生词本", exact: true })
+    .getByRole("button", { name: uiName("收藏到生词本"), exact: true })
     .click();
   await expect(
     page
       .getByRole("dialog")
-      .getByRole("button", { name: "已收藏", exact: true }),
+      .getByRole("button", { name: uiName("已收藏"), exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "关闭词卡" }).click();
-  await page.getByLabel("释义显示方式").selectOption("click");
+  await page.getByRole("button", { name: uiName("关闭词卡") }).click();
+  await page.getByLabel(uiName("释义显示方式")).selectOption("click");
   await page.reload();
-  await expect(page.getByLabel("释义显示方式")).toHaveValue("click");
+  await expect(page.getByLabel(uiName("释义显示方式"))).toHaveValue("click");
   const beforeFailure = calls.length;
   failure = "json";
-  await page.getByRole("button", { name: "生成设置", exact: true }).click();
-  await page.getByRole("button", { name: "明确重新生成", exact: true }).click();
+  await page
+    .getByRole("button", { name: uiName("生成设置"), exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: uiName("明确重新生成"), exact: true })
+    .click();
   await expect(page.locator(".reader-error")).toBeVisible({ timeout: 15000 });
   await expect(
     page
       .getByRole("button", {
-        name: "查看词卡：avoid unnecessary re-renders",
+        name: uiName("查看词卡：avoid unnecessary re-renders"),
         exact: true,
       })
       .first(),
@@ -341,7 +356,7 @@ try {
     const before = calls.length;
     failure = kind;
     await page
-      .getByRole("button", { name: "明确重新生成", exact: true })
+      .getByRole("button", { name: uiName("明确重新生成"), exact: true })
       .click();
     await expect(page.locator(".reader-error")).toContainText(
       kind === "http" ? "Key" : "CORS",
@@ -354,10 +369,22 @@ try {
     await expect(page.locator(".reader-error")).not.toContainText(
       "Do not echo credential",
     );
+    if (kind === "http") {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await expect(page.locator(".inbox-body")).not.toBeVisible();
+      await page
+        .getByRole("button", { name: uiName("检查设置并重试") })
+        .click();
+      await expect(page.locator(".reader-settings")).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "导入文章与阅读设置", exact: true }),
+      ).toHaveAttribute("aria-expanded", "true");
+      await page.setViewportSize({ width: 1440, height: 1000 });
+    }
     await expect(
       page
         .getByRole("button", {
-          name: "查看词卡：avoid unnecessary re-renders",
+          name: uiName("查看词卡：avoid unnecessary re-renders"),
           exact: true,
         })
         .first(),
@@ -370,37 +397,43 @@ try {
 
   await page.goto(base + "/vocabulary");
   await expect(page.locator(".vocabulary-row")).toHaveCount(1);
-  await page.getByRole("link", { name: "听这个词", exact: true }).click();
+  await page
+    .getByRole("link", { name: uiName("听这个词"), exact: true })
+    .click();
   await expect(page.locator(".practice-material-heading")).toContainText(
     "avoid unnecessary re-renders",
   );
-  await page.getByLabel("我听到的重点").fill("React batches state updates.");
   await page
-    .getByRole("button", { name: "保存并获取 AI 反馈", exact: true })
+    .getByLabel(uiName("我听到的重点"))
+    .fill("React batches state updates.");
+  await page
+    .getByRole("button", { name: uiName("保存并获取 AI 反馈"), exact: true })
     .click();
   await expect(
-    page.getByRole("region", { name: "本次练习反馈" }),
+    page.getByRole("region", { name: uiName("本次练习反馈") }),
   ).toContainText("本次文字回答的 AI 反馈");
-  await page.getByRole("button", { name: "收藏表达", exact: true }).click();
   await page
-    .getByRole("button", { name: "收藏到共用单词库", exact: true })
+    .getByRole("button", { name: uiName("收藏表达"), exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: uiName("收藏到共用单词库"), exact: true })
     .click();
   await expect(page.getByRole("dialog")).toBeVisible();
-  await page.getByRole("button", { name: "关闭词卡" }).click();
-  await page.getByRole("link", { name: "这段也拿来说" }).click();
-  await page.getByText("换个练法", { exact: true }).click();
-  await page.getByRole("button", { name: "复述", exact: true }).click();
+  await page.getByRole("button", { name: uiName("关闭词卡") }).click();
+  await page.getByRole("link", { name: uiName("这段也拿来说") }).click();
+  await page.getByText(uiName("换个练法"), { exact: true }).click();
+  await page.getByRole("button", { name: uiName("复述"), exact: true }).click();
   await page
-    .getByLabel("记下我刚才说的话")
+    .getByLabel(uiName("记下我刚才说的话"))
     .fill("React batches updates to avoid extra renders.");
   await page
-    .getByRole("button", { name: "保存并获取 AI 反馈", exact: true })
+    .getByRole("button", { name: uiName("保存并获取 AI 反馈"), exact: true })
     .click();
   await expect(
-    page.getByRole("region", { name: "本次练习反馈" }),
+    page.getByRole("region", { name: uiName("本次练习反馈") }),
   ).toContainText("本次文字回答的 AI 反馈");
   await page.reload();
-  await expect(page.getByLabel("记下我刚才说的话")).toHaveValue(
+  await expect(page.getByLabel(uiName("记下我刚才说的话"))).toHaveValue(
     "React batches updates to avoid extra renders.",
   );
   await page.goto(base + "/vocabulary");
@@ -415,10 +448,10 @@ try {
     otherPage = await other.newPage();
   await otherPage.goto(base + "/vocabulary");
   await expect(
-    otherPage.getByText("这里还没有符合条件的词", { exact: true }),
+    otherPage.getByText(uiName("这里还没有符合条件的词"), { exact: true }),
   ).toBeVisible();
   await otherPage.goto(base + "/settings");
-  await expect(otherPage.getByLabel("自己的 API Key")).toHaveValue("");
+  await expect(otherPage.getByLabel(uiName("自己的 API Key"))).toHaveValue("");
   await otherPage.goto(articleUrl);
   await expect(otherPage.locator(".practice-notice")).toContainText(
     "这个浏览器里没有这篇文章",
@@ -455,32 +488,40 @@ try {
     assert.equal(r.status, 403, path);
   }
   await page.goto(base + "/new?mode=german");
-  await page.getByLabel("每篇新词").selectOption("3");
-  await page.getByRole("button", { name: "生成我的故事", exact: true }).click();
+  await page.getByLabel(uiName("每篇新词")).selectOption("3");
+  await page
+    .getByRole("button", { name: uiName("生成我的故事"), exact: true })
+    .click();
   await page.waitForURL(/\/read\/local-article-/);
   await expect(
-    page.getByRole("button", { name: "查看词卡：Apfel", exact: true }),
+    page.getByRole("button", { name: uiName("查看词卡：Apfel"), exact: true }),
   ).toBeVisible({ timeout: 15000 });
-  await page.getByText("本篇词汇覆盖", { exact: true }).click();
+  await page.getByText(uiName("本篇词汇覆盖"), { exact: true }).click();
   await expect(page.locator(".coverage-panel")).toContainText(
     "新词 3 / 目标 3",
   );
   await page
-    .getByRole("button", { name: "查看词卡：Apfel", exact: true })
+    .getByRole("button", { name: uiName("查看词卡：Apfel"), exact: true })
     .click();
-  await page.getByRole("button", { name: "收藏到生词本", exact: true }).click();
+  await page
+    .getByRole("button", { name: uiName("收藏到生词本"), exact: true })
+    .click();
   await expect(
-    page.getByRole("button", { name: "已收藏", exact: true }),
+    page.getByRole("button", { name: uiName("已收藏"), exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "关闭词卡" }).click();
+  await page.getByRole("button", { name: uiName("关闭词卡") }).click();
   await page.goto(base + "/new?mode=german");
-  await page.getByRole("checkbox", { name: "只复习，不加新词" }).check();
-  await page.getByRole("button", { name: "生成我的故事", exact: true }).click();
+  await page
+    .getByRole("checkbox", { name: uiName("只复习，不加新词") })
+    .check();
+  await page
+    .getByRole("button", { name: uiName("生成我的故事"), exact: true })
+    .click();
   await page.waitForURL(/\/read\/local-article-/);
   await expect(
-    page.getByRole("button", { name: "查看词卡：Apfel", exact: true }),
+    page.getByRole("button", { name: uiName("查看词卡：Apfel"), exact: true }),
   ).toBeVisible({ timeout: 15000 });
-  await page.getByText("本篇词汇覆盖", { exact: true }).click();
+  await page.getByText(uiName("本篇词汇覆盖"), { exact: true }).click();
   await expect(page.locator(".coverage-panel")).toContainText(
     "新词 0 / 目标 0",
   );
@@ -492,22 +533,26 @@ try {
   );
   await page.goto(base + "/settings");
   const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: "导出学习记录（不含 Key）" }).click();
+  await page
+    .getByRole("button", { name: uiName("导出学习记录（不含 Key）") })
+    .click();
   const file = await download,
     stream = await file.createReadStream();
   let exported = "";
   for await (const part of stream) exported += part;
   assert.equal(exported.includes(userKey), false);
   assert.ok(exported.includes("我的本地文章"));
-  await page.getByRole("button", { name: "移除 Key", exact: true }).click();
+  await page
+    .getByRole("button", { name: uiName("移除 Key"), exact: true })
+    .click();
   await page.reload();
-  await expect(page.getByLabel("自己的 API Key")).toHaveValue("");
+  await expect(page.getByLabel(uiName("自己的 API Key"))).toHaveValue("");
   await page.goto(base + "/vocabulary");
   await expect(page.locator(".vocabulary-row")).toHaveCount(4);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(base + "/listen");
   await expect(
-    page.getByRole("button", { name: "播放这一段", exact: true }),
+    page.getByRole("button", { name: uiName("播放这一段"), exact: true }),
   ).toBeVisible();
   assert.equal(
     await page.evaluate(

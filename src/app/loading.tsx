@@ -1,3 +1,4 @@
+import { ui } from "@/lib/ui";
 export default function Loading() {
   return (
     <main className="page">
@@ -6,7 +7,7 @@ export default function Loading() {
         <div className="skeleton card-skeleton" />
         <div className="skeleton card-skeleton" />
       </div>
-      <p className="muted">正在打开你的学习空间…</p>
+      <p className="muted">{ui("正在打开你的学习空间…")}</p>
     </main>
   );
 }

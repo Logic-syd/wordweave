@@ -1,3 +1,4 @@
+import { ui } from "@/lib/ui";
 import { LearningResources } from "@/components/learning-resources";
 import { SampleLibrary } from "@/components/sample-library";
 export default async function LibraryPage({
@@ -14,7 +15,7 @@ export default async function LibraryPage({
       />
       <section className="page library-resources">
         <details>
-          <summary>找一些新的阅读素材</summary>
+          <summary>{ui("找一些新的阅读素材")}</summary>
           <LearningResources />
         </details>
       </section>

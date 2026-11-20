@@ -1,4 +1,6 @@
 "use client";
+import { ui } from "@/lib/ui";
+
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
@@ -85,32 +87,35 @@ export function Vocabulary({ initial }: { initial: VocabularyView[] }) {
       <div className="page-title-row">
         <div>
           <span className="eyebrow">WORDS WORTH KEEPING</span>
-          <h1>听说读，共用一个单词库。</h1>
+          <h1>{ui("听说读，共用一个单词库。")}</h1>
           <p className="page-subtitle">
-            连同出现过的句子一起记住，再拿去听一遍、说一次。
+            {ui("连同出现过的句子一起记住，再拿去听一遍、说一次。")}
           </p>
         </div>
         <span className="word-count">
           {words.length}
-          <small>个语境词条</small>
+          <small>{ui("个语境词条")}</small>
         </span>
       </div>
       {due.length > 0 && (
         <div className="review-invitation">
           <span>
-            有 <strong>{due.length}</strong> 个德语词等着在新故事里与你重逢。
+            {ui("有")}
+            <strong>{due.length}</strong>
+            {ui("个德语词等着在新故事里与你重逢。")}
           </span>
           <Link href="/new?mode=german">
-            读一篇复习故事 <ArrowUpRight size={16} />
+            {ui("读一篇复习故事")}
+            <ArrowUpRight size={16} />
           </Link>
         </div>
       )}
       <div className="collection-toolbar">
         <div className="filter-tabs">
           {[
-            ["all", "全部语言"],
-            ["en", "英语"],
-            ["de", "德语"],
+            ["all", ui("全部语言")],
+            ["en", ui("英语")],
+            ["de", ui("德语")],
           ].map(([v, l]) => (
             <button
               key={v}
@@ -127,32 +132,32 @@ export function Vocabulary({ initial }: { initial: VocabularyView[] }) {
             aria-label="搜索词条"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="搜索词语或含义…"
+            placeholder={ui("搜索词语或含义…")}
           />
         </label>
       </div>
       <div className="vocabulary-filters">
         <label>
-          遇见它的地方
+          {ui("遇见它的地方")}
           <select
             aria-label="词条来源筛选"
             value={source}
             onChange={(e) => setSource(e.target.value)}
           >
-            <option value="all">全部来源</option>
-            <option value="listen">听力</option>
-            <option value="speak">口语</option>
-            <option value="read">阅读</option>
+            <option value="all">{ui("全部来源")}</option>
+            <option value="listen">{ui("听力")}</option>
+            <option value="speak">{ui("口语")}</option>
+            <option value="read">{ui("阅读")}</option>
           </select>
         </label>
         <label>
-          学习状态
+          {ui("学习状态")}
           <select
             aria-label="学习状态筛选"
             value={status}
             onChange={(e) => setStatus(e.target.value)}
           >
-            <option value="all">全部状态</option>
+            <option value="all">{ui("全部状态")}</option>
             {Object.entries(statusLabels).map(([v, l]) => (
               <option key={v} value={v}>
                 {l}
@@ -166,7 +171,7 @@ export function Vocabulary({ initial }: { initial: VocabularyView[] }) {
           onClick={() => setFavorites(!favorites)}
         >
           <Heart size={15} fill={favorites ? "currentColor" : "none"} />
-          只看收藏
+          {ui("只看收藏")}
         </button>
       </div>
       {filtered.length ? (
@@ -204,7 +209,11 @@ export function Vocabulary({ initial }: { initial: VocabularyView[] }) {
                   <span className={`status-tag status-${w.user?.status}`}>
                     {statusLabels[w.user?.status ?? "NEW"]}
                   </span>
-                  <span>遇见 {w.user?.exposureCount ?? 0} 次</span>
+                  <span>
+                    {ui("遇见")}
+                    {w.user?.exposureCount ?? 0}
+                    {ui("次")}
+                  </span>
                   {[
                     ...new Set(w.appearances.map((a) => a.skill ?? "read")),
                   ].map((skill) => (
@@ -214,24 +223,25 @@ export function Vocabulary({ initial }: { initial: VocabularyView[] }) {
                       data-skill={skill}
                     >
                       {skill === "listen"
-                        ? "听力"
+                        ? ui("听力")
                         : skill === "speak"
-                          ? "口语"
-                          : "阅读"}
+                          ? ui("口语")
+                          : ui("阅读")}
                     </span>
                   ))}
                   {w.user?.dueAt && (
                     <span>
                       {new Date(w.user.dueAt) <= new Date()
-                        ? "待复习"
-                        : `下次 ${new Date(w.user.dueAt).toLocaleDateString("zh-CN")}`}
+                        ? ui("待复习")
+                        : `下次 / Next: ${new Date(w.user.dueAt).toLocaleDateString("zh-CN")}`}
                     </span>
                   )}
                 </div>
               </button>
               <details className="appearance-details">
                 <summary>
-                  出现过的语境 <span>{w.appearances.length}</span>
+                  {ui("出现过的语境")}
+                  <span>{w.appearances.length}</span>
                 </summary>
                 {w.appearances.length ? (
                   w.appearances.map((a, i) => (
@@ -242,10 +252,10 @@ export function Vocabulary({ initial }: { initial: VocabularyView[] }) {
                           data-skill={a.skill ?? "read"}
                         >
                           {a.skill === "listen"
-                            ? "听力"
+                            ? ui("听力")
                             : a.skill === "speak"
-                              ? "口语"
-                              : "阅读"}
+                              ? ui("口语")
+                              : ui("阅读")}
                         </span>
                         {a.title}
                         <ArrowUpRight size={14} />
@@ -255,20 +265,20 @@ export function Vocabulary({ initial }: { initial: VocabularyView[] }) {
                   ))
                 ) : (
                   <p className="muted">
-                    原文章已删除。你保存的词义、例句和学习记录仍然保留。
+                    {ui("原文章已删除。你保存的词义、例句和学习记录仍然保留。")}
                   </p>
                 )}
               </details>
               <div className="word-practice-actions">
                 <Link href={`/listen?word=${encodeURIComponent(w.id)}`}>
                   <Headphones size={14} />
-                  听这个词
+                  {ui("听这个词")}
                 </Link>
                 <Link
                   href={`${practicePath("speak")}?word=${encodeURIComponent(w.id)}`}
                 >
                   <Mic2 size={14} />
-                  用它说一句
+                  {ui("用它说一句")}
                 </Link>
               </div>
             </div>
@@ -277,15 +287,19 @@ export function Vocabulary({ initial }: { initial: VocabularyView[] }) {
       ) : (
         <div className="empty-state">
           <NotebookPen size={32} />
-          <h3>{favorites ? "还没有收藏的词" : "这里还没有符合条件的词"}</h3>
-          <p>听力、口语和阅读中收藏的表达，都会来到这里。</p>
+          <h3>
+            {favorites ? ui("还没有收藏的词") : ui("这里还没有符合条件的词")}
+          </h3>
+          <p>{ui("听力、口语和阅读中收藏的表达，都会来到这里。")}</p>
           <Link href="/library" className="button primary">
-            去读一篇
+            {ui("去读一篇")}
           </Link>
         </div>
       )}
       <p className="vocabulary-footnote">
-        “遇见”记录阅读和练习中的语境。只有你主动收藏或选择学习状态，才会改变复习安排。
+        {ui(
+          "“遇见”记录阅读和练习中的语境。只有你主动收藏或选择学习状态，才会改变复习安排。",
+        )}
       </p>
       {selected && (
         <WordCard

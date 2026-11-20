@@ -1,4 +1,6 @@
 "use client";
+import { ui } from "@/lib/ui";
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { lastReading, lastSkill } from "@/lib/learning-entry";
@@ -14,7 +16,7 @@ export function ResumeLearning() {
   }, [router]);
   return (
     <main className="page entry-loading" aria-busy="true">
-      <p role="status">正在接着学…</p>
+      <p role="status">{ui("正在接着学…")}</p>
     </main>
   );
 }
@@ -40,7 +42,7 @@ export function DirectReading() {
   if (!id)
     return (
       <main className="page entry-loading" aria-busy="true">
-        <p role="status">正在打开上次那一篇…</p>
+        <p role="status">{ui("正在打开上次那一篇…")}</p>
       </main>
     );
   const sample = getSample(id);

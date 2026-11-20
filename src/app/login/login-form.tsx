@@ -1,4 +1,5 @@
 "use client";
+import { ui } from "@/lib/ui";
 
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -69,7 +70,7 @@ export function LoginForm() {
         setSession(data);
       } catch {
         if (!controller.signal.aborted)
-          setCheckError("暂时无法检查访问设置，请稍后重试。");
+          setCheckError(ui("暂时无法检查访问设置，请稍后重试。"));
       }
     }
     void check();
@@ -84,7 +85,7 @@ export function LoginForm() {
     event.preventDefault();
     if (submitting.current) return;
     if (!token.trim()) {
-      setError("请输入访问密码。");
+      setError(ui("请输入访问密码。"));
       return;
     }
     submitting.current = true;
@@ -102,7 +103,7 @@ export function LoginForm() {
         setError(
           typeof data.error === "string"
             ? data.error
-            : "暂时无法登录，请稍后重试。",
+            : ui("暂时无法登录，请稍后重试。"),
         );
         return;
       }
@@ -110,7 +111,7 @@ export function LoginForm() {
       enter();
       navigating = true;
     } catch {
-      setError("连接失败，请检查网络后重试。");
+      setError(ui("连接失败，请检查网络后重试。"));
     } finally {
       if (!navigating) {
         submitting.current = false;
@@ -127,60 +128,68 @@ export function LoginForm() {
           className={styles.secondary}
           onClick={() => setAttempt((value) => value + 1)}
         >
-          重新检查
+          {ui("重新检查")}
         </button>
       </div>
     );
   if (!session)
     return (
       <p className={styles.status} role="status">
-        正在检查访问设置…
+        {ui("正在检查访问设置…")}
       </p>
     );
   if (!session.enabled)
     return (
       <div className={styles.help}>
-        <p>本地空间未启用访问密码，可以直接开始阅读。</p>
+        <p>{ui("本地空间未启用访问密码，可以直接开始阅读。")}</p>
         <button className={styles.primary} onClick={enter}>
-          进入学习空间 <ArrowRight size={17} aria-hidden="true" />
+          {ui("进入学习空间")}
+          <ArrowRight size={17} aria-hidden="true" />
         </button>
       </div>
     );
   if (!session.configured)
     return (
       <div className={styles.help}>
-        <h2>站主还没有完成首次设置</h2>
-        <p>设置个人访问密码后即可使用自己的空间。</p>
+        <h2>{ui("站主还没有完成首次设置")}</h2>
+        <p>{ui("设置个人访问密码后即可使用自己的空间。")}</p>
         <details className={styles.setup}>
-          <summary>我是站主，查看首次设置</summary>
+          <summary>{ui("我是站主，查看首次设置")}</summary>
           <p>
-            在部署平台设置 <code>ADMIN_ACCESS_TOKEN</code>，使用至少 32
-            个字符的随机值， 保存并重新部署一次。以后只需用这个密码登录。
+            {ui("在部署平台设置")}
+            <code>ADMIN_ACCESS_TOKEN</code>
+            {ui(
+              "，使用至少 32 个字符的随机值， 保存并重新部署一次。以后只需用这个密码登录。",
+            )}
           </p>
-          <p>已经配置过的站主访问密码或插件访问令牌也可以继续使用。</p>
+          <p>{ui("已经配置过的站主访问密码或插件访问令牌也可以继续使用。")}</p>
         </details>
       </div>
     );
   if (session.authenticated)
     return (
       <div className={styles.help}>
-        <p>你已登录{session.ownerId ? `：${session.ownerId}` : ""}。</p>
+        <p>
+          {ui("你已登录")}
+          {session.ownerId ? `：${session.ownerId}` : ""}。
+        </p>
         <button className={styles.primary} onClick={enter}>
-          继续阅读 <ArrowRight size={17} aria-hidden="true" />
+          {ui("继续阅读")}
+          <ArrowRight size={17} aria-hidden="true" />
         </button>
       </div>
     );
 
   return (
     <form className={styles.form} onSubmit={login}>
-      <label htmlFor="invitation-token">访问密码</label>
+      <label htmlFor="invitation-token">{ui("访问密码")}</label>
       <input
         id="invitation-token"
         name="token"
         type="password"
         value={token}
         onChange={(event) => setToken(event.target.value)}
-        placeholder="粘贴你的专属访问密码"
+        placeholder={ui("粘贴你的专属访问密码")}
         autoComplete="current-password"
         autoCapitalize="none"
         spellCheck={false}
@@ -190,7 +199,9 @@ export function LoginForm() {
         aria-describedby={error ? "login-error" : "login-hint"}
       />
       <p id="login-hint" className={styles.hint}>
-        仅供你本人使用。使用之前配置的站主凭据即可，不需要申请或生成邀请码。
+        {ui(
+          "仅供你本人使用。使用之前配置的站主凭据即可，不需要申请或生成邀请码。",
+        )}
       </p>
       {error && (
         <p id="login-error" className={styles.error} role="alert">
@@ -203,7 +214,7 @@ export function LoginForm() {
         disabled={pending}
         aria-busy={pending}
       >
-        {pending ? "正在进入…" : "进入学习空间"}
+        {pending ? ui("正在进入…") : ui("进入学习空间")}
         <ArrowRight size={17} aria-hidden="true" />
       </button>
     </form>

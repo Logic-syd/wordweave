@@ -1,3 +1,4 @@
+import { uiName } from "../ui-name.mjs";
 import { test, expect, type Page } from "@playwright/test";
 
 async function selectText(page: Page, text: string) {
@@ -44,7 +45,9 @@ test("original design, imported sentences, expanded playback and position surviv
   });
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/speak");
-  await expect(page.getByRole("heading", { name: "文章收件箱" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: uiName("文章收件箱") }),
+  ).toBeVisible();
   await expect(page.locator("#sentences .sentence")).toHaveCount(5);
   await expect(page.locator("#vocabulary")).toHaveCount(0);
   await page.screenshot({
@@ -109,7 +112,7 @@ test("free mobile lookup shares favorites, retains scroll position and imports o
   expect(calls).toHaveLength(1);
   expect(new URL(calls[0]).searchParams.get("q")).toBe("coffee shop");
   await page.locator("#lookup-save").click();
-  await expect(page.locator("#lookup-save")).toHaveText("已加入单词库");
+  await expect(page.locator("#lookup-save")).toHaveText(uiName("已加入单词库"));
   await page.screenshot({
     path: "test-results/readalong-word-mobile.png",
     fullPage: true,
@@ -134,7 +137,9 @@ test("free mobile lookup shares favorites, retains scroll position and imports o
   await expect(
     page.getByRole("heading", { name: "coffee shop", exact: true }),
   ).toBeVisible();
-  await expect(page.locator(".word-source-badge").first()).toHaveText("口语");
+  await expect(page.locator(".word-source-badge").first()).toHaveText(
+    uiName("口语"),
+  );
   await page.locator(".appearance-details summary").click();
   await expect(page.locator(".appearance a")).toHaveAttribute(
     "href",
@@ -283,11 +288,13 @@ test("old Read Along bookmarks still open the saved speaking sentence", async ({
     await expect(page.locator(".sentence.active")).toContainText(
       "Third original sentence.",
     );
-    await expect(page.locator('nav [aria-current="page"]')).toHaveText("口语");
+    await expect(page.locator('nav [aria-current="page"]')).toHaveText(
+      uiName("口语"),
+    );
   }
   await page.goto("/read");
   await expect(
-    page.getByRole("heading", { name: "状态更新，并不会立刻发生" }),
+    page.getByRole("heading", { name: uiName("状态更新，并不会立刻发生") }),
   ).toBeVisible();
   await expect(page.locator("#sentences")).toHaveCount(0);
   await page.goto("/speak");

@@ -1,3 +1,4 @@
+import { ui } from "../../src/lib/ui";
 import { groupUnits } from "./learning.js";
 import {
   requestReading,
@@ -42,7 +43,7 @@ function save() {
   try {
     localStorage.setItem("readalong.articles", JSON.stringify(articles));
   } catch {
-    $("status").textContent = "存储空间不足，请导出备份。";
+    $("status").textContent = ui("存储空间不足，请导出备份。");
   }
 }
 function split(text) {
@@ -64,7 +65,7 @@ function stop() {
   token++;
   clearTimeout(timer);
   if (synth) synth.cancel();
-  $("play").textContent = "开始跟读";
+  $("play").textContent = ui("开始跟读");
 }
 function render() {
   const root = $("sentences");
@@ -141,8 +142,8 @@ function render() {
     content.append(document.createTextNode(s.slice(cursor)));
     const play = document.createElement("button");
     play.className = "sentence-trigger";
-    play.textContent = "播放";
-    play.setAttribute("aria-label", "播放第 " + (i + 1) + " 句");
+    play.textContent = ui("播放");
+    play.setAttribute("aria-label", ui("播放第 ") + (i + 1) + ui(" 句"));
     row.append(n, content, play);
     row.onclick = () => {
       if (window.getSelection()?.toString().trim()) return;
@@ -153,17 +154,18 @@ function render() {
     };
     root.append(row);
   });
-  $("count").textContent = sentences.length + " 句";
+  $("count").textContent = sentences.length + ui(" 句");
   updateVocabularyStatus();
   highlight();
 }
 function updateVocabularyStatus() {
-  $("vocabulary-status").textContent =
-    "选中单词或短语，免费查中文 · 不用 AI Key";
+  $("vocabulary-status").textContent = ui(
+    "选中单词或短语，免费查中文 · 不用 AI Key",
+  );
 }
 function setFocus(active) {
   document.body.classList.toggle("reading-focus", active);
-  $("focus-reading").textContent = active ? "文章与设置" : "展开正文";
+  $("focus-reading").textContent = active ? ui("文章与设置") : ui("展开正文");
   $("focus-reading").setAttribute("aria-pressed", String(active));
   try {
     localStorage.setItem("readalong.focus", String(active));
@@ -223,7 +225,7 @@ function library() {
   let root = $("library");
   root.replaceChildren();
   if (!articles.length) {
-    root.textContent = "保存的文章会出现在这里。";
+    root.textContent = ui("保存的文章会出现在这里。");
     return;
   }
   articles.forEach((a) => {
@@ -234,9 +236,9 @@ function library() {
     open.onclick = () => load(a);
     let del = document.createElement("button");
     del.textContent = "×";
-    del.setAttribute("aria-label", "删除 " + a.title);
+    del.setAttribute("aria-label", ui("删除 ") + a.title);
     del.onclick = () => {
-      if (!confirm("删除这篇文章？")) return;
+      if (!confirm(ui("删除这篇文章？"))) return;
       hiddenArticles.add(a.id);
       try {
         localStorage.setItem(
@@ -248,7 +250,7 @@ function library() {
       if (current?.id === a.id) {
         stop();
         current = null;
-        $("status").textContent = "文章已从收藏删除。";
+        $("status").textContent = ui("文章已从收藏删除。");
       }
       save();
       library();
@@ -276,21 +278,22 @@ function load(a) {
   index = Math.min(a.index || 0, Math.max(0, sentences.length - 1));
   $("practiceTitle").textContent = a.title;
   render();
-  $("status").textContent = "已准备好，点击开始跟读。";
+  $("status").textContent = ui("已准备好，点击开始跟读。");
 }
 function start() {
   if (sentences.length) setFocus(true);
   if (!sentences.length) {
-    $("status").textContent = "请先粘贴文章并生成练习。";
+    $("status").textContent = ui("请先粘贴文章并生成练习。");
     return;
   }
   if (!synth || !voices.length) {
-    $("status").textContent =
-      "没有可用英语声音，请在设备设置中安装英语语音，或更换浏览器。";
+    $("status").textContent = ui(
+      "没有可用英语声音，请在设备设置中安装英语语音，或更换浏览器。",
+    );
     return;
   }
   playing = true;
-  $("play").textContent = "停止 / 休息";
+  $("play").textContent = ui("停止 / 休息");
   speak(token);
 }
 function speak(run) {
@@ -302,7 +305,8 @@ function speak(run) {
   utterance.lang = utterance.voice.lang;
   utterance.rate = Number($("rate").value);
   let startTime = performance.now();
-  $("status").textContent = `正在听 · 第 ${index + 1} / ${sentences.length} 句`;
+  $("status").textContent =
+    `正在听 / Listening · ${index + 1} / ${sentences.length}`;
   utterance.onend = () => {
     if (!playing || run !== token) return;
     const mode = $("mode").value;
@@ -314,7 +318,7 @@ function speak(run) {
             (performance.now() - startTime) * Number($("gap").value),
           );
     $("status").textContent =
-      mode === "listen" ? "准备下一句…" : "轮到你了 · 跟着说一遍";
+      mode === "listen" ? ui("准备下一句…") : ui("轮到你了 · 跟着说一遍");
     timer = setTimeout(() => {
       if (run !== token || !playing) return;
       if (mode !== "loop") index++;
@@ -322,7 +326,7 @@ function speak(run) {
         index = 0;
         stop();
         $("progress").value = sentences.length;
-        $("status").textContent = "这一篇练完了。再读一轮，或换一篇。";
+        $("status").textContent = ui("这一篇练完了。再读一轮，或换一篇。");
         if (current) {
           current.index = 0;
           save();
@@ -335,14 +339,15 @@ function speak(run) {
   utterance.onerror = () => {
     if (run !== token) return;
     stop();
-    $("status").textContent = "朗读未完成，请重试或切换声音。";
+    $("status").textContent = ui("朗读未完成，请重试或切换声音。");
   };
   synth.speak(utterance);
 }
 function getVoices() {
   if (!synth) {
-    $("status").textContent =
-      "此浏览器不支持朗读，请使用支持语音合成的浏览器。";
+    $("status").textContent = ui(
+      "此浏览器不支持朗读，请使用支持语音合成的浏览器。",
+    );
     return;
   }
   const old = $("voice").value;
@@ -357,28 +362,30 @@ function getVoices() {
   if (voices.some((v) => v.voiceURI === old)) $("voice").value = old;
   if (!voices.length) {
     let o = document.createElement("option");
-    o.textContent = "暂无英语声音";
+    o.textContent = ui("暂无英语声音");
     $("voice").append(o);
   }
 }
 function generate() {
   let text = $("text").value.trim();
   if (!text) {
-    $("status").textContent = "请先粘贴英文正文。";
+    $("status").textContent = ui("请先粘贴英文正文。");
     $("text").focus();
     return;
   }
   if (text.length > 16000) {
-    $("status").textContent = "正文最多 16,000 字，请拆成小篇，输入已保留。";
+    $("status").textContent = ui(
+      "正文最多 16,000 字，请拆成小篇，输入已保留。",
+    );
     return;
   }
   if (!current && articles.length >= 200) {
-    $("status").textContent = "已保存 200 篇，请导出并整理文章。";
+    $("status").textContent = ui("已保存 200 篇，请导出并整理文章。");
     return;
   }
   let title =
     $("title").value.trim() ||
-    "未命名文章 · " + new Date().toLocaleDateString();
+    ui("未命名文章 · ") + new Date().toLocaleDateString();
   let a = {
     id: current?.id || Date.now().toString(),
     title,
@@ -397,7 +404,7 @@ function generate() {
 $("play").onclick = () => {
   if (playing) {
     stop();
-    $("status").textContent = "已停止，再次开始将重读当前句。";
+    $("status").textContent = ui("已停止，再次开始将重读当前句。");
   } else start();
 };
 for (const [id, delta] of [
@@ -409,7 +416,8 @@ for (const [id, delta] of [
     if (!sentences.length) return;
     index = Math.max(0, Math.min(sentences.length - 1, index + delta));
     highlight();
-    $("status").textContent = `已选择第 ${index + 1} 句`;
+    $("status").textContent =
+      `已选择第 ${index + 1} 句 / Selected sentence ${index + 1}`;
   };
 for (const id of ["voice", "rate", "mode", "gap"])
   $(id).onchange = () => {
@@ -433,9 +441,9 @@ $("new").onclick = () => {
   refreshLinks();
   $("import-status").textContent = "";
   $("ai-status").textContent = "";
-  $("practiceTitle").textContent = "新的一篇";
+  $("practiceTitle").textContent = ui("新的一篇");
   render();
-  $("status").textContent = "粘贴正文，开始新的练习。";
+  $("status").textContent = ui("粘贴正文，开始新的练习。");
   $("text").focus();
 };
 $("demo").onclick = () => {
@@ -522,18 +530,18 @@ async function extract() {
   $("text").value = result.text;
   $("title").value = result.title || selected.title;
   refreshLinks();
-  $("import-status").textContent = "正文已提取，可以直接生成跟读练习。";
+  $("import-status").textContent = ui("正文已提取，可以直接生成跟读练习。");
   return true;
 }
 $("fetch-source").onclick = async () => {
   if (busy) return;
   setBusy(true);
-  $("import-status").textContent = "正在提取正文…";
+  $("import-status").textContent = ui("正在提取正文…");
   try {
     await extract();
   } catch (e) {
     $("import-status").textContent =
-      (e.message || "提取失败") + " 可以直接粘贴正文，原内容仍保留。";
+      (e.message || ui("提取失败")) + ui(" 可以直接粘贴正文，原内容仍保留。");
   } finally {
     setBusy(false);
   }
@@ -543,24 +551,27 @@ $("generate").onclick = async () => {
   const fromLink = isLinkInput($("text").value);
   if (fromLink) {
     setBusy(true);
-    $("import-status").textContent = "正在提取正文…";
+    $("import-status").textContent = ui("正在提取正文…");
     try {
       await extract();
     } catch (e) {
       $("import-status").textContent =
-        (e.message || "提取失败") + " 请改为粘贴正文。";
+        (e.message || ui("提取失败")) + ui(" 请改为粘贴正文。");
       return;
     } finally {
       setBusy(false);
     }
   }
   generate();
-  if (fromLink) $("import-status").textContent = "正文已提取，跟读练习已生成。";
+  if (fromLink)
+    $("import-status").textContent = ui("正文已提取，跟读练习已生成。");
 };
 function acceptPaste(raw) {
   if (busy) return;
   if (raw.length > 16000) {
-    $("import-status").textContent = "正文超过 16000 字，请拆成小篇再粘贴。";
+    $("import-status").textContent = ui(
+      "正文超过 16000 字，请拆成小篇再粘贴。",
+    );
     return;
   }
   const parsed = pasteArticleParts(raw);
@@ -575,10 +586,10 @@ function acceptPaste(raw) {
   const links = refreshLinks();
   $("import-status").textContent =
     links.length > 1
-      ? "检测到多篇推荐，请选一篇再生成跟读练习。"
+      ? ui("检测到多篇推荐，请选一篇再生成跟读练习。")
       : links.length
-        ? "已识别文章链接，点击「生成跟读练习」即可提取正文。"
-        : "正文已填入，点击「生成跟读练习」。";
+        ? ui("已识别文章链接，点击「生成跟读练习」即可提取正文。")
+        : ui("正文已填入，点击「生成跟读练习」。");
 }
 $("text").addEventListener("paste", (event) => {
   const field = $("text");
@@ -613,19 +624,19 @@ $("text").addEventListener("input", () => {
 async function readFile(file) {
   if (!file || busy) return;
   if (file.size > 1000000) {
-    $("import-status").textContent = "文件太大，请拆成小篇再导入。";
+    $("import-status").textContent = ui("文件太大，请拆成小篇再导入。");
     return;
   }
   try {
     const raw = await file.text();
     if (file.name.endsWith(".json")) {
       const values = readArticles(JSON.parse(raw));
-      if (!values.length) throw Error("备份里没有文章");
+      if (!values.length) throw Error(ui("备份里没有文章"));
       const added = values.filter(
         (a) => !articles.some((x) => x.text === a.text),
       );
       if (articles.length + added.length > 200)
-        throw Error("最多保存 200 篇，请先整理文章");
+        throw Error(ui("最多保存 200 篇，请先整理文章"));
       for (const a of added) {
         const id = articles.some((x) => x.id === a.id)
           ? crypto.randomUUID()
@@ -635,16 +646,17 @@ async function readFile(file) {
       save();
       library();
       load(articles[0]);
-      $("import-status").textContent = "文章备份已导入。";
+      $("import-status").textContent = ui("文章备份已导入。");
     } else {
-      if (raw.length > 16000) throw Error("正文超过 16000 字，请拆成小篇");
+      if (raw.length > 16000) throw Error(ui("正文超过 16000 字，请拆成小篇"));
       acceptPaste(raw);
       if (!$("title").value)
         $("title").value = file.name.replace(/\.[^.]+$/, "");
     }
   } catch {
-    $("import-status").textContent =
-      "文件读取失败。请检查 TXT / Markdown，或使用导出的 JSON 备份（最多 200 篇，每篇 16,000 字）。";
+    $("import-status").textContent = ui(
+      "文件读取失败。请检查 TXT / Markdown，或使用导出的 JSON 备份（最多 200 篇，每篇 16,000 字）。",
+    );
   } finally {
     $("text-file").value = "";
   }
@@ -667,25 +679,26 @@ async function prepare(action) {
   if (busy) return;
   const raw = $("text").value.trim();
   if (!raw || isLinkInput(raw)) {
-    $("ai-status").textContent = "请先粘贴正文，或点击「提取正文」。";
+    $("ai-status").textContent = ui("请先粘贴正文，或点击「提取正文」。");
     return;
   }
   const editingId = current?.id;
   setBusy(true);
   $("ai-status").textContent =
-    action === "segment" ? "正在整理段落…" : "正在生成中文参考…";
+    action === "segment" ? ui("正在整理段落…") : ui("正在生成中文参考…");
   try {
     if (action === "segment") {
       const units = split(raw);
-      if (units.length > 160) throw Error("文章较长，请拆成两篇处理");
+      if (units.length > 160) throw Error(ui("文章较长，请拆成两篇处理"));
       const result = await requestJson("/api/ai/segment", {
         lang: "en",
         paragraphs: units,
       });
       $("text").value = groupUnits(units, result.groups).join("\n\n");
       prepared = null;
-      $("ai-status").textContent =
-        "分段已整理，原句保留。点击「生成跟读练习」应用。";
+      $("ai-status").textContent = ui(
+        "分段已整理，原句保留。点击「生成跟读练习」应用。",
+      );
     } else {
       const paragraphs = raw.split(/\n\s*\n/).filter(Boolean),
         help = [];
@@ -703,11 +716,11 @@ async function prepare(action) {
         showHelp(help);
         $("article-help").open = true;
       }
-      $("ai-status").textContent = "中文参考已准备好，可在正文下方展开。";
+      $("ai-status").textContent = ui("中文参考已准备好，可在正文下方展开。");
     }
   } catch (e) {
     $("ai-status").textContent =
-      (e.message || "处理失败") + " 原文仍保留，可直接跟读。";
+      (e.message || ui("处理失败")) + ui(" 原文仍保留，可直接跟读。");
   } finally {
     setBusy(false);
   }
@@ -768,14 +781,15 @@ async function translateSelection() {
   if (!lookup) return;
   const target = lookup,
     run = ++lookupRun;
-  $("lookup-status").textContent = "正在免费查义…";
+  $("lookup-status").textContent = ui("正在免费查义…");
   $("lookup-retry").disabled = true;
   try {
     const meaning = await lookupEnglish(target.form);
     if (run !== lookupRun) return;
     $("lookup-meaning").value = meaning;
-    $("lookup-status").textContent =
-      "Google 免费翻译 · 只发送选中词，可修改释义";
+    $("lookup-status").textContent = ui(
+      "Google 免费翻译 · 只发送选中词，可修改释义",
+    );
   } catch (e) {
     if (run === lookupRun) $("lookup-status").textContent = e.message;
   } finally {
@@ -808,13 +822,13 @@ function selection() {
   $("lookup-word").textContent = form;
   $("lookup-meaning").value = "";
   $("word-card").hidden = false;
-  $("lookup-save").textContent = "想学";
+  $("lookup-save").textContent = ui("想学");
   $("lookup-save").disabled = false;
   const known = current.vocabulary?.find((t) => t.text === form);
   if (known) {
     lookupRun++;
     $("lookup-meaning").value = known.meaning;
-    $("lookup-status").textContent = "已保存的释义";
+    $("lookup-status").textContent = ui("已保存的释义");
     $("lookup-retry").disabled = false;
   } else void translateSelection();
 }
@@ -829,7 +843,7 @@ $("lookup-save").onclick = async () => {
     article = current,
     meaning = $("lookup-meaning").value.trim();
   if (!meaning) {
-    $("lookup-status").textContent = "请先查义或填写中文释义。";
+    $("lookup-status").textContent = ui("请先查义或填写中文释义。");
     return;
   }
   $("lookup-save").disabled = true;
@@ -843,12 +857,15 @@ $("lookup-save").onclick = async () => {
       save();
     }
     if (lookup === target) {
-      $("lookup-save").textContent = "已加入单词库";
-      $("lookup-status").textContent =
-        "听力、口语和阅读共用，已保存在这个浏览器。";
+      $("lookup-save").textContent = ui("已加入单词库");
+      $("lookup-status").textContent = ui(
+        "听力、口语和阅读共用，已保存在这个浏览器。",
+      );
     }
   } catch {
-    $("lookup-status").textContent = "收藏未成功，释义和原文仍保留，请重试。";
+    $("lookup-status").textContent = ui(
+      "收藏未成功，释义和原文仍保留，请重试。",
+    );
     $("lookup-save").disabled = false;
   }
 };

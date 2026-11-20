@@ -1,0 +1,104 @@
+/* Shared by the Next.js pages and the standalone speaking document. */
+.study-nav.study-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.study-nav.study-nav > a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-width: 104px;
+  min-height: 52px;
+  padding: 9px 18px;
+  text-decoration: none;
+  border: 1px solid #d4d8dc;
+  border-radius: 12px;
+  background: white;
+  color: #444753;
+  box-shadow: 0 2px 0 #2524390a;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+.study-nav.study-nav a strong {
+  display: block;
+  font-size: 14px;
+  line-height: 1.3;
+  font-weight: 650;
+}
+.study-nav.study-nav a small {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 1.3;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+.study-nav.study-nav a:hover {
+  border-color: #a04c6a;
+  background: #fcf5f8;
+}
+.study-nav.study-nav a[aria-current="page"] {
+  background: #a63e69;
+  border-color: #a63e69;
+  color: white;
+  box-shadow: 0 2px 6px #a63e6926;
+}
+.study-nav.study-nav a[data-skill="listen"][aria-current="page"] {
+  background: #27675c;
+  border-color: #27675c;
+}
+.study-nav.study-nav a[data-skill="speak"][aria-current="page"] {
+  background: #70568d;
+  border-color: #70568d;
+}
+.study-nav.study-nav a:focus-visible {
+  outline: 3px solid #d7adc0;
+  outline-offset: 3px;
+}
+.platform-brand > span:last-child {
+  display: block;
+  white-space: nowrap;
+}
+.platform-brand > span:last-child small {
+  display: block;
+}
+@media (max-width: 600px) {
+  .direct-learning .platform-brand {
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .study-nav.study-nav {
+    gap: 5px;
+  }
+  .study-nav.study-nav > a {
+    min-width: 58px;
+    min-height: 48px;
+    padding: 6px 9px;
+    gap: 0;
+  }
+  .study-nav.study-nav a strong {
+    font-size: 12px;
+  }
+  .study-nav.study-nav a small {
+    font-size: 10px;
+  }
+  .study-nav.study-nav a svg {
+    display: none;
+  }
+  .platform-brand small {
+    font-size: 8px;
+    letter-spacing: 0;
+  }
+}
+@media (max-width: 380px) {
+  .study-nav.study-nav > a {
+    min-width: 52px;
+    padding-inline: 6px;
+  }
+  .direct-learning .platform-brand-icon {
+    display: none;
+  }
+}

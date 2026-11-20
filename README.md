@@ -19,6 +19,10 @@
 
 三个学习页面可以互相跳转，在**同一浏览器、同一网站地址**下共用单词库。附带 8 篇结构化阅读范文与 15 份英德听说材料；范文、浏览器朗读、听写对照、收藏和进度保存无需 Key。范文明确标注为演示内容，不冒充现场生成。
 
+阅读页现在是左侧文章收件箱、右侧语境正文；导入、学习版／原文切换和释义设置集中在左栏，手机默认收起左栏。右上角是明确的听力／口语／阅读切换按钮。公开学习界面的标签、按钮和说明同时显示中文与英文；文章、原文、代码和生成内容按学习内容原样显示。
+
+**后端仍在仓库中**：Prisma schema、PostgreSQL 迁移和服务端 API 均保留。本次只调整界面，不把公开版学习记录改为数据库存储；公开版接入数据库另行实现。
+
 ### 启动网站
 
 需要 Node.js 22.12+（推荐 Node 24）和 npm。公开版无需数据库、Docker 或站主 API 配置：
@@ -115,6 +119,10 @@ A language-learning tool for Chinese speakers. **The website is public, with no 
 Website: <https://weavie.netlify.app/> (rename confirmed by the owner on 2026-11-20). The homepage and `/read` open contextual reading, starting with a React sample and later resuming the learner's contextual article. `/speak` hosts the original article-inbox and sentence-by-sentence Read Along interface restored from the `reading` branch, with its own saved article and sentence. Retelling, situational speaking and recording remain at `/speak/practice`, linked from the speaking page's corner menu. `/listen` remains a separate listening exercise. The three entries link to each other. Word selection in Read Along uses free translation; optional whole-article reference translation uses the learner’s key. See the [Read Along guide](reading/README.md).
 
 All three pages link to one another and share words within the **same browser and website origin**. Eight structured reading samples and fifteen English/German practice materials work without a key. Samples, system-voice playback, dictation comparison, favorites and progress are available for free; samples are explicitly labeled.
+
+Contextual reading now places an article inbox on the left and the article on the right. Import, learning/original views and gloss settings live in the sidebar, collapsed initially on phones. Clear Listen / Speak / Read buttons switch pages. Public learning controls and instructions display Chinese and English together; article content, source text, code and generated learning content retain their original format.
+
+**The backend remains in the repository**: Prisma schema, PostgreSQL migrations and server APIs are retained. This interface update does not switch public learning records to database storage; connecting the public app to PostgreSQL is a separate future task.
 
 ### Run the website
 

@@ -1,3 +1,4 @@
+import { ui } from "../../src/lib/ui";
 import { z } from "zod";
 import { browserCompletion } from "../../src/lib/browser-ai";
 import {
@@ -42,12 +43,13 @@ export async function requestReading(path: string, body: unknown) {
       signal: AbortSignal.timeout(15000),
     });
     const value = await response.json();
-    if (!response.ok) throw new Error(value.error || "提取失败，请粘贴正文。");
+    if (!response.ok)
+      throw new Error(value.error || ui("提取失败，请粘贴正文。"));
     return value;
   }
   const input = inputSchema.parse(body);
   const key = JSON.stringify([path, input]);
-  if (pending.has(key)) throw new Error("正在处理，请稍候。");
+  if (pending.has(key)) throw new Error(ui("正在处理，请稍候。"));
   pending.add(key);
   try {
     const untrusted =
@@ -75,8 +77,8 @@ export async function requestReading(path: string, body: unknown) {
       groupUnits(input.paragraphs, parsed.groups);
       return parsed;
     }
-    if (path !== "/api/ai/reading") throw new Error("不支持的操作。");
-    if (input.paragraphs.length > 6) throw new Error("一次最多处理 6 段。");
+    if (path !== "/api/ai/reading") throw new Error(ui("不支持的操作。"));
+    if (input.paragraphs.length > 6) throw new Error(ui("一次最多处理 6 段。"));
     const output = await browserCompletion(
       untrusted +
         '逐段翻译成自然中文，保留否定、条件、推测和事实，不省略原文。只返回 {"paragraphs":[{"index":0,"zh":"中文翻译"}]}，按输入顺序，index从0开始，一段对应一段。',
@@ -99,7 +101,7 @@ export async function requestReading(path: string, body: unknown) {
       parsed.paragraphs.length !== input.paragraphs.length ||
       parsed.paragraphs.some((p, i) => p.index !== i)
     )
-      throw new Error("翻译段落未一一对应，原文已保留，请重试。");
+      throw new Error(ui("翻译段落未一一对应，原文已保留，请重试。"));
     return parsed;
   } finally {
     pending.delete(key);
@@ -138,7 +140,9 @@ export async function lookupEnglish(text: string) {
     definitions.set(term, meaning);
     return meaning;
   } catch {
-    throw new Error("免费翻译暂时不可用，可以重试或自己填释义。不会调用 AI。");
+    throw new Error(
+      ui("免费翻译暂时不可用，可以重试或自己填释义。不会调用 AI。"),
+    );
   }
 }
 
@@ -160,6 +164,6 @@ export async function saveReadingWord(value: unknown) {
     })
     .parse(value);
   if (!input.sentence.includes(input.form))
-    throw new Error("请选择原句中的词或短语。");
+    throw new Error(ui("请选择原句中的词或短语。"));
   return saveLocalReadingWord(input);
 }

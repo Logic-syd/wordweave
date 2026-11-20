@@ -421,7 +421,7 @@ select {
   white-space: nowrap;
 }
 .rate-control select {
-  width: 115px;
+  width: 190px;
   font-size: 14px;
   padding: 7px 25px 7px 9px;
 }
@@ -755,5 +755,27 @@ main {
     bottom: 12px;
     max-height: 45dvh;
     overflow: auto;
+  }
+}
+
+.intro h1 small {
+  display: block;
+  font-size: 18px;
+  color: #71667d;
+  letter-spacing: 0;
+  font-weight: 500;
+  margin-top: 10px;
+}
+@media (max-width: 600px) {
+  header {
+    padding: 0 12px;
+    gap: 10px;
+  }
+  .brand {
+    font-size: 19px;
+    flex-shrink: 0;
+  }
+  header nav.study-nav {
+    gap: 4px;
   }
 }

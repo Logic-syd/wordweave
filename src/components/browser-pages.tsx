@@ -1,4 +1,6 @@
 "use client";
+import { ui } from "@/lib/ui";
+
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
@@ -129,7 +131,7 @@ export function BrowserPracticePage({
           (w) => w.id === target,
         );
         if (target && !item)
-          throw new Error("这个词不在当前浏览器里，请从自己的单词库选择。");
+          throw new Error(ui("这个词不在当前浏览器里，请从自己的单词库选择。"));
         if (live)
           setData({
             state,
@@ -182,8 +184,8 @@ export function LocalRecentReading() {
       {articles.length > 0 && (
         <section className="recent-section">
           <div className="section-heading">
-            <h2>接着读自己的文章</h2>
-            <Link href="/library">打开本地书架 →</Link>
+            <h2>{ui("接着读自己的文章")}</h2>
+            <Link href="/library">{ui("打开本地书架 →")}</Link>
           </div>
           <div className="recent-grid">
             {articles.map((a) => (
@@ -198,11 +200,11 @@ export function LocalRecentReading() {
 function Loading({ error }: { error: string }) {
   return (
     <main className="page">
-      <h1>{error ? "暂时无法打开" : "正在打开本地学习空间…"}</h1>
+      <h1>{error ? ui("暂时无法打开") : ui("正在打开本地学习空间…")}</h1>
       <p className="practice-notice" role={error ? "alert" : "status"}>
-        {error || "文章、词卡和练习记录只保存在当前浏览器。"}
+        {error || ui("文章、词卡和练习记录只保存在当前浏览器。")}
       </p>
-      <Link href="/">返回首页 →</Link>
+      <Link href="/">{ui("返回首页 →")}</Link>
     </main>
   );
 }

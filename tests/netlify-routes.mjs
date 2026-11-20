@@ -27,7 +27,12 @@ try {
   const published = join(scratch, "public", "read-along");
   await mkdir(published, { recursive: true });
   await copyFile(join(root, "netlify.toml"), join(scratch, "netlify.toml"));
-  for (const file of ["index.html", "readalong.js", "readalong.css"]) {
+  for (const file of [
+    "index.html",
+    "readalong.js",
+    "readalong.css",
+    "learning-nav.css",
+  ]) {
     const path = join(artifacts, "read-along", file);
     // Also catch an incomplete or stale Netlify asset bundle.
     assert.deepEqual(
@@ -160,7 +165,7 @@ try {
     "native-route-article",
   );
   assert.equal(
-    await page.locator('nav [aria-current="page"]').innerText(),
+    await page.locator('nav [aria-current="page"] strong').innerText(),
     "口语",
   );
   await page.goto(base + "/speak");

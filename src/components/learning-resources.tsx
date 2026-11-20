@@ -1,57 +1,65 @@
+import { ui } from "@/lib/ui";
 import { ArrowUpRight, Compass } from "lucide-react";
 import styles from "./learning-resources.module.css";
 
 const groups = [
   {
     id: "english",
-    title: "技术英语",
-    hint: "先读熟悉技术的一小节，每次 300–600 个英文词就好。",
+    title: ui("技术英语"),
+    hint: ui("先读熟悉技术的一小节，每次 300–600 个英文词就好。"),
     resources: [
       {
-        name: "React 官方教程",
+        name: ui("React 官方教程"),
         href: "https://react.dev/learn",
-        tag: "前端 · 概念入门",
-        description:
+        tag: ui("前端 · 概念入门"),
+        description: ui(
           "从组件、状态和 Effect 开始，用熟悉的代码理解常用英文表达。",
+        ),
       },
       {
         name: "MDN Web Docs",
         href: "https://developer.mozilla.org/en-US/docs/Learn_web_development",
-        tag: "Web · 系统学习",
-        description:
+        tag: ui("Web · 系统学习"),
+        description: ui(
           "JavaScript、浏览器与 HTTP。优先读教程和概念介绍，再查 API。",
+        ),
       },
       {
-        name: "Julia Evans 的博客",
+        name: ui("Julia Evans 的博客"),
         href: "https://jvns.ca/",
-        tag: "Git · Linux · 调试",
-        description: "围绕开发中真正遇到的问题展开，积累自然的解释与工作表达。",
+        tag: ui("Git · Linux · 调试"),
+        description: ui(
+          "围绕开发中真正遇到的问题展开，积累自然的解释与工作表达。",
+        ),
       },
     ],
   },
   {
     id: "german",
-    title: "德语 · A1–A2",
-    hint: "从购物、通勤和咖啡这些生活场景开始，A1 短文也值得读。",
+    title: ui("德语 · A1–A2"),
+    hint: ui("从购物、通勤和咖啡这些生活场景开始，A1 短文也值得读。"),
     resources: [
       {
         name: "DW · Nicos Weg",
         href: "https://learngerman.dw.com/",
-        tag: "剧情课程 · 免费",
-        description:
+        tag: ui("剧情课程 · 免费"),
+        description: ui(
           "进入后选择 Nicos Weg A2，跟着生活故事练听力、词汇和语法。",
+        ),
       },
       {
-        name: "Lingua 德语阅读",
+        name: ui("Lingua 德语阅读"),
         href: "https://lingua.com/german/reading/",
-        tag: "分级短文 · 部分免费",
-        description: "选择 A1/A2 的生活短文，适合复制到语境，改成中文嵌词版。",
+        tag: ui("分级短文 · 部分免费"),
+        description: ui(
+          "选择 A1/A2 的生活短文，适合复制到语境，改成中文嵌词版。",
+        ),
       },
       {
-        name: "vhs 学习平台",
+        name: ui("vhs 学习平台"),
         href: "https://www.vhs-lernportal.de/",
-        tag: "基础课程 · 免费",
-        description: "选择 A2 德语课程，系统补冠词、格和动词变位这些基础。",
+        tag: ui("基础课程 · 免费"),
+        description: ui("选择 A2 德语课程，系统补冠词、格和动词变位这些基础。"),
       },
     ],
   },
@@ -78,11 +86,11 @@ export function LearningResources() {
       <div className="section-heading">
         <h2 id="learning-resources-title">
           <Compass size={20} aria-hidden="true" />
-          学习资源推荐
+          {ui("学习资源推荐")}
         </h2>
       </div>
       <p className={styles.intro}>
-        为技术英语和德语起步挑选的学习网站，点击会在新标签页打开。
+        {ui("为技术英语和德语起步挑选的学习网站，点击会在新标签页打开。")}
       </p>
       <div className={styles.grid}>
         {groups.map((group) => (
@@ -119,7 +127,7 @@ export function LearningResources() {
         ))}
       </div>
       <div className={styles.firstReads}>
-        <span>第一篇技术文章，可以从这两篇开始</span>
+        <span>{ui("第一篇技术文章，可以从这两篇开始")}</span>
         <div>
           {firstReads.map((article) => (
             <a
@@ -135,8 +143,9 @@ export function LearningResources() {
         </div>
       </div>
       <p className={styles.importTip}>
-        找到想读的短文后，复制正文回到语境导入，也可以上传 TXT 或 Markdown。
-        目前来源网址仅作记录，不会自动抓取网页。
+        {ui(
+          "找到想读的短文后，复制正文回到语境导入，也可以上传 TXT 或 Markdown。 目前来源网址仅作记录，不会自动抓取网页。",
+        )}
       </p>
     </section>
   );
