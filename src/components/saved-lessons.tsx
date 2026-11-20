@@ -9,9 +9,9 @@ import {
   type SavedLesson,
 } from "@/lib/saved-lessons";
 const labels = {
+  read: "阅读 / Read",
   listen: "听力 / Listen",
   speak: "口语 / Speak",
-  read: "阅读 / Read",
 };
 export function SavedLessons() {
   const [items, setItems] = useState<SavedLesson[]>([]),
@@ -46,8 +46,8 @@ export function SavedLessons() {
     <section className="page saved-lessons" aria-label="我的听说读收藏">
       <h1>我的库 / My library</h1>
       <p>
-        主动保存的听力、口语和阅读。没保存也可以直接学。 / Your saved listening,
-        speaking and reading. Saving is optional.
+        主动保存的阅读、听力和口语。没保存也可以直接学。 / Your saved reading,
+        listening and speaking. Saving is optional.
       </p>
       <div className="filter-tabs">
         {Object.entries({ all: "全部 / All", ...labels }).map(

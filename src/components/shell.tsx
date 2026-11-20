@@ -10,6 +10,12 @@ import { rememberSkill } from "@/lib/learning-entry";
 import { SpriteIcon } from "./sprite-icon";
 const nav = [
   {
+    href: "/read",
+    label: "阅读",
+    english: "Read",
+    skill: "read",
+  },
+  {
     href: "/listen",
     label: "听力",
     english: "Listen",
@@ -20,12 +26,6 @@ const nav = [
     label: "口语",
     english: "Speak",
     skill: "speak",
-  },
-  {
-    href: "/read",
-    label: "阅读",
-    english: "Read",
-    skill: "read",
   },
 ] as const;
 export function Shell({ children }: { children: React.ReactNode }) {
