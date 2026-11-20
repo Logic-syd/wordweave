@@ -1,0 +1,321 @@
+.daily-lesson {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 0 0 18px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #e5e3e0;
+}
+.reading-focus #daily-pick,
+.reading-focus #save-lesson-status {
+  display: none;
+}
+.daily-lesson > div:first-child {
+  flex: 1;
+  min-width: 170px;
+}
+.daily-lesson strong {
+  font-size: 14px;
+  color: #85405c;
+}
+.daily-lesson small {
+  display: block;
+  font-size: 11px;
+  color: #69716b;
+  margin-top: 4px;
+}
+.daily-lesson .button,
+.daily-lesson > button {
+  font-size: 12px;
+  line-height: 1.5;
+  min-height: 42px;
+  border: 1px solid #e1bacb;
+  background: #fff4f8;
+  color: #8c3155;
+  border-radius: 10px;
+  padding: 9px 12px;
+}
+.daily-lesson a,
+.daily-return > a {
+  font-size: 11px;
+  color: #85405c;
+}
+.lesson-save p {
+  font-size: 12px;
+  color: #9c2646;
+}
+.daily-return {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 18px;
+}
+.saved-lessons {
+  padding-bottom: 10px;
+}
+.saved-lessons > p {
+  font-size: 14px;
+  color: #69716b;
+  margin: 14px 0;
+}
+.saved-lessons .filter-tabs {
+  flex-wrap: wrap;
+  margin: 20px 0;
+}
+.saved-lesson-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 15px;
+}
+.saved-lesson-card {
+  padding: 20px;
+  border: 1px solid #e6dbe0;
+  border-radius: 16px;
+  background: white;
+}
+.saved-lesson-card small {
+  color: #85405c;
+}
+.saved-lesson-card h2 {
+  font-size: 19px;
+  margin: 12px 0 20px;
+}
+.saved-lesson-card > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+}
+.saved-lesson-card button {
+  color: #7c6670;
+}
+.saved-empty {
+  padding: 22px;
+  border: 1px dashed #d9c9d0;
+  border-radius: 12px;
+}
+.direct-learning .page.listen-workspace {
+  max-width: 1400px;
+  padding: 28px 28px 52px;
+}
+.direct-learning .listen-workspace .practice-grid {
+  display: grid;
+  grid-template-columns: 330px minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+.listen-workspace .practice-main-column {
+  min-width: 0;
+}
+.listen-workspace .practice-workspace {
+  background: #fffefd;
+  border: 1px solid #e4e4e0;
+  border-radius: 18px;
+  padding: 28px 36px;
+}
+.listen-workspace .practice-aside {
+  grid-template-columns: 1fr;
+}
+.listen-workspace .play-main strong {
+  white-space: normal;
+}
+.listen-workspace .play-speed {
+  flex-shrink: 0;
+}
+.listening-inbox {
+  min-width: 0;
+}
+.listening-inbox .inbox-heading h2 {
+  font-size: 18px;
+}
+.daily-today-link {
+  display: block;
+  font-size: 12px;
+  color: #27675c;
+  margin-bottom: 18px;
+}
+.practice-inline-import .section-heading h2 {
+  font-size: 14px;
+}
+.practice-inline-import form > p,
+.practice-inline-import small,
+.practice-inline-import .practice-hint {
+  font-size: 11px;
+  color: #69716b;
+}
+.practice-inline-import fieldset {
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.practice-inline-import label {
+  display: block;
+  font-size: 12px;
+  line-height: 1.7;
+  margin: 15px 0;
+}
+.practice-inline-import input,
+.practice-inline-import textarea,
+.practice-inline-import select {
+  width: 100%;
+  font-size: 14px;
+  padding: 10px;
+  min-width: 0;
+}
+.practice-inline-import input[type="checkbox"] {
+  width: auto;
+}
+.practice-inline-import textarea {
+  resize: vertical;
+  min-height: 130px;
+}
+.practice-inline-import .practice-submit {
+  display: block;
+}
+.practice-inline-import .practice-submit button {
+  width: 100%;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: normal;
+}
+.selected-audio {
+  display: block;
+  overflow-wrap: anywhere;
+  padding-top: 6px;
+}
+.selected-audio button {
+  color: #8c3155;
+  text-decoration: underline;
+}
+.listening-saved {
+  border-top: 1px solid #e5e3e0;
+  margin-top: 22px;
+  padding-top: 18px;
+}
+.listening-saved h3 {
+  font-size: 14px;
+}
+.listening-saved p {
+  font-size: 12px;
+  color: #69716b;
+}
+.listening-saved > button {
+  display: block;
+  text-align: left;
+  width: 100%;
+  border: 1px solid #e5e3e0;
+  border-radius: 10px;
+  padding: 10px;
+  margin: 10px 0;
+  font-size: 13px;
+}
+.listening-saved > button[aria-pressed="true"] {
+  background: #edf6f3;
+  border-color: #8ab4a7;
+}
+.local-audio-player {
+  padding: 20px;
+  background: #edf5f2;
+  border-radius: 14px;
+}
+.local-audio-player audio {
+  display: block;
+  width: 100%;
+  margin: 14px 0;
+}
+.local-audio-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.local-audio-controls button {
+  font-size: 12px;
+  border: 1px solid #b5ccc3;
+  border-radius: 8px;
+  padding: 9px;
+  background: white;
+}
+.local-audio-controls label {
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.local-audio-controls select {
+  width: auto;
+}
+.listen-workspace .speaking-cue {
+  padding: 14px 18px;
+  background: #f1f6f3;
+}
+@media (max-width: 1000px) {
+  .direct-learning .page.listen-workspace {
+    padding: 22px 18px;
+  }
+  .direct-learning .listen-workspace .practice-grid {
+    grid-template-columns: 290px minmax(0, 1fr);
+    gap: 18px;
+  }
+  .listen-workspace .practice-workspace {
+    padding: 24px;
+  }
+}
+@media (max-width: 760px) {
+  .direct-learning .page.listen-workspace {
+    padding: 16px 12px 35px;
+  }
+  .direct-learning .listen-workspace .practice-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .listening-inbox,
+  .listen-workspace .practice-main-column {
+    width: 100%;
+  }
+  .listen-workspace .practice-workspace {
+    padding: 20px 18px;
+  }
+  .listen-workspace .practice-entrybar {
+    margin-bottom: 10px;
+  }
+  .daily-lesson {
+    gap: 8px;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+  }
+  .daily-lesson > div:first-child {
+    min-width: 155px;
+  }
+  .daily-lesson strong {
+    font-size: 12px;
+  }
+  .daily-lesson .button,
+  .daily-lesson > button {
+    padding: 7px 10px;
+    font-size: 11px;
+  }
+  .daily-lesson small {
+    font-size: 10px;
+  }
+  .listen-workspace .practice-task-line {
+    flex-wrap: wrap;
+  }
+  .listen-workspace .practice-player {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+  .listen-workspace .play-speed {
+    justify-self: end;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+  .saved-lesson-grid {
+    grid-template-columns: 1fr;
+  }
+}

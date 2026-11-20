@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 import { uiName } from "../ui-name.mjs";
 
 test("desktop inbox imports beside contextual reading and preserves Markdown without an API", async ({

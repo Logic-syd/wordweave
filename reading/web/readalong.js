@@ -1,4 +1,10 @@
 import { ui } from "../../src/lib/ui";
+import { dailyLesson, speakingPicks } from "../../src/lib/daily";
+import {
+  saveLesson,
+  savedLessons,
+  removeSavedLesson,
+} from "../../src/lib/saved-lessons";
 import { groupUnits } from "./learning.js";
 import {
   requestReading,
@@ -14,6 +20,7 @@ import {
 } from "./readalong-import.js";
 const $ = (id) => document.getElementById(id),
   synth = window.speechSynthesis;
+const today = dailyLesson();
 let sourceUrl = "",
   prepared = null,
   busy = false;
@@ -42,8 +49,10 @@ try {
 function save() {
   try {
     localStorage.setItem("readalong.articles", JSON.stringify(articles));
+    return true;
   } catch {
     $("status").textContent = ui("存储空间不足，请导出备份。");
+    return false;
   }
 }
 function split(text) {
@@ -217,6 +226,25 @@ function highlight() {
   $("progress").value = index;
   if (current) {
     current.index = index;
+    if (
+      current.id !== today.speaking.id ||
+      new URLSearchParams(location.search).has("article")
+    )
+      window.history.replaceState(
+        null,
+        "",
+        `/speak?article=${encodeURIComponent(current.id)}&sentence=${index}#exercise`,
+      );
+    const stored = articles.find((a) => a.id === current.id);
+    if (stored) stored.index = index;
+    if (current.id === today.speaking.id) {
+      try {
+        localStorage.setItem(
+          "readalong.daily-progress",
+          JSON.stringify({ day: today.day, id: current.id, index }),
+        );
+      } catch {}
+    }
     save();
   }
   centerCurrentSentence();
@@ -247,6 +275,11 @@ function library() {
         );
       } catch {}
       articles = articles.filter((x) => x.id !== a.id);
+      void removeSavedLesson({
+        skill: "speak",
+        contentId: a.id,
+        title: a.title,
+      }).catch(() => {});
       if (current?.id === a.id) {
         stop();
         current = null;
@@ -254,11 +287,88 @@ function library() {
       }
       save();
       library();
+      updateDaily();
     };
     row.append(open, del);
     root.append(row);
   });
 }
+function updateDaily() {
+  const isToday = current?.id === today.speaking.id;
+  $("daily-label").textContent = isToday
+    ? "今日口语 / Daily speaking"
+    : "口语短文 / Speaking passage";
+  $("daily-date").textContent = isToday
+    ? `${today.day} · 精选轮换 / Curated rotation`
+    : "听一句，跟一句 / Listen and repeat";
+  $("daily-pick").dataset.day = today.day;
+  $("daily-pick").dataset.contentId = current?.id ?? "";
+  $("today-lesson").hidden = isToday;
+  $("save-lesson").disabled = !current;
+  $("save-lesson").textContent = "保存到我的库 / Save to my library";
+  const id = current?.id;
+  void savedLessons()
+    .then((items) => {
+      if (current?.id !== id) return;
+      const saved = items.some(
+        (item) => item.skill === "speak" && item.contentId === id,
+      );
+      $("save-lesson").disabled = saved || !current;
+      $("save-lesson").textContent = saved
+        ? "已保存到我的库 / Saved"
+        : "保存到我的库 / Save to my library";
+    })
+    .catch(() => {});
+}
+function loadToday() {
+  const a = { ...today.speaking, index: 0 };
+  try {
+    const progress = JSON.parse(
+      localStorage.getItem("readalong.daily-progress") || "{}",
+    );
+    if (
+      progress.day === today.day &&
+      progress.id === a.id &&
+      Number.isInteger(progress.index) &&
+      progress.index >= 0
+    )
+      a.index = progress.index;
+  } catch {}
+  window.history.replaceState(null, "", "/speak");
+  load(a);
+}
+$("today-lesson").onclick = loadToday;
+$("save-lesson").onclick = async () => {
+  if (!current || $("save-lesson").disabled) return;
+  $("save-lesson").disabled = true;
+  $("save-lesson-status").textContent = "";
+  const article = current;
+  try {
+    if (!articles.some((a) => a.id === article.id)) {
+      if (articles.length >= 200)
+        throw Error(
+          "已保存 200 篇，请先整理。 / Your library has 200 articles.",
+        );
+      articles.unshift({ ...article });
+      if (!save()) {
+        articles = articles.filter((a) => a.id !== article.id);
+        throw Error(
+          "无法保存，请检查浏览器存储空间。 / Check your browser's storage space.",
+        );
+      }
+    }
+    await saveLesson({
+      skill: "speak",
+      contentId: article.id,
+      title: article.title,
+    });
+    library();
+    updateDaily();
+  } catch (e) {
+    $("save-lesson-status").textContent = e.message;
+    $("save-lesson").disabled = false;
+  }
+};
 function load(a) {
   stop();
   closeLookup();
@@ -278,6 +388,7 @@ function load(a) {
   index = Math.min(a.index || 0, Math.max(0, sentences.length - 1));
   $("practiceTitle").textContent = a.title;
   render();
+  updateDaily();
   $("status").textContent = ui("已准备好，点击开始跟读。");
 }
 function start() {
@@ -387,7 +498,10 @@ function generate() {
     $("title").value.trim() ||
     ui("未命名文章 · ") + new Date().toLocaleDateString();
   let a = {
-    id: current?.id || Date.now().toString(),
+    id:
+      current && !current.id.startsWith("daily-speak-")
+        ? current.id
+        : crypto.randomUUID(),
     title,
     text,
     index: 0,
@@ -400,6 +514,11 @@ function generate() {
   save();
   library();
   load(a);
+  void saveLesson({ skill: "speak", contentId: a.id, title: a.title })
+    .then(updateDaily)
+    .catch((e) => {
+      $("save-lesson-status").textContent = e.message;
+    });
 }
 $("play").onclick = () => {
   if (playing) {
@@ -443,15 +562,12 @@ $("new").onclick = () => {
   $("ai-status").textContent = "";
   $("practiceTitle").textContent = ui("新的一篇");
   render();
+  updateDaily();
   $("status").textContent = ui("粘贴正文，开始新的练习。");
   $("text").focus();
 };
 $("demo").onclick = () => {
-  current = null;
-  $("title").value = "A small pause in the day";
-  $("text").value =
-    "I stopped by a small coffee shop on my way home. The barista asked how my day was going, and we ended up chatting about the neighbourhood.\nI had been staring at a screen all afternoon, so it felt good to slow down for a moment. I ordered a flat white and found a seat by the window.\nSometimes a short conversation is all it takes to make an ordinary day feel a little different.";
-  $("generate").click();
+  loadToday();
 };
 $("export").onclick = () => {
   const url = URL.createObjectURL(
@@ -738,6 +854,7 @@ async function restoreSavedArticles() {
       const m = item.value;
       if (
         item.kind !== "materials" ||
+        m.audio ||
         m.deleted ||
         hiddenArticles.has(m.id) ||
         !Array.isArray(m.paragraphs) ||
@@ -892,14 +1009,11 @@ if (query.has("word") || query.has("material")) {
 } else {
   // Keep existing article IDs and positions, including imported backups from the old site.
   library();
-  let last = "";
-  try {
-    last = localStorage.getItem("readalong.last") || "";
-  } catch {}
   const selected =
     articles.find((a) => a.id === query.get("article")) ||
-    articles.find((a) => a.id === last) ||
-    articles[0];
+    speakingPicks
+      .map((a) => ({ ...a, index: 0 }))
+      .find((a) => a.id === query.get("article"));
   if (selected) {
     const requested = Number(query.get("sentence"));
     if (
@@ -911,7 +1025,7 @@ if (query.has("word") || query.has("material")) {
       selected.index = requested;
     load(selected);
   } else {
-    $("demo").click();
+    loadToday();
   }
   try {
     if (localStorage.getItem("readalong.focus") === "true") setFocus(true);

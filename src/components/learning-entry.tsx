@@ -3,11 +3,11 @@ import { ui } from "@/lib/ui";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { lastReading, lastSkill } from "@/lib/learning-entry";
-import { localShelf } from "@/lib/browser-store";
+import { lastSkill } from "@/lib/learning-entry";
 import { getSample } from "@/lib/samples";
-import { BrowserReader } from "./browser-pages";
 import { SampleReader } from "./sample-reader";
+import { dailyLesson, localDay } from "@/lib/daily";
+import { useHydrated } from "./use-hydrated";
 
 export function ResumeLearning() {
   const router = useRouter();
@@ -21,34 +21,14 @@ export function ResumeLearning() {
   );
 }
 export function DirectReading() {
-  const [id, setId] = useState<string>();
-  useEffect(() => {
-    let live = true;
-    void localShelf()
-      .catch(() => [])
-      .then((articles) => {
-        const previous = lastReading();
-        const selected =
-          previous &&
-          (getSample(previous) || articles.some((a) => a.id === previous))
-            ? previous
-            : (articles[0]?.id ?? "sample-react-state-v1");
-        if (live) setId(selected);
-      });
-    return () => {
-      live = false;
-    };
-  }, []);
-  if (!id)
+  const [day] = useState(localDay);
+  const hydrated = useHydrated();
+  if (!hydrated)
     return (
       <main className="page entry-loading" aria-busy="true">
-        <p role="status">{ui("正在打开上次那一篇…")}</p>
+        <p role="status">正在打开今日阅读 / Opening today’s reading…</p>
       </main>
     );
-  const sample = getSample(id);
-  return sample ? (
-    <SampleReader article={sample} />
-  ) : (
-    <BrowserReader key={id} id={id} autoGenerate={false} />
-  );
+  const sample = getSample(dailyLesson(day).reading)!;
+  return <SampleReader article={sample} daily={day} />;
 }

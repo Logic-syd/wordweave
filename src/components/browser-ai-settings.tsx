@@ -301,6 +301,10 @@ function SettingsForm() {
           <Download size={16} />
           {ui("导出学习记录（不含 Key）")}
         </button>
+        <p>
+          JSON 备份不包含音频文件，请保留原始音频。 / JSON backups exclude audio
+          files. Keep your original recordings.
+        </p>
         <Link href="/listen">{ui("去听一段 →")}</Link>
       </section>
     </main>

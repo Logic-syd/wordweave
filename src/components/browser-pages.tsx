@@ -25,6 +25,7 @@ import { Reader } from "./reader";
 import { PracticeStudio } from "./practice-studio";
 import { ArticleCard } from "./article-card";
 import { LocalAiNotice, useBrowserAi } from "./browser-ai-settings";
+import { dailyLesson, localDay } from "@/lib/daily";
 
 export function BrowserNewPage({ mode }: { mode: "tech" | "german" }) {
   const config = useBrowserAi();
@@ -112,6 +113,9 @@ export function BrowserPracticePage({
   paragraph?: string;
 }) {
   const config = useBrowserAi();
+  const [day] = useState(localDay);
+  const today = dailyLesson(day);
+  const daily = skill === "listen" && !material && !word;
   const [data, setData] = useState<{
       state: PracticeState;
       words: VocabularyView[];
@@ -124,7 +128,8 @@ export function BrowserPracticePage({
       .then(([state, words]) => {
         const target =
           word ??
-          ((material ?? state.progress[skill]?.mid)?.startsWith("word:")
+          (!daily &&
+          (material ?? state.progress[skill]?.mid)?.startsWith("word:")
             ? (material ?? state.progress[skill]!.mid).slice(5)
             : undefined);
         const item = [...words, ...sampleVocabulary()].find(
@@ -149,7 +154,7 @@ export function BrowserPracticePage({
     return () => {
       live = false;
     };
-  }, [skill, material, word]);
+  }, [skill, material, word, daily]);
   if (!data) return <Loading error={error} />;
   return (
     <PracticeStudio
@@ -159,8 +164,17 @@ export function BrowserPracticePage({
       initialState={data.state}
       initialWords={data.words}
       materials={data.materials}
-      requestedMaterial={word ? `word:${word}` : material}
-      requestedParagraph={paragraph}
+      requestedMaterial={
+        word
+          ? `word:${word}`
+          : (material ?? (daily ? today.listening.id : undefined))
+      }
+      requestedParagraph={paragraph ?? (daily ? today.paragraph : undefined)}
+      daily={
+        skill === "listen"
+          ? { day, contentId: today.listening.id, paragraph: today.paragraph }
+          : undefined
+      }
       aiAvailable={browserAiReady(config)}
     />
   );

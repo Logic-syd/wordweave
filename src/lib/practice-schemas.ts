@@ -15,7 +15,7 @@ export const practiceTaskSchema = z.enum([
 export type PracticeTask = z.infer<typeof practiceTaskSchema>;
 export const practiceParagraphSchema = z.object({
   id: identifier,
-  text: z.string().trim().min(1).max(16000),
+  text: z.string().trim().max(16000),
   zh: z.string().max(24000).default(""),
   question: z.string().max(600).optional(),
   oral: z.string().max(680).optional(),
@@ -36,8 +36,25 @@ export const practiceMaterialSchema = z
     oral: z.string().max(680).optional(),
     wordId: identifier.optional(),
     at: z.number().finite().optional(),
+    audio: z
+      .object({
+        id: identifier,
+        name: z.string().min(1).max(220),
+        size: z
+          .number()
+          .int()
+          .positive()
+          .max(20 * 1024 * 1024),
+        type: z.string().max(100),
+      })
+      .optional(),
   })
   .superRefine((m, ctx) => {
+    if (!m.audio && m.paragraphs.some((p) => !p.text.trim()))
+      ctx.addIssue({
+        code: "custom",
+        message: "没有音频时，必须提供原文 / Add a transcript or an audio file",
+      });
     if (m.paragraphs.reduce((n, p) => n + p.text.length, 0) > 16000)
       ctx.addIssue({
         code: "custom",

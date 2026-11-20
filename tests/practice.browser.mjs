@@ -100,6 +100,7 @@ try {
     };
   });
   const page = await context.newPage();
+  await page.clock.setFixedTime(new Date("2026-11-20T12:00:00Z"));
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(`${base}/listen`);
   await expect(
@@ -140,12 +141,14 @@ try {
   await importer
     .getByRole("button", { name: uiName("保存并开始练习") })
     .click();
-  await expect(importer.getByRole("alert")).toContainText("请填写标题和原文");
+  await expect(importer.getByRole("alert")).toContainText(
+    "请填写标题，并添加音频或原文",
+  );
   await importer
     .getByLabel(uiName("标题"), { exact: true })
     .fill("测试：团队更新");
   await importer
-    .getByLabel(uiName("原文"), { exact: true })
+    .getByLabel(/^原文/)
     .fill(
       "We batch updates to reduce work. We check the result together.\n\nThe bus stops at the station.",
     );
@@ -307,7 +310,10 @@ try {
   await expect(page.locator(".practice-bottom")).toContainText(
     "已保存在这个浏览器",
   );
+  const wordExercise = page.url();
   await page.goto(`${base}/listen`);
+  await expect(page.getByRole("region", { name: "每日精选" })).toBeVisible();
+  await page.goto(wordExercise);
   await expect(page.locator(".practice-material-heading h2")).toHaveText(
     uiName("练一句 · batch"),
   );
@@ -326,7 +332,7 @@ try {
     uiName("解释一个技术取舍"),
   );
   console.log(
-    "PASS resume a vocabulary exercise from the plain page URL; explicit material changes survive reload",
+    "PASS daily listening on the plain URL; explicit word/material links resume after reload",
   );
   await page.goto(`${base}/read`);
   await expect(page.locator(".reading-content")).toBeVisible();

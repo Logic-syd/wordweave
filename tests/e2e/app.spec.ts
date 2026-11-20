@@ -1,5 +1,5 @@
 import { uiName } from "../ui-name.mjs";
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 import { getSample } from "../../src/lib/samples";
 const techId = "sample-react-state-v1";
 const germanId = "sample-supermarket-v1";
@@ -274,6 +274,10 @@ test("home and three entries keep contextual reading, shadowing and listening di
     )
     .toBe("click");
   await page.getByRole("link", { name: uiName("语境 · 继续学习") }).click();
+  await expect(page.locator(".article-heading h1")).toHaveText(
+    uiName("状态更新，并不会立刻发生"),
+  );
+  await page.goto(`/read/${germanId}`);
   await expect(page.locator(".article-heading h1")).toHaveText(germanTitle);
   await expect(page.getByLabel(uiName("释义显示方式"))).toHaveValue("click");
   await page.reload();

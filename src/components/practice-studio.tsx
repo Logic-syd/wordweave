@@ -49,7 +49,15 @@ import {
   saveSamplePracticeOccurrence,
 } from "@/lib/sample-storage";
 import { WordCard } from "./word-card";
-import { PracticePlayer, PracticeRecorder } from "./practice-audio";
+import {
+  PracticePlayer,
+  PracticeRecorder,
+  LocalAudioPlayer,
+} from "./practice-audio";
+import { DailyLessonBar, SaveLessonButton } from "./daily-lesson";
+import { localDay } from "@/lib/daily";
+import { savedLessons, saveLesson } from "@/lib/saved-lessons";
+import { saveAudioMaterial, validateAudio } from "@/lib/practice-audio-store";
 import { useHydrated } from "./use-hydrated";
 
 import { browserFetch } from "@/lib/browser-api";
@@ -63,6 +71,7 @@ type Props = {
   requestedMaterial?: string;
   requestedParagraph?: string;
   aiAvailable: boolean;
+  daily?: { day: string; contentId: string; paragraph: string };
 };
 type LocalPractice = {
   progress?: PracticeProgress;
@@ -139,6 +148,7 @@ function Studio({
   requestedMaterial,
   requestedParagraph,
   aiAvailable,
+  daily,
 }: Props) {
   const storageKey = `wordweave.practice.v1:${owner ?? "guest"}:${skill}`;
   const [local] = useState(() => readLocal(storageKey));
@@ -155,10 +165,18 @@ function Studio({
   });
   const [progress, setProgress] = useState<PracticeProgress>(() => {
     const remote = initialState.progress[skill];
-    const cached =
+    let cached =
       !remote || (local.progress?.at ?? 0) > remote.at
         ? local.progress
         : remote;
+    if (
+      daily &&
+      !requestedMaterial?.startsWith("word:") &&
+      requestedMaterial === daily.contentId &&
+      cached &&
+      localDay(new Date(cached.at)) !== daily.day
+    )
+      cached = undefined;
     const selected =
       materials.find((m) => m.id === (requestedMaterial ?? cached?.mid)) ??
       materials[0];
@@ -175,8 +193,15 @@ function Studio({
         : tasksForSkill(skill)[0];
     const draft = local.drafts[draftKey({ mid: selected.id, pid, task })] as
       PracticeProgress | undefined;
-    const resume =
+    let resume =
       cached?.mid === selected.id && cached.pid === pid ? cached : draft;
+    if (
+      daily &&
+      requestedMaterial === daily.contentId &&
+      resume &&
+      localDay(new Date(resume.at)) !== daily.day
+    )
+      resume = undefined;
     return {
       mid: selected.id,
       pid,
@@ -209,6 +234,9 @@ function Studio({
   );
   const [languageFilter, setLanguageFilter] = useState("all");
   const [importOpen, setImportOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const [importRound, setImportRound] = useState(0);
+  const [savedPicks, setSavedPicks] = useState<string[]>([]);
   const [wordOpen, setWordOpen] = useState(false);
   const [form, setForm] = useState("");
   const [meaning, setMeaning] = useState("");
@@ -222,14 +250,48 @@ function Studio({
   const paragraph =
     material.paragraphs.find((p) => p.id === progress.pid) ??
     material.paragraphs[0];
-  const source = practiceSource(material, paragraph.id, progress.task);
-  const question = practiceQuestion(material, paragraph.id, progress.task);
+  // An imported recording has no sentence timestamps. Compare its complete
+  // supplied transcript, never the first sentence against the whole recording.
+  const source =
+    material.audio && skill === "listen"
+      ? paragraph.text
+      : practiceSource(material, paragraph.id, progress.task);
+  const isDaily =
+    skill === "listen" &&
+    daily?.contentId === material.id &&
+    daily.paragraph === paragraph.id;
+  const question =
+    practiceQuestion(material, paragraph.id, progress.task) ||
+    (isDaily && progress.task === "listen"
+      ? (paragraph.question ?? material.question ?? "What is the main point?")
+      : "");
   const paragraphIndex = material.paragraphs.findIndex(
     (p) => p.id === paragraph.id,
   );
   const otherSkill = skill === "listen" ? "speak" : "listen";
   const Icon = skill === "listen" ? Headphones : Mic2;
   const otherLink = `${practicePath(otherSkill)}?material=${encodeURIComponent(material.id)}&paragraph=${encodeURIComponent(paragraph.id)}`;
+  useEffect(() => {
+    let live = true;
+    const refresh = () => {
+      void savedLessons()
+        .then((items) => {
+          if (live)
+            setSavedPicks(
+              items
+                .filter((item) => item.skill === skill)
+                .map((item) => item.contentId),
+            );
+        })
+        .catch(() => {});
+    };
+    refresh();
+    window.addEventListener("wordweave:local-data", refresh);
+    return () => {
+      live = false;
+      window.removeEventListener("wordweave:local-data", refresh);
+    };
+  }, [skill]);
 
   useEffect(() => {
     latest.current = progress;
@@ -332,6 +394,7 @@ function Studio({
     task: PracticeTask = progress.task,
   ) {
     if (busyRef.current) return;
+    setToolsOpen(false);
     if (methodPanel.current) methodPanel.current.open = false;
     if (materialsPanel.current?.open) {
       materialsPanel.current.open = false;
@@ -371,7 +434,7 @@ function Studio({
     );
     setFeedback(entry);
   }
-  async function submit(ai = false) {
+  async function submit(ai: boolean, submittedAt: number) {
     if (busyRef.current) return;
     if (!progress.answer.trim()) {
       setMessage(ui("先写下你听到的重点，或记录刚才说出的回答。"));
@@ -399,16 +462,18 @@ function Studio({
       lang: material.lang,
       answer: progress.answer.trim(),
       link: "",
-      at: Date.now(),
+      at: submittedAt,
       reference: {
         source,
         lang: material.lang,
         question,
-        cues: paragraph.points ?? [],
+        cues:
+          paragraph.points ??
+          (paragraph.answerGuide ? [paragraph.answerGuide.slice(0, 420)] : []),
       },
     };
     try {
-      if (progress.task === "dictation")
+      if (progress.task === "dictation" && source.trim())
         entry.grade = practiceGradeSchema.parse(
           gradeDictation(source, entry.answer),
         );
@@ -416,6 +481,7 @@ function Studio({
       change({ revealed: true });
       if (
         ai &&
+        source.trim() &&
         aiAvailable &&
         ["listen", "retell", "oral", "understand"].includes(progress.task)
       ) {
@@ -562,11 +628,135 @@ function Studio({
     (m) => languageFilter === "all" || m.lang === languageFilter,
   );
   const recent = history.filter((h) => h.skill === skill).slice(0, 5);
+  const personalMaterials = materials.filter(
+    (m) => m.id.startsWith("custom:") || savedPicks.includes(m.id),
+  );
+  function imported(m: PracticeMaterial) {
+    setImportRound((n) => n + 1);
+    setMaterials((previous) => [m, ...previous.filter((p) => p.id !== m.id)]);
+    choose(m, m.paragraphs[0].id, skill === "listen" ? "listen" : "shadow");
+    setImportOpen(false);
+  }
   const shelf = words
     .filter((w) => w.language === material.lang && w.user?.status !== "IGNORED")
     .slice(0, 4);
+  const materialTools = (
+    <details
+      id="practice-materials-panel"
+      className="practice-tools"
+      ref={materialsPanel}
+    >
+      <summary>
+        {ui("换一段练习 · 共用单词库")}
+        <ChevronDown size={15} />
+      </summary>
+      <aside className="practice-aside">
+        <section className="practice-materials">
+          <div className="section-heading">
+            <h2>{ui("换一段练习")}</h2>
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="导入练习材料"
+              onClick={() => setImportOpen(true)}
+            >
+              <Plus size={19} />
+            </button>
+          </div>
+          <p>{ui("日常、工作和你自己的材料")}</p>
+          <div className="material-language-tabs">
+            {[
+              ["all", ui("全部")],
+              ["en", ui("英语")],
+              ["de", ui("德语")],
+            ].map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={languageFilter === value}
+                onClick={() => setLanguageFilter(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="material-options">
+            {shownMaterials.map((m) => (
+              <button
+                type="button"
+                key={m.id}
+                disabled={busy}
+                className={m.id === material.id ? "selected" : ""}
+                aria-pressed={m.id === material.id}
+                onClick={() => choose(m)}
+              >
+                <span>{m.title}</span>
+                <small>
+                  {m.lang === "de" ? `${ui("德语")} ${m.level}` : ui("英语")} ·{" "}
+                  {m.paragraphs.length}
+                  {ui("段")}
+                  {m.wordId ? ui(" · 单词库") : ""}
+                </small>
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="button import-material"
+            onClick={() => setImportOpen(true)}
+          >
+            <Plus size={15} />
+            {ui("导入自己的材料")}
+          </button>
+        </section>
+        <section className="practice-word-shelf">
+          <div className="section-heading">
+            <h2>
+              <NotebookPen size={17} />
+              {ui("共用单词库")}
+            </h2>
+            <Link href="/vocabulary" aria-label="打开单词库">
+              <ArrowRight size={17} />
+            </Link>
+          </div>
+          <p>
+            {skill === "listen"
+              ? "阅读里存过的，也能拿来听。 / Listen to expressions saved while reading."
+              : "阅读里存过的，也能拿来说。 / Practise saying expressions saved while reading."}
+          </p>
+          {shelf.length ? (
+            shelf.map((w) => (
+              <div key={w.id} className="practice-shelf-word">
+                <button type="button" onClick={() => setSelectedWord(w)}>
+                  <strong>{w.lemma}</strong>
+                  <span>{w.meaning}</span>
+                </button>
+                <Link
+                  href={`${practicePath(skill)}?word=${encodeURIComponent(w.id)}`}
+                  aria-label={`${skill === "listen" ? "听" : "说"} ${w.lemma} / ${skill === "listen" ? "Listen to" : "Say"} ${w.lemma}`}
+                >
+                  <Icon size={16} />
+                </Link>
+              </div>
+            ))
+          ) : (
+            <p className="shelf-empty">
+              {ui("把没听懂、说不出的表达收藏到这里，下次接着练。")}
+            </p>
+          )}
+          <Link className="shelf-footer" href="/vocabulary">
+            {ui("查看全部词条")}
+            <ArrowRight size={14} />
+          </Link>
+        </section>
+      </aside>
+    </details>
+  );
   return (
-    <main className="page practice-page" data-skill={skill}>
+    <main
+      className={`page practice-page${skill === "listen" ? " listen-workspace" : ""}`}
+      data-skill={skill}
+    >
       <div className="practice-entrybar">
         <h1 className="skill-kicker">
           <Icon size={17} />
@@ -577,6 +767,7 @@ function Studio({
           className="text-button"
           aria-controls="practice-materials-panel"
           onClick={() => {
+            setToolsOpen(true);
             if (materialsPanel.current) {
               materialsPanel.current.open = true;
               materialsPanel.current.scrollIntoView({ block: "start" });
@@ -591,12 +782,92 @@ function Studio({
         </button>
       </div>
       <div className="practice-grid">
+        {skill === "listen" && (
+          <aside className="listening-inbox">
+            <button
+              type="button"
+              className="inbox-toggle"
+              aria-expanded={toolsOpen}
+              aria-controls="listening-inbox-body"
+              onClick={() => setToolsOpen(!toolsOpen)}
+            >
+              导入与我的库 / Import & my library <ChevronDown size={16} />
+            </button>
+            <div
+              id="listening-inbox-body"
+              className={`inbox-body${toolsOpen ? " is-open" : ""}`}
+            >
+              <div className="inbox-heading">
+                <h2>听力收件箱 / Listening inbox</h2>
+                <Link href="/library">我的库 / My library →</Link>
+              </div>
+              <Link className="daily-today-link" href="/listen">
+                今日听力 / Today’s listening →
+              </Link>
+              <ImportMaterial
+                key={importRound}
+                owner={owner}
+                aiAvailable={aiAvailable}
+                onClose={() => {}}
+                onSave={imported}
+                embedded
+                audioAllowed
+              />
+              <section className="listening-saved">
+                <h3>我的材料 / My materials</h3>
+                {personalMaterials.length ? (
+                  personalMaterials.map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      aria-pressed={m.id === material.id}
+                      onClick={() => choose(m, m.paragraphs[0].id, "listen")}
+                    >
+                      {m.title}
+                    </button>
+                  ))
+                ) : (
+                  <p>
+                    保存或导入的材料会出现在这里。 / Saved and imported
+                    materials appear here.
+                  </p>
+                )}
+              </section>
+              {materialTools}
+            </div>
+          </aside>
+        )}
+
         <div className="practice-main-column">
           <section
             className="practice-workspace"
             ref={workspace}
             aria-label={skill === "listen" ? ui("听力练习") : ui("口语练习")}
           >
+            {isDaily && daily ? (
+              <DailyLessonBar
+                day={daily.day}
+                lesson={{
+                  skill: "listen",
+                  contentId: material.id,
+                  paragraph: paragraph.id,
+                  title: material.title,
+                }}
+              />
+            ) : skill === "listen" ? (
+              <div className="daily-return">
+                <SaveLessonButton
+                  key={`${material.id}:${paragraph.id}`}
+                  lesson={{
+                    skill,
+                    contentId: material.id,
+                    paragraph: paragraph.id,
+                    title: material.title,
+                  }}
+                />
+                <Link href="/listen">今日听力 / Today’s listening →</Link>
+              </div>
+            ) : null}
             <div className="practice-material-heading">
               <div>
                 <div className="practice-meta">
@@ -615,7 +886,9 @@ function Studio({
             </div>
             <div className="practice-task-line">
               <p className="practice-instruction">
-                {ui(practiceTasks[progress.task].prompt)}
+                {material.audio && progress.task === "dictation"
+                  ? "听录音，写下原话；提交后对照完整原文。 / Listen and write the words. Compare with the full transcript after submitting."
+                  : ui(practiceTasks[progress.task].prompt)}
               </p>
               <details className="practice-methods" ref={methodPanel}>
                 <summary>
@@ -629,79 +902,104 @@ function Studio({
                       type="button"
                       aria-pressed={progress.task === task}
                       className={progress.task === task ? "selected" : ""}
-                      disabled={busy}
+                      disabled={
+                        busy || (task === "dictation" && !source.trim())
+                      }
                       onClick={() => choose(material, paragraph.id, task)}
                     >
-                      {ui(practiceTasks[task].label)}
+                      {material.audio && task === "dictation"
+                        ? "听写对照 / Dictation"
+                        : ui(practiceTasks[task].label)}
                     </button>
                   ))}
                 </div>
               </details>
             </div>
-            <PracticePlayer
-              key={`player:${material.id}:${paragraph.id}:${progress.task}`}
-              source={source}
-              language={material.lang}
-              speed={progress.speed}
-              onSpeed={(speed) => change({ speed })}
-              speaking={skill === "speak"}
-            />
+            {material.audio && skill === "listen" ? (
+              <LocalAudioPlayer
+                key={material.audio.id}
+                id={material.audio.id}
+                speed={progress.speed}
+                onSpeed={(speed) => change({ speed })}
+              />
+            ) : (
+              <PracticePlayer
+                key={`player:${material.id}:${paragraph.id}:${progress.task}`}
+                source={source}
+                language={material.lang}
+                speed={progress.speed}
+                onSpeed={(speed) => change({ speed })}
+                speaking={skill === "speak"}
+              />
+            )}
             {question && (
               <div className="speaking-cue">
-                <span>{ui("想象你在这个情景里")}</span>
+                <span>
+                  {skill === "listen"
+                    ? "今天的一题 / Today’s question"
+                    : ui("想象你在这个情景里")}
+                </span>
                 <p lang={material.lang}>{question}</p>
               </div>
             )}
-            <div className="practice-transcript">
-              <div className="transcript-actions">
-                <button
-                  type="button"
-                  aria-expanded={progress.revealed}
-                  onClick={() => change({ revealed: !progress.revealed })}
-                >
-                  <ChevronDown
-                    size={16}
-                    className={progress.revealed ? "expanded" : ""}
-                  />
-                  {progress.revealed ? ui("收起原文") : ui("展开原文")}
-                </button>
-                {progress.revealed && (
+            {!source.trim() ? (
+              <p className="practice-notice">
+                没有附上原文，可以先听、写下重点，再重听核对。不会自动判分。 /
+                No transcript: listen, write your notes and replay to check. No
+                automatic grading.
+              </p>
+            ) : (
+              <div className="practice-transcript">
+                <div className="transcript-actions">
                   <button
                     type="button"
-                    onClick={() => change({ bilingual: !progress.bilingual })}
+                    aria-expanded={progress.revealed}
+                    onClick={() => change({ revealed: !progress.revealed })}
                   >
-                    {progress.bilingual ? ui("隐藏中文") : ui("显示中文")}
+                    <ChevronDown
+                      size={16}
+                      className={progress.revealed ? "expanded" : ""}
+                    />
+                    {progress.revealed ? ui("收起原文") : ui("展开原文")}
                   </button>
-                )}
-                <button
-                  type="button"
-                  className="save-expression"
-                  onClick={openWord}
-                >
-                  <Heart size={15} />
-                  {ui("收藏表达")}
-                </button>
-              </div>
-              {progress.revealed && (
-                <div className="transcript-text">
-                  <p lang={material.lang}>{source}</p>
-                  {progress.bilingual && paragraph.zh && (
-                    <p className="transcript-translation">
-                      {["shadow", "dictation"].includes(progress.task) &&
-                        source !== paragraph.text && (
-                          <small>{ui("整段参考译文 ·")}</small>
-                        )}
-                      {paragraph.zh}
-                    </p>
+                  {progress.revealed && (
+                    <button
+                      type="button"
+                      onClick={() => change({ bilingual: !progress.bilingual })}
+                    >
+                      {progress.bilingual ? ui("隐藏中文") : ui("显示中文")}
+                    </button>
                   )}
-                  {!paragraph.zh && progress.bilingual && (
-                    <p className="transcript-translation">
-                      {ui("这份材料还没有中文参考。")}
-                    </p>
-                  )}
+                  <button
+                    type="button"
+                    className="save-expression"
+                    onClick={openWord}
+                  >
+                    <Heart size={15} />
+                    {ui("收藏表达")}
+                  </button>
                 </div>
-              )}
-            </div>
+                {progress.revealed && (
+                  <div className="transcript-text">
+                    <p lang={material.lang}>{source}</p>
+                    {progress.bilingual && paragraph.zh && (
+                      <p className="transcript-translation">
+                        {["shadow", "dictation"].includes(progress.task) &&
+                          source !== paragraph.text && (
+                            <small>{ui("整段参考译文 ·")}</small>
+                          )}
+                        {paragraph.zh}
+                      </p>
+                    )}
+                    {!paragraph.zh && progress.bilingual && (
+                      <p className="transcript-translation">
+                        {ui("这份材料还没有中文参考。")}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             {wordOpen && (
               <form
                 className="expression-form"
@@ -755,7 +1053,7 @@ function Studio({
               className="practice-answer"
               onSubmit={(e) => {
                 e.preventDefault();
-                void submit();
+                void submit(false, Date.now());
               }}
             >
               <label htmlFor="practice-answer">
@@ -791,23 +1089,27 @@ function Studio({
                   <Check size={17} />
                   {busy
                     ? ui("正在处理…")
-                    : progress.task === "dictation"
-                      ? ui("保存并对照听写")
-                      : ui("保存，自己对照")}
+                    : !source.trim()
+                      ? "保存我的答案 / Save my notes"
+                      : progress.task === "dictation"
+                        ? ui("保存并对照听写")
+                        : ui("保存，自己对照")}
                 </button>
-                {!["shadow", "dictation"].includes(progress.task) && (
-                  <button
-                    type="button"
-                    className="button"
-                    disabled={busy || !aiAvailable}
-                    onClick={() => void submit(true)}
-                  >
-                    <Sparkles size={16} />
-                    {ui("保存并获取 AI 反馈")}
-                  </button>
-                )}
+                {source.trim() &&
+                  !["shadow", "dictation"].includes(progress.task) && (
+                    <button
+                      type="button"
+                      className="button"
+                      disabled={busy || !aiAvailable}
+                      onClick={() => void submit(true, Date.now())}
+                    >
+                      <Sparkles size={16} />
+                      {ui("保存并获取 AI 反馈")}
+                    </button>
+                  )}
               </div>
-              {!aiAvailable &&
+              {source.trim() &&
+                !aiAvailable &&
                 !["shadow", "dictation"].includes(progress.task) && (
                   <p className="practice-hint">
                     {owner
@@ -854,17 +1156,19 @@ function Studio({
               </button>
             </div>
           </section>
-          <div className="practice-after-task">
-            <Link href={otherLink} className="practice-crosslink">
-              {skill === "listen" ? (
-                <Mic2 size={15} />
-              ) : (
-                <Headphones size={15} />
-              )}
-              {ui(skill === "listen" ? "这段也拿来说" : "这段也拿来听")}
-              <ArrowRight size={14} />
-            </Link>
-          </div>
+          {source.trim() && (
+            <div className="practice-after-task">
+              <Link href={otherLink} className="practice-crosslink">
+                {skill === "listen" ? (
+                  <Mic2 size={15} />
+                ) : (
+                  <Headphones size={15} />
+                )}
+                {ui(skill === "listen" ? "这段也拿来说" : "这段也拿来听")}
+                <ArrowRight size={14} />
+              </Link>
+            </div>
+          )}
           {recent.length > 0 && (
             <section className="practice-history">
               <div className="section-heading">
@@ -892,132 +1196,15 @@ function Studio({
             </section>
           )}
         </div>
-        <details
-          id="practice-materials-panel"
-          className="practice-tools"
-          ref={materialsPanel}
-        >
-          <summary>
-            {ui("换一段练习 · 共用单词库")}
-            <ChevronDown size={15} />
-          </summary>
-          <aside className="practice-aside">
-            <section className="practice-materials">
-              <div className="section-heading">
-                <h2>{ui("换一段练习")}</h2>
-                <button
-                  type="button"
-                  className="icon-button"
-                  aria-label="导入练习材料"
-                  onClick={() => setImportOpen(true)}
-                >
-                  <Plus size={19} />
-                </button>
-              </div>
-              <p>{ui("日常、工作和你自己的材料")}</p>
-              <div className="material-language-tabs">
-                {[
-                  ["all", ui("全部")],
-                  ["en", ui("英语")],
-                  ["de", ui("德语")],
-                ].map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    aria-pressed={languageFilter === value}
-                    onClick={() => setLanguageFilter(value)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <div className="material-options">
-                {shownMaterials.map((m) => (
-                  <button
-                    type="button"
-                    key={m.id}
-                    disabled={busy}
-                    className={m.id === material.id ? "selected" : ""}
-                    aria-pressed={m.id === material.id}
-                    onClick={() => choose(m)}
-                  >
-                    <span>{m.title}</span>
-                    <small>
-                      {m.lang === "de"
-                        ? `${ui("德语")} ${m.level}`
-                        : ui("英语")}{" "}
-                      · {m.paragraphs.length}
-                      {ui("段")}
-                      {m.wordId ? ui(" · 单词库") : ""}
-                    </small>
-                  </button>
-                ))}
-              </div>
-              <button
-                type="button"
-                className="button import-material"
-                onClick={() => setImportOpen(true)}
-              >
-                <Plus size={15} />
-                {ui("导入自己的材料")}
-              </button>
-            </section>
-            <section className="practice-word-shelf">
-              <div className="section-heading">
-                <h2>
-                  <NotebookPen size={17} />
-                  {ui("共用单词库")}
-                </h2>
-                <Link href="/vocabulary" aria-label="打开单词库">
-                  <ArrowRight size={17} />
-                </Link>
-              </div>
-              <p>
-                {skill === "listen"
-                  ? "阅读里存过的，也能拿来听。 / Listen to expressions saved while reading."
-                  : "阅读里存过的，也能拿来说。 / Practise saying expressions saved while reading."}
-              </p>
-              {shelf.length ? (
-                shelf.map((w) => (
-                  <div key={w.id} className="practice-shelf-word">
-                    <button type="button" onClick={() => setSelectedWord(w)}>
-                      <strong>{w.lemma}</strong>
-                      <span>{w.meaning}</span>
-                    </button>
-                    <Link
-                      href={`${practicePath(skill)}?word=${encodeURIComponent(w.id)}`}
-                      aria-label={`${skill === "listen" ? "听" : "说"} ${w.lemma} / ${skill === "listen" ? "Listen to" : "Say"} ${w.lemma}`}
-                    >
-                      <Icon size={16} />
-                    </Link>
-                  </div>
-                ))
-              ) : (
-                <p className="shelf-empty">
-                  {ui("把没听懂、说不出的表达收藏到这里，下次接着练。")}
-                </p>
-              )}
-              <Link className="shelf-footer" href="/vocabulary">
-                {ui("查看全部词条")}
-                <ArrowRight size={14} />
-              </Link>
-            </section>
-          </aside>
-        </details>
       </div>
+      {skill !== "listen" && materialTools}
       {importOpen && (
         <ImportMaterial
           owner={owner}
           aiAvailable={aiAvailable}
           onClose={() => setImportOpen(false)}
-          onSave={(m) => {
-            setMaterials((previous) => [
-              m,
-              ...previous.filter((p) => p.id !== m.id),
-            ]);
-            choose(m);
-            setImportOpen(false);
-          }}
+          onSave={imported}
+          audioAllowed={skill === "listen"}
         />
       )}
       {selectedWord && (
@@ -1115,6 +1302,18 @@ function Feedback({
   disabled: boolean;
   onCheck: (index: number, checked: boolean) => void;
 }) {
+  if (!entry.reference.source.trim())
+    return (
+      <section className="practice-feedback" aria-label="本次练习反馈">
+        <h3>答案已保存 / Notes saved</h3>
+        <p>{entry.answer}</p>
+        <p>
+          没有提供原文，请重听音频自行核对。本次没有自动评分。 / No transcript
+          was provided. Replay the audio to check your notes. No automatic score
+          was assigned.
+        </p>
+      </section>
+    );
   const self = !entry.grade || entry.grade.method === "self";
   return (
     <section className="practice-feedback" aria-label="本次练习反馈">
@@ -1163,15 +1362,20 @@ function ImportMaterial({
   aiAvailable,
   onClose,
   onSave,
+  embedded = false,
+  audioAllowed = false,
 }: {
   owner: string | null;
   aiAvailable: boolean;
   onClose: () => void;
   onSave: (m: PracticeMaterial) => void;
+  embedded?: boolean;
+  audioAllowed?: boolean;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [title, setTitle] = useState("");
   const [text, setText] = useState("");
+  const [audioFile, setAudioFile] = useState<File | null>(null);
   const [lang, setLang] = useState<"en" | "de">("en");
   const [level, setLevel] = useState<"A1" | "A2" | "B1">("A2");
   const [ai, setAi] = useState(false);
@@ -1180,6 +1384,7 @@ function ImportMaterial({
   const [error, setError] = useState("");
   const [saved, setSaved] = useState<PracticeMaterial | null>(null);
   useEffect(() => {
+    if (embedded) return;
     const previous = document.activeElement as HTMLElement;
     const d = dialog.current;
     d?.showModal();
@@ -1187,19 +1392,25 @@ function ImportMaterial({
       d?.close();
       previous?.focus({ preventScroll: true });
     };
-  }, []);
+  }, [embedded]);
   async function submit() {
     if (lock.current) return;
     if (!owner) {
       setError(ui("请先登录个人空间，再导入自己的材料。"));
       return;
     }
-    const paragraphs = text
-      .trim()
-      .split(/\n\s*\n/)
-      .filter(Boolean);
-    if (!title.trim() || !text.trim()) {
-      setError(ui("请填写标题和原文。"));
+    const paragraphs = audioFile
+      ? [text.trim()]
+      : text
+          .trim()
+          .split(/\n\s*\n/)
+          .filter(Boolean);
+    if (!title.trim() || (!text.trim() && !audioFile)) {
+      setError(
+        audioAllowed
+          ? "请填写标题，并添加音频或原文。 / Add a title and audio or a transcript."
+          : ui("请填写标题和原文。"),
+      );
       return;
     }
     if (text.length > 16000 || paragraphs.length > 6) {
@@ -1212,6 +1423,7 @@ function ImportMaterial({
     setBusy(true);
     setError("");
     try {
+      if (audioFile) validateAudio(audioFile);
       let m = practiceMaterialSchema.parse({
         id: saved?.id ?? `custom:${crypto.randomUUID()}`,
         title,
@@ -1219,16 +1431,34 @@ function ImportMaterial({
         level: lang === "de" ? level : "",
         topic: ui("我的材料"),
         at: Date.now(),
-        paragraphs: paragraphs.map((text, i) => ({
+        ...(audioFile
+          ? {
+              audio: {
+                id: saved?.audio?.id ?? crypto.randomUUID(),
+                name: audioFile.name.slice(0, 220),
+                size: audioFile.size,
+                type: audioFile.type,
+              },
+            }
+          : {}),
+        paragraphs: (paragraphs.length ? paragraphs : [""]).map((text, i) => ({
           id: `p${i + 1}`,
           text,
           zh: "",
         })),
       });
       // Persist source first. A failed model call can never erase imported text.
-      await saveRecord("materials", m.id, m);
+      if (audioFile) await saveAudioMaterial(m, audioFile);
+      else await saveRecord("materials", m.id, m);
       setSaved(m);
-      if (ai && aiAvailable) {
+      if (audioAllowed)
+        await saveLesson({
+          skill: "listen",
+          contentId: m.id,
+          paragraph: m.paragraphs[0].id,
+          title: m.title,
+        });
+      if (ai && aiAvailable && text.trim()) {
         const result = materialResultSchema.parse(
           await requestJson("/api/practice/ai/material", {
             lang,
@@ -1260,24 +1490,20 @@ function ImportMaterial({
       setBusy(false);
     }
   }
-  return (
-    <dialog
-      className="practice-import-dialog"
-      ref={dialog}
-      aria-labelledby="import-title"
-      onCancel={(e) => {
-        if (busy) e.preventDefault();
-        else onClose();
+  const content = (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        void submit();
       }}
     >
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          void submit();
-        }}
-      >
-        <div className="section-heading">
-          <h2 id="import-title">{ui("用自己的材料练习")}</h2>
+      <div className="section-heading">
+        <h2 id={embedded ? "inbox-import-title" : "import-title"}>
+          {embedded
+            ? "导入听力材料 / Import listening"
+            : ui("用自己的材料练习")}
+        </h2>
+        {!embedded && (
           <button
             type="button"
             className="icon-button"
@@ -1287,127 +1513,183 @@ function ImportMaterial({
           >
             <X size={20} />
           </button>
-        </div>
-        <p>
-          {ui("听力和口语共用这份材料。粘贴原文，或选择 TXT / Markdown 文件。")}
-        </p>
-        <fieldset disabled={busy}>
-          <label>
-            {ui("标题")}
-            <input
-              value={title}
-              maxLength={100}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          </label>
-          <div className="import-language">
-            <label>
-              {ui("语言")}
-              <select
-                value={lang}
-                onChange={(e) => setLang(e.target.value as "en" | "de")}
-              >
-                <option value="en">{ui("英语")}</option>
-                <option value="de">{ui("德语")}</option>
-              </select>
-            </label>
-            {lang === "de" && (
-              <label>
-                {ui("程度")}
-                <select
-                  value={level}
-                  onChange={(e) =>
-                    setLevel(e.target.value as "A1" | "A2" | "B1")
-                  }
-                >
-                  <option>A1</option>
-                  <option>A2</option>
-                  <option>B1</option>
-                </select>
-              </label>
+        )}
+      </div>
+      <p>
+        {audioAllowed
+          ? "音频留在本机；也可以只导入文字，用设备语音练习。 / Audio stays on this device. Or import text for system-voice playback."
+          : ui(
+              "听力和口语共用这份材料。粘贴原文，或选择 TXT / Markdown 文件。",
             )}
-          </div>
+      </p>
+      <fieldset disabled={busy}>
+        {audioAllowed && (
           <label>
-            {ui("选择文本文件")}
+            上传音频 / Import audio
             <input
               type="file"
-              accept=".txt,.md,.markdown,text/plain,text/markdown"
-              onChange={async (e) => {
+              accept=".mp3,.wav,.m4a,.ogg,.webm,.aac,.flac,audio/*"
+              onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (!file) return;
-                if (file.size > 65000) {
-                  setError(ui("文件过大，请分成小段导入。"));
-                  return;
-                }
+                setError("");
                 try {
-                  const content = new TextDecoder("utf-8", {
-                    fatal: true,
-                  }).decode(await file.arrayBuffer());
-                  setText(content);
-                  if (!title)
+                  validateAudio(file);
+                  setAudioFile(file);
+                  if (!title.trim())
                     setTitle(file.name.replace(/\.[^.]+$/, "").slice(0, 100));
-                  setError("");
-                } catch {
+                } catch (error) {
                   setError(
-                    ui("无法读取文件，请使用 UTF-8 编码的 TXT 或 Markdown。"),
+                    error instanceof Error
+                      ? error.message
+                      : "文件不可用 / Invalid file",
                   );
+                  e.target.value = "";
                 }
               }}
             />
-          </label>
-          <label>
-            {ui("原文")}
-            <textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              rows={7}
-              placeholder={ui("每段之间留一个空行。原文作为文本保存。")}
-            />
-          </label>
-          <p className="practice-hint">
-            {text.length.toLocaleString()}
-            {ui("/ 16,000 字符 · 最多 6 段")}
-          </p>
-          {aiAvailable && (
-            <label className="self-check-point">
-              <input
-                type="checkbox"
-                checked={ai}
-                onChange={(e) => setAi(e.target.checked)}
-              />
-              <span>
-                {ui("使用 AI 补充中文和练习题（使用自己的 API 额度）")}
+            <small>MP3 / WAV / M4A / OGG / WebM / AAC / FLAC · ≤20 MB</small>
+            {audioFile && (
+              <span className="selected-audio">
+                {audioFile.name}{" "}
+                <button type="button" onClick={() => setAudioFile(null)}>
+                  移除 / Remove
+                </button>
               </span>
+            )}
+          </label>
+        )}
+
+        <label>
+          {ui("标题")}
+          <input
+            value={title}
+            maxLength={100}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+        </label>
+        <div className="import-language">
+          <label>
+            {ui("语言")}
+            <select
+              value={lang}
+              onChange={(e) => setLang(e.target.value as "en" | "de")}
+            >
+              <option value="en">{ui("英语")}</option>
+              <option value="de">{ui("德语")}</option>
+            </select>
+          </label>
+          {lang === "de" && (
+            <label>
+              {ui("程度")}
+              <select
+                value={level}
+                onChange={(e) => setLevel(e.target.value as "A1" | "A2" | "B1")}
+              >
+                <option>A1</option>
+                <option>A2</option>
+                <option>B1</option>
+              </select>
             </label>
           )}
-        </fieldset>
-        {error && (
-          <p className="practice-notice error" role="alert">
-            {error}
-          </p>
-        )}
-        <div className="practice-submit">
-          <button type="submit" className="button primary" disabled={busy}>
-            {busy ? ui("正在保存材料…") : ui("保存并开始练习")}
-          </button>
-          {saved && error && (
-            <button
-              type="button"
-              className="button"
-              disabled={busy}
-              onClick={() => onSave(saved)}
-            >
-              {ui("使用已保存的原文")}
-            </button>
-          )}
         </div>
-        {!owner && (
-          <Link href="/login">
-            {ui("登录个人空间")}
-            <ArrowRight size={14} />
-          </Link>
+        <label>
+          {ui("选择文本文件")}
+          <input
+            type="file"
+            accept=".txt,.md,.markdown,text/plain,text/markdown"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              if (file.size > 65000) {
+                setError(ui("文件过大，请分成小段导入。"));
+                return;
+              }
+              try {
+                const content = new TextDecoder("utf-8", {
+                  fatal: true,
+                }).decode(await file.arrayBuffer());
+                setText(content);
+                if (!title)
+                  setTitle(file.name.replace(/\.[^.]+$/, "").slice(0, 100));
+                setError("");
+              } catch {
+                setError(
+                  ui("无法读取文件，请使用 UTF-8 编码的 TXT 或 Markdown。"),
+                );
+              }
+            }}
+          />
+        </label>
+        <label>
+          {audioAllowed
+            ? "原文（音频可不填） / Transcript (optional with audio)"
+            : ui("原文")}
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={7}
+            placeholder={ui("每段之间留一个空行。原文作为文本保存。")}
+          />
+        </label>
+        <p className="practice-hint">
+          {text.length.toLocaleString()}
+          {ui("/ 16,000 字符 · 最多 6 段")}
+        </p>
+        {aiAvailable && text.trim() && (
+          <label className="self-check-point">
+            <input
+              type="checkbox"
+              checked={ai}
+              onChange={(e) => setAi(e.target.checked)}
+            />
+            <span>{ui("使用 AI 补充中文和练习题（使用自己的 API 额度）")}</span>
+          </label>
         )}
-      </form>
+      </fieldset>
+      {error && (
+        <p className="practice-notice error" role="alert">
+          {error}
+        </p>
+      )}
+      <div className="practice-submit">
+        <button type="submit" className="button primary" disabled={busy}>
+          {busy ? ui("正在保存材料…") : ui("保存并开始练习")}
+        </button>
+        {saved && error && (
+          <button
+            type="button"
+            className="button"
+            disabled={busy}
+            onClick={() => onSave(saved)}
+          >
+            {ui("使用已保存的原文")}
+          </button>
+        )}
+      </div>
+      {!owner && (
+        <Link href="/login">
+          {ui("登录个人空间")}
+          <ArrowRight size={14} />
+        </Link>
+      )}
+    </form>
+  );
+  return embedded ? (
+    <section className="practice-inline-import" aria-label="导入听力材料">
+      {content}
+    </section>
+  ) : (
+    <dialog
+      className="practice-import-dialog"
+      ref={dialog}
+      aria-labelledby="import-title"
+      onCancel={(e) => {
+        if (busy) e.preventDefault();
+        else onClose();
+      }}
+    >
+      {content}
     </dialog>
   );
 }

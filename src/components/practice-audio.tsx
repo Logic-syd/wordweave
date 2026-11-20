@@ -3,6 +3,112 @@ import { ui } from "@/lib/ui";
 
 import { useEffect, useRef, useState } from "react";
 import { Download, Mic2, Play, Square, Volume2 } from "lucide-react";
+import { readAudio } from "@/lib/practice-audio-store";
+
+export function LocalAudioPlayer({
+  id,
+  speed,
+  onSpeed,
+}: {
+  id: string;
+  speed: number;
+  onSpeed: (speed: number) => void;
+}) {
+  const audio = useRef<HTMLAudioElement>(null);
+  const [url, setUrl] = useState(""),
+    [error, setError] = useState("");
+  useEffect(() => {
+    let live = true,
+      objectUrl = "";
+    void readAudio(id)
+      .then((blob) => {
+        if (live) {
+          objectUrl = URL.createObjectURL(blob);
+          setUrl(objectUrl);
+        }
+      })
+      .catch((e) => {
+        if (live) setError(e.message);
+      });
+    return () => {
+      live = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [id]);
+  useEffect(() => {
+    if (audio.current) audio.current.playbackRate = speed;
+  }, [speed, url]);
+  return (
+    <div className="practice-audio local-audio-player">
+      <strong>听你自己的音频 / Listen to your audio</strong>
+      {url ? (
+        <audio
+          ref={audio}
+          src={url}
+          controls
+          preload="metadata"
+          aria-label="本地音频播放器"
+          onError={() =>
+            setError(
+              "浏览器无法播放此音频，请尝试 MP3 或 WAV 文件。 / Your browser cannot play this file. Try MP3 or WAV.",
+            )
+          }
+        />
+      ) : (
+        !error && <p role="status">正在读取本机音频 / Loading local audio…</p>
+      )}
+      <div className="local-audio-controls">
+        <button
+          type="button"
+          disabled={!url}
+          onClick={() => {
+            if (audio.current)
+              audio.current.currentTime = Math.max(
+                0,
+                audio.current.currentTime - 5,
+              );
+          }}
+        >
+          回退 5 秒 / Back 5s
+        </button>
+        <button
+          type="button"
+          disabled={!url}
+          onClick={() => {
+            if (audio.current && Number.isFinite(audio.current.duration))
+              audio.current.currentTime = Math.min(
+                audio.current.duration,
+                audio.current.currentTime + 5,
+              );
+          }}
+        >
+          前进 5 秒 / Forward 5s
+        </button>
+        <label>
+          语速 / Speed
+          <select
+            value={speed}
+            onChange={(e) => onSpeed(Number(e.target.value))}
+          >
+            <option value={0.65}>0.65×</option>
+            <option value={0.9}>0.9×</option>
+            <option value={1}>1×</option>
+            <option value={1.1}>1.1×</option>
+          </select>
+        </label>
+      </div>
+      <p className="field-hint">
+        仅在当前浏览器播放和保存，不上传、不自动转写。 / Stored and played in
+        this browser. No upload or automatic transcription.
+      </p>
+      {error && (
+        <p role="alert" className="practice-notice error">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
 
 export function PracticePlayer({
   source,

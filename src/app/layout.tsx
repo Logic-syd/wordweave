@@ -4,6 +4,7 @@ import "./globals.css";
 import "./learning.css";
 import "./learning-nav.css";
 import "./reading-workspace.css";
+import "./daily-learning.css";
 export const metadata: Metadata = {
   title: {
     default: "语境 · 听说读 / WordWeave · Listen, Speak, Read",

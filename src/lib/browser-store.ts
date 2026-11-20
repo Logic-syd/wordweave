@@ -31,6 +31,7 @@ import {
 } from "./sample-storage";
 import { AppError } from "./app-error";
 import { practicePath } from "./learning-links";
+import type { SavedLesson } from "./saved-lessons";
 
 export type LocalArticle = ArticleDetail & {
   draftSettings: Settings;
@@ -38,19 +39,20 @@ export type LocalArticle = ArticleDetail & {
   requestKey: string;
 };
 export type BrowserData = {
+  savedLessons?: SavedLesson[];
   articles: Record<string, LocalArticle>;
   words: Record<string, VocabularyView>;
   practice: PracticeState;
   preferences: Record<string, { settings?: Settings; glossMode?: string }>;
 };
-const fresh = (): BrowserData => ({
+export const freshBrowserData = (): BrowserData => ({
   articles: {},
   words: {},
   practice: { materials: [], history: [], progress: {} },
   preferences: {},
 });
 let connection: Promise<IDBDatabase> | undefined;
-function openDatabase() {
+export function openDatabase() {
   if (!connection)
     connection = new Promise<IDBDatabase>((resolve, reject) => {
       if (typeof indexedDB === "undefined") {
@@ -87,7 +89,7 @@ export async function browserData<T>(
     const request = store.get("learning");
     request.onsuccess = () => {
       try {
-        const data: BrowserData = request.result ?? fresh();
+        const data: BrowserData = request.result ?? freshBrowserData();
         result = action(data);
         if (write) store.put(data, "learning");
       } catch (error) {

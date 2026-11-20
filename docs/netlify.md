@@ -28,6 +28,8 @@ Netlify 提供免费方案，适用于额度内试运行；免费额度、适用
 
 当前没有云同步；换浏览器或域名不会自动带过记录。旧 Read Along 文章可以从旧站导出 JSON，再在新站「导入文件」。
 
+每日精选与本地音频导入均无需新增环境变量或数据库：三个入口按浏览器日期轮换内置内容，用户可选收藏。听力文件只存于该域名的浏览器空间，最大 20 MB；清除站点数据或改域名不会迁移音频。没有自动转写，未提供原文时不评分。
+
 ## 部署记录与检查
 
 | 项目 | 记录 |
@@ -53,6 +55,8 @@ Read Along 构建为 `public/read-along/index.html`。Netlify Next.js Runtime �
 
 2026-11-20 后续界面更新：阅读采用左侧导入、右侧正文布局，原顶部工具区移入左栏，手机默认折叠；听、说、读改为明显的中英按钮，网站界面文案中英并列。Prisma schema、迁移和服务端 API 保留，公开版仍使用浏览器存储；用户明确选择以后再接数据库。本次生产构建、TypeScript、lint、20 项相关单元测试、11 项 Playwright 测试、自带 Key 流程、听说练习浏览器测试和 Netlify 原生静态路由检查通过。另验证手机错误重试可展开设置、无 Key 侧栏导入保留代码、320px 窄屏导航、收藏与词汇覆盖。
 
+2026-11-20 每日学习与听力导入：三处入口加入按本地日期轮换的精选内容、主动收藏与共用「我的库」；听力统一左栏导入布局，支持本地音频、可选原文、听写或笔记和刷新恢复。24 项相关单元测试、14 项 Playwright 流程、TypeScript、lint、生产构建、听说练习／自带 Key 浏览器回归及 Netlify 静态路由检查通过。音频测试使用可解码的 WAV 测试文件，验证播放、跳转和语速；未验证所有设备或编码格式。没有调用真实付费模型；未连接或迁移 PostgreSQL。匿名线上检查仍返回 HTTP 401，不能据此声称新版已公开可访问。
+
 部署后验证首页和 `/read` 显示语境文章，`/listen` 显示听力，`/speak` 显示跟读，`/speak/practice` 显示复述与录音；词可在 `/vocabulary` 找到，刷新后记录仍在；`/api/health` 应返回 `{"status":"ok","storage":"browser"}`。用隐私窗口检查无 Key 仍能使用基础功能，再在正常窗口以自己的配置测试 AI。
 
 ## English
@@ -66,3 +70,7 @@ The subsequent interface update adds a left import/settings sidebar, a right con
 The current product offers free core learning and optional bring-your-own-key AI in the same interface. A future paid, provider-managed allowance is planned but not implemented. It requires account identity, payments, server-side quotas and cost controls; provider keys must remain on the server. No signup or plan selection is introduced for the current public version.
 
 Check Netlify's current plan terms, usage allowances and overage behavior in its dashboard; no exact current quota has been verified here. Vercel Hobby is limited to personal, non-commercial use, which is not determined solely by whether the site currently charges users. Record the actual Netlify project/domain after deployment. A verified local production build is not a claim that the hosted site is already online.
+
+Daily picks and local listening imports need no new environment variables or database. Each entry rotates bundled content by browser-local date with optional saving. Audio files (up to 20 MB) stay in this origin’s browser storage and are excluded from JSON exports. No transcript means no automatic grade; speech transcription is not implemented.
+
+Validation for daily lessons and listening imports: 24 focused unit tests, 14 Playwright flows, typecheck, lint, production build, existing practice/BYOK browser checks and native Netlify static routing passed. Audio playback used a decodable WAV fixture; coverage does not establish support for every device or codec. No paid model calls or PostgreSQL migration were performed. Anonymous hosted access still returns HTTP 401.

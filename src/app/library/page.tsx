@@ -1,6 +1,7 @@
 import { ui } from "@/lib/ui";
 import { LearningResources } from "@/components/learning-resources";
 import { SampleLibrary } from "@/components/sample-library";
+import { SavedLessons } from "@/components/saved-lessons";
 export default async function LibraryPage({
   searchParams,
 }: {
@@ -9,6 +10,7 @@ export default async function LibraryPage({
   const { mode } = await searchParams;
   return (
     <>
+      <SavedLessons />
       <SampleLibrary
         personal={[]}
         mode={mode === "tech" || mode === "german" ? mode : "all"}

@@ -1,5 +1,6 @@
 import { uiName } from "../ui-name.mjs";
-import { test, expect, type Page } from "@playwright/test";
+import { type Page } from "@playwright/test";
+import { test, expect } from "./fixtures";
 
 async function selectText(page: Page, text: string) {
   await page
@@ -67,6 +68,9 @@ test("original design, imported sentences, expanded playback and position surviv
   await expect(page.locator("#text")).toHaveValue(source);
   await page.locator("#generate").click();
   await expect(page.locator(".sentence")).toHaveCount(60);
+  await expect(page.locator("#save-lesson")).toHaveText(
+    "已保存到我的库 / Saved",
+  );
   await page.locator("#play").click();
   await expect(page.locator("body")).toHaveClass("reading-focus");
   await expect(page.locator("#status")).toContainText("正在听");
@@ -79,6 +83,7 @@ test("original design, imported sentences, expanded playback and position surviv
   await expect(page.locator(".sentence.active")).toContainText("Sentence 19");
   await page.reload();
   await expect(page.locator(".sentence.active")).toContainText("Sentence 19");
+  await expect(page.locator(".sentence.active")).toBeInViewport();
   await expect(page.locator("body")).toHaveClass("reading-focus");
   await page.screenshot({
     path: "test-results/readalong-focus-desktop.png",
@@ -298,6 +303,10 @@ test("old Read Along bookmarks still open the saved speaking sentence", async ({
   ).toBeVisible();
   await expect(page.locator("#sentences")).toHaveCount(0);
   await page.goto("/speak");
+  await expect(page.locator("#practiceTitle")).toHaveText(
+    "A small pause in the day",
+  );
+  await page.goto("/speak?article=existing-shadowing");
   await expect(page.locator("#practiceTitle")).toHaveText(
     "My speaking article",
   );

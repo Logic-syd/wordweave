@@ -35,6 +35,7 @@ import { saveSampleProgress } from "@/lib/sample-storage";
 import { saveLocalProgress } from "@/lib/browser-store";
 import { ArticleInbox } from "./article-inbox";
 import { rememberReading } from "@/lib/learning-entry";
+import { DailyLessonBar, SaveLessonButton } from "./daily-lesson";
 type SavedSegment = Segment & { occurrenceId?: string };
 const markdownPlugins = [remarkGfm];
 const EMPTY_OCCURRENCES: OccurrenceView[] = [];
@@ -167,12 +168,14 @@ export function Reader({
   autoGenerate,
   initialSettings,
   local = false,
+  daily,
 }: {
   initial: ArticleDetail;
   configured: boolean;
   autoGenerate: boolean;
   initialSettings: Settings;
   local?: boolean;
+  daily?: string;
 }) {
   const hydrated = useHydrated();
   const browserLocal = initial.id.startsWith("local-article-");
@@ -670,6 +673,24 @@ export function Reader({
         )}
       </ArticleInbox>
       <div className="reader-document">
+        {daily ? (
+          <DailyLessonBar
+            day={daily}
+            lesson={{
+              skill: "read",
+              contentId: article.id,
+              title: article.title,
+            }}
+          />
+        ) : local ? (
+          <SaveLessonButton
+            lesson={{
+              skill: "read",
+              contentId: article.id,
+              title: article.title,
+            }}
+          />
+        ) : null}
         {pending && (
           <section className="reader-generation-status" aria-label="生成进度">
             <div className="reader-generation-heading">

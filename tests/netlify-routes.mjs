@@ -32,6 +32,7 @@ try {
     "readalong.js",
     "readalong.css",
     "learning-nav.css",
+    "daily-learning.css",
   ]) {
     const path = join(artifacts, "read-along", file);
     // Also catch an incomplete or stale Netlify asset bundle.
@@ -138,6 +139,7 @@ try {
     args: ["--no-sandbox"],
   });
   const page = await browser.newPage();
+  await page.clock.setFixedTime(new Date("2026-11-20T12:00:00Z"));
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.addInitScript(() =>
@@ -172,7 +174,7 @@ try {
   await page.locator(".sentence").first().waitFor();
   assert.equal(
     await page.locator("#practiceTitle").innerText(),
-    "Native route check",
+    "A small pause in the day",
   );
   assert.deepEqual(errors, []);
   console.log(

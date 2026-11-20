@@ -8,20 +8,29 @@
 
 | 入口 | 做什么 | 特点 |
 | --- | --- | --- |
-| `/listen` 听力 | 播放一段、概括重点、逐句听写 | 青绿色；默认收起原文，播放按钮在顶部 |
+| `/listen` 听力 | 每日一题，导入音频、概括重点、听写对照 | 青绿色；左侧导入、右侧练习，默认收起原文 |
 | `/speak` 口语 | 原版 Read Along：导入文章、逐句跟读、选词查义；角落可进入复述与录音 | 文章收件箱、淡紫背景、粉色当前句；播放时展开正文 |
-| `/`、`/read` 阅读 | 语境阅读：中文正文嵌入英文表达或德语词，原文对照、词卡与收藏 | 安静的文章排版、淡粉强调；直接续读语境文章 |
-| `/library` 语境文章 | 技术英语学习版、中文嵌德语短文、范文 | 文章原文、代码与语境词卡保留 |
+| `/`、`/read` 阅读 | 语境阅读：中文正文嵌入英文表达或德语词，原文对照、词卡与收藏 | 安静的文章排版、淡粉强调；直接打开今日文章 |
+| `/library` 我的库 | 主动保存的听说读内容，以及语境文章与范文 | 按听、说、读筛选；原文、代码与语境词卡保留 |
 | `/vocabulary` 单词库 | 听说读共用收藏、认识状态、出现句子 | 词条可直接拿去听或说 |
 | `/settings` 我的 API | 设置自己的服务、模型与 Key，导出记录 | 保存配置不发请求；测试连接会消耗少量额度 |
 
-线上地址：<https://weavie.netlify.app/>（用户于 2026-11-20 确认改名）。首页和 `/read` 直接打开语境阅读，首次展示 React 英语学习范文，以后恢复自己的语境文章。`/speak` 使用从 `reading` 分支恢复的原版「文章收件箱＋逐句跟读」，恢复跟读文章与当前句；复述、情景表达、录音保留在 `/speak/practice`，从口语页右上角更多菜单进入。`/listen` 是独立听力练习，三个入口互相切换。跟读选词免费查义，可选的全文中文参考使用自己的 Key。[跟读说明](reading/README.md)。
+线上地址：<https://weavie.netlify.app/>（用户于 2026-11-20 确认改名）。首页和 `/read` 直接打开今日语境阅读。`/speak` 使用从 `reading` 分支恢复的原版「文章收件箱＋逐句跟读」，默认打开今日短文；已保存的文章链接恢复当前句。复述、情景表达、录音保留在 `/speak/practice`，从口语页右上角更多菜单进入。`/listen` 是独立听力练习，三个入口互相切换。跟读选词免费查义，可选的全文中文参考使用自己的 Key。[跟读说明](reading/README.md)。
 
 三个学习页面可以互相跳转，在**同一浏览器、同一网站地址**下共用单词库。附带 8 篇结构化阅读范文与 15 份英德听说材料；范文、浏览器朗读、听写对照、收藏和进度保存无需 Key。范文明确标注为演示内容，不冒充现场生成。
 
-阅读页现在是左侧文章收件箱、右侧语境正文；导入、学习版／原文切换和释义设置集中在左栏，手机默认收起左栏。右上角是明确的听力／口语／阅读切换按钮。公开学习界面的标签、按钮和说明同时显示中文与英文；文章、原文、代码和生成内容按学习内容原样显示。
+听力与阅读均采用左侧导入、右侧学习的布局，与口语收件箱保持一致。阅读页导入、学习版／原文切换和释义设置集中在左栏，手机默认收起左栏。右上角是明确的听力／口语／阅读切换按钮。公开学习界面的标签、按钮和说明同时显示中文与英文；文章、原文、代码和生成内容按学习内容原样显示。
 
 **后端仍在仓库中**：Prisma schema、PostgreSQL 迁移和服务端 API 均保留。本次只调整界面，不把公开版学习记录改为数据库存储；公开版接入数据库另行实现。
+
+### 每日内容与听力导入
+
+- 直接打开听、说、读，每天分别提供一条听力和问题、一篇口语短文、一篇语境文章。基础版从 **15 份听力材料、7 篇口语短文、8 篇阅读范文**按浏览器本地日期轮换，同一天刷新不变，轮完会重复。不是实时生成、新闻抓取或通知推送。
+- 点击「保存到我的库」才收藏每日内容，最多 500 条；不收藏也能学，答案、阅读位置和单词状态仍独立保存。从「我的库」的明确链接继续旧内容；直接进三个入口始终打开当日内容。
+- 日常维护在 `src/lib/daily.ts` 追加口语和阅读选项，听力使用 `src/lib/practice-content.ts`。保留旧 ID 和内容以保证收藏链接可用；更换内容请新增 ID。这版还没有运营发布后台。
+- 听力左栏支持 MP3、WAV、M4A、OGG、WebM、AAC、FLAC，单文件最多 **20 MB**，是否可播放取决于浏览器解码能力。文件留在 IndexedDB，刷新可继续使用，不上传服务器或 AI。
+- 播放 → 写重点 → 提交 → 重听／看原文核对。支持暂停、拖动进度、前后跳 5 秒和调速。有原文可做听写对照；整段录音使用完整原文，没有时间戳就不假装逐句定位。听写最多 2,000 字符；长原文可练大意。没有原文只能保存笔记，不自动转写、不自动评分；有原文时可主动使用自己的 API 评价文字回答。
+- 「保存并开始练习」会把主动导入的听力放进自己的库。JSON 备份**不包含音频文件**，请保留原始音频。收藏移出只取消收藏，不删除导入材料、学习进度或词条。
 
 ### 启动网站
 
@@ -55,12 +64,12 @@ DeepSeek 的 Base URL 可填 `https://api.deepseek.com/v1`，模型 ID 从自己
 ### 本地数据与学习闭环
 
 - 语境文章、完整词条、听说材料及记录存于 IndexedDB；Read Along 的文章、备份与当前句沿用 `readalong.articles` 本机存储；小型草稿、范文记录、阅读位置与 Key 使用浏览器存储。关闭再打开可恢复，Key 的保留取决于是否勾选记住。
-- 不同浏览器、设备和网站域名互不共享数据。清除网站数据会删除本机记录；可在「我的 API」导出不含 Key 的 JSON 备份，这个全站备份暂不支持导入，也没有云同步。Read Along 另有「导出文章备份 / 导入文件」，支持恢复旧版跟读文章 JSON。
+- 不同浏览器、设备和网站域名互不共享数据。清除网站数据会删除本机记录；可在「我的 API」导出不含 Key 的 JSON 备份，这个全站备份不包含音频文件，暂不支持导入，也没有云同步。Read Along 另有「导出文章备份 / 导入文件」，支持恢复旧版跟读文章 JSON。
 - 技术英语支持粘贴、UTF-8 TXT / Markdown；保存完整原文、标题与来源。稳定段落 ID 对应学习版，支持逐段查看原文。代码块不交给模型，行内代码与链接保护后恢复；不会抓取来源网址或解析 PDF。
 - 德语支持 A1 / A2 / B1、3 / 5 / 8 个新词、自定义主题与指定词、导入原文和只复习。中文嵌词版与自然德语逐段对应；名词冠词复数、动词变化和基础语法在词卡中展示。实际新词数与复习覆盖通过校验后保存。
 - 收藏进入待复习；主动选「认识」后间隔 1、3、7、14、30 天；「暂不学习」暂停。出现次数和主动复习分别记录，读完或完成练习不等于掌握。最多挑选 3 个到期德语词用于新文章。
 - 手机底部词卡、桌面浮层；三种释义模式、已认识词隐藏释义、阅读位置与语言偏好自动保存。删除文章保留词条和用户主动保存的学习状态，清理文章关联。
-- 听说共享材料、语速与草稿各自保存。浏览器朗读依赖系统英／德语音包，没有语音时提示。录音仅留在当前页面，可下载；不上传录音、不自动转写、不评价发音。AI 评价的是文字回答。
+- 听说共享文字材料，语速与草稿各自保存。浏览器朗读依赖系统英／德语音包，没有语音时提示。听力导入的音频在本机持久保存；口语录音仍留在当前页面，可下载。不自动转写、不评价发音，AI 评价的是文字回答。
 - 浏览器最多保存 200 篇文章、200 份听说材料、最近 1,000 条完整听说记录；界面展示最近 100 条，草稿按任务保留最近 100 份。
 
 ### 生成可靠性
@@ -109,20 +118,29 @@ A language-learning tool for Chinese speakers. **The website is public, with no 
 
 | Entry | Purpose | Visual identity |
 | --- | --- | --- |
-| `/listen` | Listen, summarize and practice dictation | Teal; transcript initially hidden, playback at the top |
+| `/listen` | Daily question, local audio import, summaries and dictation | Teal; left inbox, right exercise; transcript initially hidden |
 | `/speak` | Original Read Along: import articles, shadow sentences and look up words; retelling/recording in the corner menu | Original inbox, lavender background, pink active sentence; expanded playback |
-| `/`, `/read` | Contextual reading: Chinese prose with English expressions or German vocabulary, original text, word cards and favorites | Quiet article layout and soft pink accents; resumes contextual articles |
-| `/library` | Contextual English/German articles and samples | Preserved source, code and vocabulary cards |
+| `/`, `/read` | Contextual reading: Chinese prose with English expressions or German vocabulary, original text, word cards and favorites | Quiet article layout and soft pink accents; opens today’s article |
+| `/library` | Saved listening, speaking and reading, plus contextual articles and samples | Skill filters; preserved source, code and vocabulary cards |
 | `/vocabulary` | Shared vocabulary, learning state and source sentences | Reuse words in listening or speaking |
 | `/settings` | Your provider, model, API key and data export | Saving does not call a model; connection testing uses a small amount of credit |
 
-Website: <https://weavie.netlify.app/> (rename confirmed by the owner on 2026-11-20). The homepage and `/read` open contextual reading, starting with a React sample and later resuming the learner's contextual article. `/speak` hosts the original article-inbox and sentence-by-sentence Read Along interface restored from the `reading` branch, with its own saved article and sentence. Retelling, situational speaking and recording remain at `/speak/practice`, linked from the speaking page's corner menu. `/listen` remains a separate listening exercise. The three entries link to each other. Word selection in Read Along uses free translation; optional whole-article reference translation uses the learner’s key. See the [Read Along guide](reading/README.md).
+Website: <https://weavie.netlify.app/> (rename confirmed by the owner on 2026-11-20). The homepage and `/read` open today’s contextual reading article. `/speak` hosts the original article-inbox and sentence-by-sentence Read Along interface restored from the `reading` branch, with a daily short passage; saved article links restore their sentence. Retelling, situational speaking and recording remain at `/speak/practice`, linked from the speaking page's corner menu. `/listen` remains a separate listening exercise. The three entries link to each other. Word selection in Read Along uses free translation; optional whole-article reference translation uses the learner’s key. See the [Read Along guide](reading/README.md).
 
 All three pages link to one another and share words within the **same browser and website origin**. Eight structured reading samples and fifteen English/German practice materials work without a key. Samples, system-voice playback, dictation comparison, favorites and progress are available for free; samples are explicitly labeled.
 
-Contextual reading now places an article inbox on the left and the article on the right. Import, learning/original views and gloss settings live in the sidebar, collapsed initially on phones. Clear Listen / Speak / Read buttons switch pages. Public learning controls and instructions display Chinese and English together; article content, source text, code and generated learning content retain their original format.
+Listening and reading both use a left import inbox and a right learning workspace, consistent with the speaking page. Import, learning/original views and gloss settings live in the sidebar, collapsed initially on phones. Clear Listen / Speak / Read buttons switch pages. Public learning controls and instructions display Chinese and English together; article content, source text, code and generated learning content retain their original format.
 
 **The backend remains in the repository**: Prisma schema, PostgreSQL migrations and server APIs are retained. This interface update does not switch public learning records to database storage; connecting the public app to PostgreSQL is a separate future task.
+
+### Daily content and listening imports
+
+- Each entry opens a daily lesson immediately: one listening item with a question, one speaking passage, and one contextual reading article. The free catalog rotates **15 listening materials, 7 speaking passages and 8 reading samples** by browser-local calendar date. It repeats after cycling and does not use AI, scrape news or send notifications.
+- Daily lessons enter your library only after **Save to my library** (up to 500 bookmarks). Learning progress and word status are saved independently. Explicit saved links resume older lessons; the three plain entry URLs open today’s content.
+- Maintain the catalog in `src/lib/daily.ts` and `src/lib/practice-content.ts`. Preserve existing content IDs and records for saved links; changed content should receive a new ID. There is no editorial publishing dashboard yet.
+- The listening inbox accepts MP3, WAV, M4A, OGG, WebM, AAC and FLAC files up to **20 MB**; decoding support varies by browser. Audio stays in IndexedDB and survives reloads. It is not uploaded to the website or an AI provider.
+- Play → write notes → submit → replay or compare with the transcript. Controls include pause, seeking, ±5 seconds and speed. Audio dictation compares the entire supplied transcript, with a 2,000-character limit; longer transcripts support summary practice. Without a transcript, answers are saved without automatic scoring. There is no transcription or invented sentence timing. Optional AI evaluates written answers using the supplied transcript and your own key.
+- **Save and start practicing** saves explicitly imported listening materials to your library. JSON backups **exclude audio files**, so keep your originals. Removing a bookmark retains imported source materials, progress and vocabulary.
 
 ### Run the website
 
@@ -153,12 +171,12 @@ DeepSeek's Base URL can be `https://api.deepseek.com/v1`; obtain the model ID fr
 
 ### Storage and learning
 
-- IndexedDB stores imported/generated articles, vocabulary, practice materials and records. Small drafts, sample state, reading-position journals and key configuration use browser storage. Data does not synchronize across browsers, devices or website origins. Clearing site data deletes it. Settings can export a key-free JSON backup; the full-site export has no import UI or cloud sync yet. Read Along has its own article-backup export and JSON import, compatible with the old site’s backups. Its articles and positions retain the `readalong.articles` local-storage key.
+- IndexedDB stores imported/generated articles, vocabulary, practice materials and records. Small drafts, sample state, reading-position journals and key configuration use browser storage. Data does not synchronize across browsers, devices or website origins. Clearing site data deletes it. Settings can export a key-free JSON backup excluding audio files; the full-site export has no import UI or cloud sync yet. Read Along has its own article-backup export and JSON import, compatible with the old site’s backups. Its articles and positions retain the `readalong.articles` local-storage key.
 - Technical English accepts pasted text and UTF-8 TXT/Markdown, preserves the complete original and source URL, and aligns stable paragraph IDs. Code blocks are excluded from model rewriting, inline code and links are protected, and each paragraph can reveal its original. No URL scraping or PDF parsing.
 - German supports A1/A2/B1, 3/5/8 new words, topics, specified vocabulary, source import and review-only mode. Chinese embedded-word passages align with natural German text. Cards include noun articles/plurals, verb forms and grammar guidance. Actual vocabulary coverage is validated before saving.
 - Favoriting adds a word to review. Explicit “known” responses schedule 1/3/7/14/30-day intervals; ignored words pause review. Exposure and active review are tracked separately. Completion never implies mastery. Up to three due German words may recur in a new article.
 - Mobile bottom-sheet word cards, desktop overlays, three gloss modes and saved reading preferences are shared. Deleting an article removes its links but keeps vocabulary and learning state. Practice can reuse a word's actual source sentence.
-- Listening and speaking keep separate drafts, positions and speeds. Playback needs installed English/German system voices. Recordings stay on the current page and can be downloaded; no audio upload, transcription or pronunciation scoring. AI feedback evaluates written answers.
+- Listening and speaking keep separate drafts, positions and speeds. Playback needs installed English/German system voices. Imported listening audio persists locally; speaking recordings stay on the current page and can be downloaded. There is no audio upload, transcription or pronunciation scoring. AI feedback evaluates written answers.
 - Limits: 200 articles, 200 practice materials, 1,000 practice records (100 shown), and 100 task drafts per skill.
 
 ### Reliability

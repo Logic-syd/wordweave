@@ -8,7 +8,13 @@ import { settingsSchema } from "@/lib/schemas";
 import { useHydrated } from "./use-hydrated";
 import { Reader } from "./reader";
 
-function SavedSample({ article }: { article: ArticleDetail }) {
+function SavedSample({
+  article,
+  daily,
+}: {
+  article: ArticleDetail;
+  daily?: string;
+}) {
   const [initial] = useState(() => sampleWithProgress(article));
   return (
     <Reader
@@ -17,13 +23,20 @@ function SavedSample({ article }: { article: ArticleDetail }) {
       autoGenerate={false}
       initialSettings={settingsSchema.parse(article.version!.settings)}
       local
+      daily={daily}
     />
   );
 }
-export function SampleReader({ article }: { article: ArticleDetail }) {
+export function SampleReader({
+  article,
+  daily,
+}: {
+  article: ArticleDetail;
+  daily?: string;
+}) {
   const hydrated = useHydrated();
   return hydrated ? (
-    <SavedSample key={article.id} article={article} />
+    <SavedSample key={article.id} article={article} daily={daily} />
   ) : (
     <main className="page">
       <h1>{article.title}</h1>

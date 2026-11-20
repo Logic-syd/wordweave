@@ -7,7 +7,7 @@
   ><link rel="stylesheet" href="/readalong.css" /><link
     rel="stylesheet"
     href="/read-along/learning-nav.css"
-  />
+  /><link rel="stylesheet" href="/read-along/daily-learning.css" />
   <body>
     <header>
       <a class="brand" href="/speak"
@@ -24,6 +24,7 @@
         <details class="more-menu">
           <summary aria-label="更多功能">···</summary>
           <div>
+            <a href="/library">我的库 / My library</a>
             <a href="/speak/practice">复述与录音 / Retell &amp; record</a>
             <a href="/vocabulary">单词库 / Vocabulary</a
             ><a href="/settings">我的 API / My API</a>
@@ -108,6 +109,19 @@
           </div>
         </aside>
         <section class="card practice" id="exercise">
+          <section id="daily-pick" class="daily-lesson" aria-label="每日精选">
+            <div>
+              <strong id="daily-label">今日口语 / Daily speaking</strong
+              ><small id="daily-date"></small>
+            </div>
+            <button id="save-lesson" type="button">
+              保存到我的库 / Save to my library</button
+            ><a href="/library">我的库 / My library →</a
+            ><button id="today-lesson" type="button" class="link" hidden>
+              回到今日 / Back to today
+            </button>
+          </section>
+          <p id="save-lesson-status" role="status" class="hint"></p>
           <div class="heading">
             <div>
               <p class="eyebrow">听 · 停 · 跟读 / LISTEN · PAUSE · REPEAT</p>

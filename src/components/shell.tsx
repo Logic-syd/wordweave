@@ -114,7 +114,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 </Link>
                 <Link href="/library">
                   <Library size={17} />
-                  {ui("换一篇文章")}
+                  我的库 / My library
                 </Link>
                 <Link href="/settings">
                   <KeyRound size={17} />
