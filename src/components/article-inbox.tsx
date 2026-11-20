@@ -80,7 +80,7 @@ export function ArticleInbox({
       </button>
       <div
         id="reading-inbox-body"
-        className={`inbox-body${expanded ? " is-open" : ""}`}
+        className={`inbox-body study-panel${expanded ? " is-open" : ""}`}
       >
         <div className="inbox-heading">
           <h2>{ui("文章收件箱")}</h2>

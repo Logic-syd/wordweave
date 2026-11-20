@@ -55,6 +55,7 @@ import {
   LocalAudioPlayer,
 } from "./practice-audio";
 import { DailyLessonBar, SaveLessonButton } from "./daily-lesson";
+import { StudyIntro } from "./study-intro";
 import { localDay } from "@/lib/daily";
 import { savedLessons, saveLesson } from "@/lib/saved-lessons";
 import { saveAudioMaterial, validateAudio } from "@/lib/practice-audio-store";
@@ -165,8 +166,10 @@ function Studio({
   });
   const [progress, setProgress] = useState<PracticeProgress>(() => {
     const remote = initialState.progress[skill];
+    // The synchronous draft can be newer than the debounced store even when
+    // rapid changes share a timestamp. Keep the draft when timestamps tie.
     let cached =
-      !remote || (local.progress?.at ?? 0) > remote.at
+      !remote || (local.progress?.at ?? 0) >= remote.at
         ? local.progress
         : remote;
     if (
@@ -752,36 +755,45 @@ function Studio({
       </aside>
     </details>
   );
+  const changeMaterialButton = (
+    <button
+      type="button"
+      className="text-button"
+      aria-controls="practice-materials-panel"
+      onClick={() => {
+        setToolsOpen(true);
+        if (materialsPanel.current) {
+          materialsPanel.current.open = true;
+          materialsPanel.current.scrollIntoView({ block: "start" });
+          materialsPanel.current
+            .querySelector("summary")
+            ?.focus({ preventScroll: true });
+        }
+      }}
+    >
+      {ui("换一段")}
+      <ChevronDown size={14} />
+    </button>
+  );
   return (
     <main
-      className={`page practice-page${skill === "listen" ? " listen-workspace" : ""}`}
+      className={`page practice-page${skill === "listen" ? " listen-workspace study-frame" : ""}`}
       data-skill={skill}
     >
-      <div className="practice-entrybar">
-        <h1 className="skill-kicker">
-          <Icon size={17} />
-          {skill === "listen" ? ui("听力") : ui("口语")}
-        </h1>
-        <button
-          type="button"
-          className="text-button"
-          aria-controls="practice-materials-panel"
-          onClick={() => {
-            setToolsOpen(true);
-            if (materialsPanel.current) {
-              materialsPanel.current.open = true;
-              materialsPanel.current.scrollIntoView({ block: "start" });
-              materialsPanel.current
-                .querySelector("summary")
-                ?.focus({ preventScroll: true });
-            }
-          }}
-        >
-          {ui("换一段")}
-          <ChevronDown size={14} />
-        </button>
-      </div>
-      <div className="practice-grid">
+      {skill === "listen" ? (
+        <StudyIntro skill="listen">{changeMaterialButton}</StudyIntro>
+      ) : (
+        <div className="practice-entrybar">
+          <h1 className="skill-kicker">
+            <Icon size={17} />
+            {ui("口语")}
+          </h1>
+          {changeMaterialButton}
+        </div>
+      )}
+      <div
+        className={`practice-grid${skill === "listen" ? " study-grid" : ""}`}
+      >
         {skill === "listen" && (
           <aside className="listening-inbox">
             <button
@@ -795,7 +807,7 @@ function Studio({
             </button>
             <div
               id="listening-inbox-body"
-              className={`inbox-body${toolsOpen ? " is-open" : ""}`}
+              className={`inbox-body study-panel${toolsOpen ? " is-open" : ""}`}
             >
               <div className="inbox-heading">
                 <h2>听力收件箱 / Listening inbox</h2>
@@ -840,7 +852,7 @@ function Studio({
 
         <div className="practice-main-column">
           <section
-            className="practice-workspace"
+            className="practice-workspace study-panel"
             ref={workspace}
             aria-label={skill === "listen" ? ui("听力练习") : ui("口语练习")}
           >

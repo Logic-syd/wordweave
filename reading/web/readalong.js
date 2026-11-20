@@ -21,6 +21,20 @@ import {
 const $ = (id) => document.getElementById(id),
   synth = window.speechSynthesis;
 const today = dailyLesson();
+$("speaking-inbox-toggle").onclick = () => {
+  const button = $("speaking-inbox-toggle");
+  const expanded = button.getAttribute("aria-expanded") !== "true";
+  button.setAttribute("aria-expanded", String(expanded));
+  $("speaking-inbox-body").classList.toggle("is-open", expanded);
+};
+document
+  .querySelector(".platform-more")
+  .addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      event.currentTarget.open = false;
+      event.currentTarget.querySelector("summary").focus();
+    }
+  });
 let sourceUrl = "",
   prepared = null,
   busy = false;

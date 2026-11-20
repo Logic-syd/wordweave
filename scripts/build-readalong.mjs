@@ -15,6 +15,10 @@ await copyFile(
   root + "src/app/daily-learning.css",
   output + "daily-learning.css",
 );
+await copyFile(
+  root + "src/app/study-workspace.css",
+  output + "study-workspace.css",
+);
 await build({
   absWorkingDir: root,
   entryPoints: ["reading/web/readalong.js"],

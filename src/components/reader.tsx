@@ -36,6 +36,7 @@ import { saveLocalProgress } from "@/lib/browser-store";
 import { ArticleInbox } from "./article-inbox";
 import { rememberReading } from "@/lib/learning-entry";
 import { DailyLessonBar, SaveLessonButton } from "./daily-lesson";
+import { StudyIntro } from "./study-intro";
 type SavedSegment = Segment & { occurrenceId?: string };
 const markdownPlugins = [remarkGfm];
 const EMPTY_OCCURRENCES: OccurrenceView[] = [];
@@ -572,7 +573,11 @@ export function Reader({
     });
   }
   return (
-    <main className="reader-page reader-workspace">
+    <main
+      className="reader-page reader-workspace study-frame study-grid"
+      data-skill="read"
+    >
+      <StudyIntro skill="read" />
       <ArticleInbox
         mode={de ? "german" : "tech"}
         expanded={inboxExpanded}
@@ -672,7 +677,7 @@ export function Reader({
           </section>
         )}
       </ArticleInbox>
-      <div className="reader-document">
+      <div className="reader-document study-panel">
         {daily ? (
           <DailyLessonBar
             day={daily}

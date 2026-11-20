@@ -8,107 +8,161 @@
     rel="stylesheet"
     href="/read-along/learning-nav.css"
   /><link rel="stylesheet" href="/read-along/daily-learning.css" />
-  <body>
-    <header>
-      <a class="brand" href="/speak"
-        >read along<span>语境 · 口语跟读 / WordWeave · Speaking</span></a
-      >
-      <nav class="study-nav" aria-label="听说读导航">
-        <a href="/listen" data-skill="listen"
-          ><span><strong>听力</strong> <small lang="en">Listen</small></span></a
-        ><a href="/speak" data-skill="speak" aria-current="page"
-          ><span><strong>口语</strong> <small lang="en">Speak</small></span></a
-        ><a href="/read" data-skill="read"
-          ><span><strong>阅读</strong> <small lang="en">Read</small></span></a
-        >
-        <details class="more-menu">
-          <summary aria-label="更多功能">···</summary>
-          <div>
-            <a href="/library">我的库 / My library</a>
-            <a href="/speak/practice">复述与录音 / Retell &amp; record</a>
-            <a href="/vocabulary">单词库 / Vocabulary</a
-            ><a href="/settings">我的 API / My API</a>
-          </div>
-        </details>
-      </nav>
+  <link rel="stylesheet" href="/read-along/study-workspace.css" />
+  <body class="study-app">
+    <header class="platform-header">
+      <div class="platform-header-inner">
+        <a class="platform-brand" href="/" aria-label="语境 · 继续学习">
+          <span class="platform-brand-icon">
+            <svg
+              width="27"
+              height="27"
+              viewBox="0 0 32 32"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path
+                d="M9 12 5 9.5l1.6 7A9.5 9.5 0 0 0 9.5 24L9 27l4-2a11 11 0 0 0 6 0l4 2-.5-3a9.5 9.5 0 0 0 2.9-7.5l1.6-7-4 2.5a10.5 10.5 0 0 0-14 0Z"
+                fill="currentColor"
+                fill-opacity="0.08"
+              />
+              <path d="M16 9c-.5-3.8 1.4-5.8 4.5-6-.1 3-1.8 4.6-4.5 4.5" />
+              <g fill="currentColor" stroke="none">
+                <ellipse cx="12" cy="17.5" rx="1.1" ry="1.5" />
+                <ellipse cx="20" cy="17.5" rx="1.1" ry="1.5" />
+              </g>
+              <path d="M14 21c1.2 1.2 2.8 1.2 4 0" />
+            </svg>
+          </span>
+          <span>语境<small>WordWeave</small></span>
+        </a>
+        <div class="platform-controls">
+          <nav class="study-nav" aria-label="听说读导航">
+            <a href="/listen" data-skill="listen"
+              ><span
+                ><strong>听力</strong> <small lang="en">Listen</small></span
+              ></a
+            ><a href="/speak" data-skill="speak" aria-current="page"
+              ><span
+                ><strong>口语</strong> <small lang="en">Speak</small></span
+              ></a
+            ><a href="/read" data-skill="read"
+              ><span
+                ><strong>阅读</strong> <small lang="en">Read</small></span
+              ></a
+            >
+          </nav>
+          <details class="platform-more">
+            <summary aria-label="更多功能">···</summary>
+            <div class="platform-menu">
+              <a href="/vocabulary">单词库 / Vocabulary</a>
+              <a href="/library">我的库 / My library</a>
+              <a href="/settings">我的 API / My API</a>
+              <a href="/speak/practice">复述与录音 / Retell &amp; record</a>
+              <a href="/extension">浏览器插件 / Browser extension</a>
+            </div>
+          </details>
+        </div>
+      </div>
     </header>
-    <main>
-      <section class="intro">
-        <p class="eyebrow">口语 · 听一句，跟一句 / Speak · Listen and repeat</p>
+    <main class="study-frame">
+      <section class="intro study-intro">
+        <div class="study-intro-top">
+          <p class="eyebrow">
+            口语 · 听一句，跟一句 / Speak · Listen and repeat
+          </p>
+        </div>
         <h1>
           读一篇，<em>说出来。</em><small lang="en">Read it. Say it.</small>
         </h1>
-        <p>
+        <p class="study-description">
           把喜欢的文章带进来。听一句，跟一句，找到自己的节奏。 / Bring an
           article you like. Listen, repeat and find your rhythm.
         </p>
       </section>
-      <div class="layout">
-        <aside>
-          <div class="card">
-            <div class="heading">
-              <h2>文章收件箱 / Article inbox</h2>
-              <button id="new" class="link">＋ 新文章 / ＋ New</button>
-            </div>
-            <label for="title">标题 / Title</label
-            ><input
-              id="title"
-              placeholder="今天想读什么？ / What would you like to read?"
-              maxlength="150"
-            /><label for="text"
-              >英文正文或文章链接 / English text or article URL</label
-            ><textarea
-              id="text"
-              maxlength="16000"
-              placeholder="直接粘贴正文、原文链接，或整条文章推荐… / Paste text, an original URL, or an article recommendation…"
-            ></textarea>
-            <div id="link-choice" hidden>
-              <label for="source-choice">选择一篇文章 / Choose an article</label
-              ><select id="source-choice"></select>
-            </div>
-            <p id="import-status" class="hint" role="status"></p>
-            <div class="import-actions">
-              <label class="file-button" for="text-file"
-                >导入文件 / Import file<input
-                  id="text-file"
-                  type="file"
-                  accept=".txt,.md,.json,text/plain,text/markdown,application/json" /></label
-              ><button id="fetch-source" class="link" type="button" hidden>
-                提取正文 / Extract text
-              </button>
-            </div>
-            <details class="import-options">
-              <summary>AI 辅助（可选） / AI assistance (optional)</summary>
-              <p class="hint">
-                先粘贴或提取正文，再按需处理。 / Paste or extract the text
-                first, then choose an optional action.
-              </p>
+      <div class="layout study-grid">
+        <aside class="speaking-inbox">
+          <button
+            id="speaking-inbox-toggle"
+            type="button"
+            class="inbox-toggle"
+            aria-expanded="false"
+            aria-controls="speaking-inbox-body"
+          >
+            <span>导入与我的库 / Import &amp; my library</span
+            ><span aria-hidden="true">⌄</span>
+          </button>
+          <div id="speaking-inbox-body" class="inbox-body study-sidebar-body">
+            <div class="card study-panel">
+              <div class="heading">
+                <h2>文章收件箱 / Article inbox</h2>
+                <button id="new" class="link">＋ 新文章 / ＋ New</button>
+              </div>
+              <label for="title">标题 / Title</label
+              ><input
+                id="title"
+                placeholder="今天想读什么？ / What would you like to read?"
+                maxlength="150"
+              /><label for="text"
+                >英文正文或文章链接 / English text or article URL</label
+              ><textarea
+                id="text"
+                maxlength="16000"
+                placeholder="直接粘贴正文、原文链接，或整条文章推荐… / Paste text, an original URL, or an article recommendation…"
+              ></textarea>
+              <div id="link-choice" hidden>
+                <label for="source-choice"
+                  >选择一篇文章 / Choose an article</label
+                ><select id="source-choice"></select>
+              </div>
+              <p id="import-status" class="hint" role="status"></p>
               <div class="import-actions">
-                <button id="ai-segment" type="button">
-                  整理分段 / Group paragraphs</button
-                ><button id="ai-translate" type="button">
-                  全文中文参考 / Chinese reference
+                <label class="file-button" for="text-file"
+                  >导入文件 / Import file<input
+                    id="text-file"
+                    type="file"
+                    accept=".txt,.md,.json,text/plain,text/markdown,application/json" /></label
+                ><button id="fetch-source" class="link" type="button" hidden>
+                  提取正文 / Extract text
                 </button>
               </div>
-              <p id="ai-status" class="hint" role="status"></p>
-            </details>
-            <button id="generate" class="primary wide">
-              生成跟读练习 / Create speaking practice
-            </button>
-            <p class="hint">
-              自动分句 · 保存在当前浏览器 / Local sentence splitting · Saved in
-              this browser
-            </p>
-          </div>
-          <div class="card library">
-            <h2>我的文章 / My articles</h2>
-            <div id="library"></div>
-            <button id="export" class="link">
-              导出文章备份 / Export article backup
-            </button>
+              <details class="import-options">
+                <summary>AI 辅助（可选） / AI assistance (optional)</summary>
+                <p class="hint">
+                  先粘贴或提取正文，再按需处理。 / Paste or extract the text
+                  first, then choose an optional action.
+                </p>
+                <div class="import-actions">
+                  <button id="ai-segment" type="button">
+                    整理分段 / Group paragraphs</button
+                  ><button id="ai-translate" type="button">
+                    全文中文参考 / Chinese reference
+                  </button>
+                </div>
+                <p id="ai-status" class="hint" role="status"></p>
+              </details>
+              <button id="generate" class="primary wide">
+                生成跟读练习 / Create speaking practice
+              </button>
+              <p class="hint">
+                自动分句 · 保存在当前浏览器 / Local sentence splitting · Saved
+                in this browser
+              </p>
+            </div>
+            <div class="card library study-panel">
+              <h2>我的文章 / My articles</h2>
+              <div id="library"></div>
+              <button id="export" class="link">
+                导出文章备份 / Export article backup
+              </button>
+            </div>
           </div>
         </aside>
-        <section class="card practice" id="exercise">
+        <section class="card practice study-panel" id="exercise">
           <section id="daily-pick" class="daily-lesson" aria-label="每日精选">
             <div>
               <strong id="daily-label">今日口语 / Daily speaking</strong

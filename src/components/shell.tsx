@@ -5,16 +5,7 @@ import { ui } from "@/lib/ui";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
-import {
-  BookOpen,
-  Headphones,
-  Mic2,
-  NotebookPen,
-  Puzzle,
-  KeyRound,
-  Ellipsis,
-  Library,
-} from "lucide-react";
+import { NotebookPen, Puzzle, KeyRound, Ellipsis, Library } from "lucide-react";
 import { rememberSkill } from "@/lib/learning-entry";
 import { SpriteIcon } from "./sprite-icon";
 const nav = [
@@ -23,21 +14,18 @@ const nav = [
     label: "听力",
     english: "Listen",
     skill: "listen",
-    icon: Headphones,
   },
   {
     href: "/speak",
     label: "口语",
     english: "Speak",
     skill: "speak",
-    icon: Mic2,
   },
   {
     href: "/read",
     label: "阅读",
     english: "Read",
     skill: "read",
-    icon: BookOpen,
   },
 ] as const;
 export function Shell({ children }: { children: React.ReactNode }) {
@@ -60,7 +48,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       : path.startsWith(href);
   return (
     <div
-      className={`app learning-shell direct-learning${path === "/" || path.startsWith("/read") ? " reading-app" : ""}`}
+      className={`app learning-shell direct-learning study-app${path === "/" || path.startsWith("/read") ? " reading-app" : ""}`}
     >
       <header className="platform-header">
         <div className="platform-header-inner">
@@ -74,7 +62,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </a>
           <div className="platform-controls">
             <nav className="platform-nav study-nav" aria-label="听说读导航">
-              {nav.map(({ href, label, english, skill, icon: Icon }) => (
+              {nav.map(({ href, label, english, skill }) => (
                 <a
                   key={href}
                   href={href}
@@ -82,7 +70,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
                   className={active(href) ? "active" : ""}
                   aria-current={active(href) ? "page" : undefined}
                 >
-                  <Icon size={16} />
                   <span>
                     <strong>{label}</strong> <small lang="en">{english}</small>
                   </span>
@@ -119,6 +106,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 <Link href="/settings">
                   <KeyRound size={17} />
                   {ui("我的 API")}
+                </Link>
+                <Link href="/speak/practice">
+                  复述与录音 / Retell &amp; record
                 </Link>
                 <Link href="/extension">
                   <Puzzle size={17} />

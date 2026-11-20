@@ -72,19 +72,19 @@ test("original design, imported sentences, expanded playback and position surviv
     "已保存到我的库 / Saved",
   );
   await page.locator("#play").click();
-  await expect(page.locator("body")).toHaveClass("reading-focus");
+  await expect(page.locator("body")).toHaveClass(/\breading-focus\b/);
   await expect(page.locator("#status")).toContainText("正在听");
   const pane = await page.locator("#sentences").boundingBox();
   expect(pane!.width).toBeGreaterThan(1100);
   expect(pane!.height).toBeGreaterThan(550);
   await page.locator("#play").click();
-  await expect(page.locator("body")).toHaveClass("reading-focus");
+  await expect(page.locator("body")).toHaveClass(/\breading-focus\b/);
   for (let i = 0; i < 18; i++) await page.locator("#next").click();
   await expect(page.locator(".sentence.active")).toContainText("Sentence 19");
   await page.reload();
   await expect(page.locator(".sentence.active")).toContainText("Sentence 19");
   await expect(page.locator(".sentence.active")).toBeInViewport();
-  await expect(page.locator("body")).toHaveClass("reading-focus");
+  await expect(page.locator("body")).toHaveClass(/\breading-focus\b/);
   await page.screenshot({
     path: "test-results/readalong-focus-desktop.png",
     fullPage: true,
@@ -106,6 +106,14 @@ test("free mobile lookup shares favorites, retains scroll position and imports o
     });
   });
   await page.goto("/speak");
+  const inboxToggle = page.locator("#speaking-inbox-toggle");
+  await expect(page.locator("#title")).not.toBeVisible();
+  await inboxToggle.click();
+  await expect(inboxToggle).toHaveAttribute("aria-expanded", "true");
+  await expect(page.locator("#title")).toBeVisible();
+  await inboxToggle.click();
+  await expect(inboxToggle).toHaveAttribute("aria-expanded", "false");
+  await expect(page.locator("#title")).not.toBeVisible();
   await page.locator("#focus-reading").click();
   await expect(page.locator(".sentence")).toHaveCount(5);
   const before = await page.evaluate(() => [
