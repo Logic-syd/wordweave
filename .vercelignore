@@ -19,3 +19,4 @@ workbench/dist/
 workbench/.wordweave/
 public/read-along/
 .vercel/
+.netlify/

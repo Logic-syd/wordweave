@@ -1,0 +1,10 @@
+[build]
+  command = "npm run db:generate && npm run build:web"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "24"
+  SERVER_AI_ENABLED = "false"
+
+# Netlify detects Next.js and installs its official runtime automatically.
+# Keep the repository root as the base directory; the build includes Read Along.
