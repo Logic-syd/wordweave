@@ -13,6 +13,7 @@ import type { VocabularyView, UserWord } from "@/lib/types";
 import { WordCard, statusLabels } from "./word-card";
 import { sampleVocabulary } from "@/lib/sample-storage";
 import { browserFetch } from "@/lib/browser-api";
+import { learningAppearance, practicePath } from "@/lib/learning-links";
 export function Vocabulary({ initial }: { initial: VocabularyView[] }) {
   const [words, setWords] = useState(initial);
   const [language, setLanguage] = useState("all");
@@ -25,7 +26,9 @@ export function Vocabulary({ initial }: { initial: VocabularyView[] }) {
     let disposed = false;
     const refresh = async () => {
       try {
-        const response = await browserFetch("/api/vocabulary", { cache: "no-store" });
+        const response = await browserFetch("/api/vocabulary", {
+          cache: "no-store",
+        });
         const personal = response.ok ? await response.json() : null;
         if (!disposed)
           setWords((previous) => [
@@ -47,17 +50,22 @@ export function Vocabulary({ initial }: { initial: VocabularyView[] }) {
       window.removeEventListener("focus", refresh);
     };
   }, []);
-  const filtered = words.filter(
-    (w) =>
-      (language === "all" || w.language === language) &&
-      (status === "all" || w.user?.status === status) &&
-      (source === "all" ||
-        w.appearances.some((a) => (a.skill ?? "read") === source)) &&
-      (!favorites || w.user?.favorite) &&
-      `${w.lemma} ${w.meaning}`
-        .toLocaleLowerCase()
-        .includes(query.toLocaleLowerCase()),
-  );
+  const filtered = words
+    .map((word) => ({
+      ...word,
+      appearances: word.appearances.map(learningAppearance),
+    }))
+    .filter(
+      (w) =>
+        (language === "all" || w.language === language) &&
+        (status === "all" || w.user?.status === status) &&
+        (source === "all" ||
+          w.appearances.some((a) => (a.skill ?? "read") === source)) &&
+        (!favorites || w.user?.favorite) &&
+        `${w.lemma} ${w.meaning}`
+          .toLocaleLowerCase()
+          .includes(query.toLocaleLowerCase()),
+    );
   const due = words.filter(
     (w) =>
       w.language === "de" &&
@@ -228,9 +236,7 @@ export function Vocabulary({ initial }: { initial: VocabularyView[] }) {
                 {w.appearances.length ? (
                   w.appearances.map((a, i) => (
                     <div className="appearance" key={`${a.articleId}-${i}`}>
-                      <a
-                        href={a.href ?? `/read/${a.articleId}#${a.sourceId}`}
-                      >
+                      <a href={a.href ?? `/read/${a.articleId}#${a.sourceId}`}>
                         <span
                           className="word-source-badge"
                           data-skill={a.skill ?? "read"}
@@ -258,7 +264,9 @@ export function Vocabulary({ initial }: { initial: VocabularyView[] }) {
                   <Headphones size={14} />
                   听这个词
                 </Link>
-                <Link href={`/speak?word=${encodeURIComponent(w.id)}`}>
+                <Link
+                  href={`${practicePath("speak")}?word=${encodeURIComponent(w.id)}`}
+                >
                   <Mic2 size={14} />
                   用它说一句
                 </Link>

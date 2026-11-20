@@ -1,6 +1,6 @@
 # Netlify 上线
 
-当前路线：先公开提供基础版和用户自带 API 的增强功能，未来增加站方提供额度的付费模式。保持 `reading` 分支恢复的 Read Along 界面，不增加首次进入时的套餐选择。
+当前路线：先公开提供基础版和用户自带 API 的增强功能，未来增加站方提供额度的付费模式。首页直接进入语境阅读；`reading` 分支恢复的 Read Along 界面用于口语入口。不增加首次进入时的套餐选择。
 
 ## 第一次部署
 
@@ -8,7 +8,7 @@
 2. 选择导入现有 Git 仓库，授权访问并选择 `Logic-syd/wordweave`。
 3. 分支选择 `main`，基础目录保持仓库根目录（留空或 `.`）。环境变量留空。
 4. 点击部署。`netlify.toml` 已提供构建命令和发布目录。
-5. 部署成功后，在项目概览或域名设置里复制实际的 `https://….netlify.app` 地址。首页就是原版文章收件箱和逐句跟读。
+5. 部署成功后，在项目概览或域名设置里复制实际的 `https://….netlify.app` 地址。首页是语境阅读，右上角「口语」打开原版文章收件箱和逐句跟读。
 
 如果控制台需要手填，构建命令为 `npm run db:generate && npm run build:web`，发布目录为 `.next`。Netlify 会自动使用官方 Next.js Runtime，不需要单独选择 `reading/`、手动上传 HTML 或配置启动命令。公开版不需要 PostgreSQL 或站主模型 Key。
 
@@ -33,24 +33,31 @@ Netlify 提供免费方案，适用于额度内试运行；免费额度、适用
 | 项目 | 记录 |
 | --- | --- |
 | Git 仓库与分支 | https://github.com/Logic-syd/wordweave · `main` |
-| Netlify 项目 / 域名 | `wordweave-m4zt` · https://wordweave-m4zt.netlify.app （用户截图确认，2026-11-20） |
+| Netlify 项目 / 域名 | `weavie` · https://weavie.netlify.app （用户确认改名，2026-11-20） |
+| 之前的 Netlify 域名 | `wordweave-m4zt.netlify.app`，用户已改名；不要继续作为当前入口分享 |
 | Git 发布设置 | 用户截图显示 `main` 每次推送自动发布，Pull Request 生成预览 |
-| 首次上线问题 | 用户截图显示根路径误入 Next.js 404；已添加 Netlify 原生首页与 `/read` 静态路由，等待新部署核验 |
-| 已有验证 | 无数据库、无站主 Key 的 Next.js 生产构建通过；Netlify CLI 原生路由和浏览器检查通过（首页、`/read`、静态资源、句子位置链接、其他路由隔离）；线上仍待核验 |
+| 路由修复 | 跟读曾误占首页与阅读入口。现已恢复 `/`、`/read` 的语境阅读，Read Along 改用 `/speak` 的 Netlify 原生静态路由 |
+| 验证范围 | 本地生产构建、浏览器学习流程与独立 Netlify CDN 路由测试；线上部署需另行核验，测试不代表真实模型或设备语音质量 |
 
-Read Along 构建为 `public/read-along/index.html`。Netlify Next.js Runtime 把它放进 CDN 静态目录，未放进 Next.js 函数包。`netlify.toml` 因此需要将 `/`、`/read` 以原生 200 rewrite 指向该文件；仅使用 `next.config.ts` 的静态文件 rewrite 会误入函数里的 404。规则精确匹配两个入口，其他 `/read/:id`、听说、API 路由继续交给 Next.js。
+Read Along 构建为 `public/read-along/index.html`。Netlify Next.js Runtime 把它放进 CDN 静态目录，未放进 Next.js 函数包。`netlify.toml` 因此只将 `/speak` 以原生 200 rewrite 指向该文件；仅使用 `next.config.ts` 的静态文件 rewrite 会误入函数里的 404。规则精确匹配口语入口；`/`、`/read`、`/read/:id`、`/listen`、`/speak/practice` 与 API 路由继续交给 Next.js，不要把语境阅读再次重写为跟读文件。
 
-当前云环境访问上述线上域名受到网络限制，未独立核验线上修复结果。首次错误不是用户删除了文章，也不是需要填写 API Key。原域名的浏览器数据应保留。
+`/speak/practice` 保留复述、情景表达、录音和已有练习记录；从口语页右上角更多菜单进入。旧的 `/read?article=…&sentence=…` 跟读链接转到 `/speak`，旧 `/speak?material=…` 或 `?word=…` 练习链接转到 `/speak/practice`。语境文章与跟读材料的存储键、单词 ID 与学习状态保持原样；词库里以前误标为阅读的跟读来源按口语显示。
+
+当前云环境访问 https://weavie.netlify.app 仍受到网络限制（CONNECT 403），未独立核验线上修复结果。原语境阅读源码和范文一直保留，这次恢复它们的入口。改域名不会迁移浏览器数据；入口修复也不会自动找回另一域名的数据。
 
 本次检查还发现 Next.js 16.4.2 的已知安全公告会中断构建；已将 Next.js 与 `eslint-config-next` 更新到同系列补丁 16.4.6。没有关闭安全提醒或修改用户界面。完整 Netlify CLI 构建的 Edge Functions 打包曾因网络请求失败而未完成，因此不将本地静态路由验证描述为已经验证线上 Edge Functions。
 
 路由回归可在生产构建后运行 `npm exec --yes --package=netlify-cli@27.20.1 -- node tests/netlify-routes.mjs`。测试使用隔离的公开静态文件目录与真正的 Netlify redirect 引擎，校验查询参数和浏览器脚本加载，不涉及用户账户或发布。该静态测试不包含 Next.js 服务端或 Edge Functions，生产鉴权保持原样。可用 `NETLIFY_STATIC_DIR=.netlify/static` 指定实际部署静态产物。
 
-部署后验证首页、`/listen`、`/speak`、`/vocabulary`，刷新后记录仍在；`/api/health` 应返回 `{"status":"ok","storage":"browser"}`。用隐私窗口检查无 Key 仍能使用基础功能，再在正常窗口以自己的配置测试 AI。不能把尚未获得的域名写成已上线地址。
+2026-11-20 入口修复验证：生产构建、TypeScript、lint、26 项相关单元测试、9 项 Playwright 测试、`tests/browser-byok.mjs`、`tests/practice.browser.mjs` 和 Netlify 原生静态路由测试通过。覆盖首页语境阅读、三个入口切换、德语视图、收藏来源、代码保护、独立进度、旧链接与自带 Key 流程。浏览器中的模型、翻译接口及语音设备使用测试替身，未消耗真实 API，也不代表真实语言质量验证。
+
+部署后验证首页和 `/read` 显示语境文章，`/listen` 显示听力，`/speak` 显示跟读，`/speak/practice` 显示复述与录音；词可在 `/vocabulary` 找到，刷新后记录仍在；`/api/health` 应返回 `{"status":"ok","storage":"browser"}`。用隐私窗口检查无 Key 仍能使用基础功能，再在正常窗口以自己的配置测试 AI。
 
 ## English
 
 Import `Logic-syd/wordweave` from GitHub at https://app.netlify.com/start. Choose `main`, keep the repository root, leave environment variables empty, and deploy. The committed `netlify.toml` sets `npm run db:generate && npm run build:web`, publishes `.next`, uses Node 24 and disables owner-funded AI. Netlify automatically installs its Next.js Runtime. No database or owner API key is required.
+
+The owner confirmed the renamed address as https://weavie.netlify.app on 2026-11-20. `/` and `/read` are contextual reading, `/listen` is listening, and `/speak` is the restored Read Along speaking workspace. Only `/speak` is rewritten to a static HTML file at the Netlify CDN; all other entries remain Next.js routes. Retelling and recording are retained at `/speak/practice`. Saved article IDs, vocabulary and progress are preserved, with compatibility for old source links. Moving to another domain does not migrate browser storage.
 
 The current product offers free core learning and optional bring-your-own-key AI in the same interface. A future paid, provider-managed allowance is planned but not implemented. It requires account identity, payments, server-side quotas and cost controls; provider keys must remain on the server. No signup or plan selection is introduced for the current public version.
 

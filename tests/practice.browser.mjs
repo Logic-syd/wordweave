@@ -194,6 +194,8 @@ try {
     .getByRole("navigation", { name: "听说读导航" })
     .getByRole("link", { name: "口语", exact: true })
     .click();
+  await page.getByLabel("更多功能").click();
+  await page.getByRole("link", { name: "复述与录音", exact: true }).click();
   await page.getByRole("button", { name: "换一段", exact: true }).click();
   await page.getByRole("link", { name: "说 batch", exact: true }).click();
   await expect(page.locator(".practice-material-heading h2")).toHaveText(
@@ -302,7 +304,7 @@ try {
   );
   await page.screenshot({ path: `${shots}/read-mobile.png`, fullPage: true });
   await page.goto(base);
-  await expect(page).toHaveURL(/\/read$/);
+  await expect(page).toHaveURL(base + "/");
   await expect(page.locator(".reading-content")).toBeVisible();
   await expect(page.locator(".skill-entrance")).toHaveCount(0);
   await page.screenshot({ path: `${shots}/home-mobile.png`, fullPage: true });

@@ -1,5 +1,17 @@
 import { DirectReading } from "@/components/learning-entry";
-export const metadata = { title: "阅读" };
-export default function ReadingPage() {
+import { redirect } from "next/navigation";
+export const metadata = { title: "语境阅读" };
+export default async function ReadingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ article?: string; sentence?: string }>;
+}) {
+  const { article, sentence } = await searchParams;
+  // Keep links saved when Read Along incorrectly occupied the reading entry.
+  if (article) {
+    const query = new URLSearchParams({ article });
+    if (sentence) query.set("sentence", sentence);
+    redirect(`/speak?${query}#exercise`);
+  }
   return <DirectReading />;
 }

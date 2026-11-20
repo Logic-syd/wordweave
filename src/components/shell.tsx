@@ -33,13 +33,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
   if (path === "/login") return <>{children}</>;
   const active = (href: string) =>
     href === "/read"
-      ? path.startsWith("/read") ||
+      ? path === "/" ||
+        path.startsWith("/read") ||
         path.startsWith("/library") ||
         path.startsWith("/new")
       : path.startsWith(href);
   return (
     <div
-      className={`app learning-shell direct-learning${path.startsWith("/read") ? " reading-app" : ""}`}
+      className={`app learning-shell direct-learning${path === "/" || path.startsWith("/read") ? " reading-app" : ""}`}
     >
       <header className="platform-header">
         <div className="platform-header-inner">

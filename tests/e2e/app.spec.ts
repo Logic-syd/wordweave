@@ -183,12 +183,24 @@ test("public import validates input, preserves Markdown and deletes locally with
   expect(siteWrites).toEqual([]);
 });
 
-test("listening and speaking link to the restored Read Along document", async ({
+test("home and three entries keep contextual reading, shadowing and listening distinct", async ({
   page,
 }) => {
   const diagnostics: string[] = [];
   page.on("pageerror", (error) => diagnostics.push(error.message));
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "状态更新，并不会立刻发生" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", {
+      name: "查看词卡：avoid unnecessary re-renders",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(page.locator("#sentences")).toHaveCount(0);
+  await expect(page.locator('nav [aria-current="page"]')).toHaveText("阅读");
   await page.goto("/listen");
   await expect(
     page.getByRole("button", { name: "播放这一段", exact: true }),
@@ -198,25 +210,62 @@ test("listening and speaking link to the restored Read Along document", async ({
     .getByRole("navigation", { name: "听说读导航" })
     .getByRole("link", { name: "口语", exact: true })
     .click();
-  await expect(page.locator(".transcript-text")).toBeInViewport();
-  await page
-    .getByRole("navigation", { name: "听说读导航" })
-    .getByRole("link", { name: "阅读", exact: true })
-    .click();
   await expect(page.locator("#practiceTitle")).toHaveText(
     "A small pause in the day",
   );
   await expect(page.locator(".sentence")).toHaveCount(5);
+  await expect(page.locator('nav [aria-current="page"]')).toHaveText("口语");
+  await page.getByLabel("更多功能").click();
+  await page.getByRole("link", { name: "复述与录音", exact: true }).click();
+  await expect(page.locator(".transcript-text")).toBeInViewport();
+  await expect(page).toHaveURL(/\/speak\/practice/);
+  await page
+    .getByRole("navigation", { name: "听说读导航" })
+    .getByRole("link", { name: "阅读", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "状态更新，并不会立刻发生" }),
+  ).toBeVisible();
+  await expect(page.locator("#sentences")).toHaveCount(0);
   await page.goto(`/read/${germanId}`);
   await expect(page.locator(".article-heading h1")).toBeVisible();
+  const germanTitle = await page.locator(".article-heading h1").innerText();
+  await page.getByLabel("释义显示方式").selectOption("click");
+  await expect
+    .poll(() =>
+      page.evaluate(
+        (id) =>
+          JSON.parse(localStorage.getItem("wordweave.samples.v1") ?? "{}")
+            .progress?.[id]?.glossMode,
+        germanId,
+      ),
+    )
+    .toBe("click");
   await page.getByRole("link", { name: "语境 · 继续学习" }).click();
-  await expect(page.locator("#practiceTitle")).toHaveText(
-    "A small pause in the day",
-  );
+  await expect(page.locator(".article-heading h1")).toHaveText(germanTitle);
+  await expect(page.getByLabel("释义显示方式")).toHaveValue("click");
+  await page.reload();
+  await expect(page.locator(".article-heading h1")).toHaveText(germanTitle);
+  await expect(page.getByLabel("释义显示方式")).toHaveValue("click");
   expect(diagnostics).toEqual([]);
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
+});
+
+test("legacy speaking material links and listening crosslinks retain the exercise", async ({
+  page,
+}) => {
+  await page.goto("/listen");
+  const link = await page
+    .getByRole("link", { name: "这段也拿来说" })
+    .getAttribute("href");
+  expect(link).toMatch(/^\/speak\/practice\?material=/);
+  await page.goto(link!.replace("/speak/practice?", "/speak?"));
+  await expect(page).toHaveURL(/\/speak\/practice\?material=/);
+  await expect(page.locator(".transcript-text")).toBeVisible();
+  await page.reload();
+  await expect(page.locator(".transcript-text")).toBeVisible();
 });

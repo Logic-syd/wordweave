@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-html-link-for-pages -- Homepage is the standalone Read Along document. */
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -203,7 +202,7 @@ function Loading({ error }: { error: string }) {
       <p className="practice-notice" role={error ? "alert" : "status"}>
         {error || "文章、词卡和练习记录只保存在当前浏览器。"}
       </p>
-      <a href="/">返回首页 →</a>
+      <Link href="/">返回首页 →</Link>
     </main>
   );
 }

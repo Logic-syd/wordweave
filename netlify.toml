@@ -9,16 +9,11 @@
 # Netlify detects Next.js and installs its official runtime automatically.
 # Keep the repository root as the base directory; the build includes Read Along.
 
-# Read Along is a public HTML document served by Netlify's CDN. Resolve these
-# aliases before the Next.js function, which does not contain public assets.
+# Read Along belongs to speaking. Resolve its exact alias at the CDN, since
+# the Next.js function does not contain public assets. Contextual reading at
+# / and /read, listening, and /speak/practice remain Next.js pages.
 [[redirects]]
-  from = "/"
-  to = "/read-along/index.html"
-  status = 200
-  force = true
-
-[[redirects]]
-  from = "/read"
+  from = "/speak"
   to = "/read-along/index.html"
   status = 200
   force = true

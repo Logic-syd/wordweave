@@ -94,9 +94,8 @@ try {
   }
   assert(ready, "Netlify Dev did not start: " + log);
   for (const path of [
-    "/",
-    "/read",
-    "/read?article=existing&sentence=2",
+    "/speak",
+    "/speak?article=existing&sentence=2",
     "/read-along/index.html",
   ]) {
     const response = await fetch(base + path);
@@ -104,7 +103,7 @@ try {
     const html = await response.text();
     assert(
       html.includes("文章收件箱"),
-      path + " must serve the original reader",
+      path + " must serve the speaking workspace",
     );
     assert(
       html.includes("/read-along/readalong.js"),
@@ -113,10 +112,12 @@ try {
     assert(!html.includes("这篇文章不在这里了"));
   }
   for (const path of [
+    "/",
+    "/read",
     "/read/another-article",
     "/api/health",
     "/listen",
-    "/speak",
+    "/speak/practice",
   ]) {
     // There is no Next.js function in this CDN-only fixture: a 404 means the
     // alias did not capture the path, so the real deployment can route it on.
@@ -147,7 +148,7 @@ try {
       ]),
     ),
   );
-  await page.goto(base + "/read?article=native-route-article&sentence=2");
+  await page.goto(base + "/speak?article=native-route-article&sentence=2");
   await page.locator(".sentence.active").waitFor();
   assert(
     (await page.locator(".sentence.active").innerText()).includes(
@@ -158,7 +159,11 @@ try {
     new URL(page.url()).searchParams.get("article"),
     "native-route-article",
   );
-  await page.goto(base + "/");
+  assert.equal(
+    await page.locator('nav [aria-current="page"]').innerText(),
+    "口语",
+  );
+  await page.goto(base + "/speak");
   await page.locator(".sentence").first().waitFor();
   assert.equal(
     await page.locator("#practiceTitle").innerText(),
@@ -166,14 +171,24 @@ try {
   );
   assert.deepEqual(errors, []);
   console.log(
-    "PASS Netlify native aliases: / and /read serve the reader; assets and sentence links work; other app/API routes remain separate.",
+    "PASS Netlify speaking alias: /speak serves Read Along and saved sentences; contextual reading, listening and other app/API routes remain separate.",
   );
 } finally {
   await browser?.close();
   if (child?.pid) {
+    const stopped = new Promise((resolve) => {
+      child.once("close", resolve);
+      setTimeout(resolve, 2000).unref();
+    });
     try {
       process.kill(-child.pid, "SIGTERM");
     } catch {}
+    await stopped;
   }
-  await rm(scratch, { recursive: true, force: true });
+  await rm(scratch, {
+    recursive: true,
+    force: true,
+    maxRetries: 5,
+    retryDelay: 100,
+  });
 }

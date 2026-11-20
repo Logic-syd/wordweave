@@ -4,8 +4,7 @@ const config: NextConfig = {
   async rewrites() {
     return {
       beforeFiles: [
-        { source: "/", destination: "/read-along/index.html" },
-        { source: "/read", destination: "/read-along/index.html" },
+        { source: "/speak", destination: "/read-along/index.html" },
       ],
       afterFiles: [],
       fallback: [],

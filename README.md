@@ -9,13 +9,13 @@
 | 入口 | 做什么 | 特点 |
 | --- | --- | --- |
 | `/listen` 听力 | 播放一段、概括重点、逐句听写 | 青绿色；默认收起原文，播放按钮在顶部 |
-| `/speak` 口语 | 跟读、复述、情景表达、录音回听 | 淡紫色；以开口和自己的表达为中心 |
-| `/`、`/read` 阅读 | 原版 Read Along：导入文章、逐句跟读、选词查义 | 文章收件箱、淡紫背景、粉色当前句；播放时展开正文 |
+| `/speak` 口语 | 原版 Read Along：导入文章、逐句跟读、选词查义；角落可进入复述与录音 | 文章收件箱、淡紫背景、粉色当前句；播放时展开正文 |
+| `/`、`/read` 阅读 | 语境阅读：中文正文嵌入英文表达或德语词，原文对照、词卡与收藏 | 安静的文章排版、淡粉强调；直接续读语境文章 |
 | `/library` 语境文章 | 技术英语学习版、中文嵌德语短文、范文 | 文章原文、代码与语境词卡保留 |
 | `/vocabulary` 单词库 | 听说读共用收藏、认识状态、出现句子 | 词条可直接拿去听或说 |
 | `/settings` 我的 API | 设置自己的服务、模型与 Key，导出记录 | 保存配置不发请求；测试连接会消耗少量额度 |
 
-首页和 `/read` 使用从 `reading` 分支恢复的原版「文章收件箱＋逐句跟读」，首次打开即可试读示例，之后恢复原文章和当前句。`/listen`、`/speak` 保留独立练习入口，右上角互相切换。选中词语免费查义，不再用 AI 仅标注 3–5 个词；可选的全文中文参考使用自己的 Key。[原版恢复与使用说明](reading/README.md)。
+线上地址：<https://weavie.netlify.app/>（用户于 2026-11-20 确认改名）。首页和 `/read` 直接打开语境阅读，首次展示 React 英语学习范文，以后恢复自己的语境文章。`/speak` 使用从 `reading` 分支恢复的原版「文章收件箱＋逐句跟读」，恢复跟读文章与当前句；复述、情景表达、录音保留在 `/speak/practice`，从口语页右上角更多菜单进入。`/listen` 是独立听力练习，三个入口互相切换。跟读选词免费查义，可选的全文中文参考使用自己的 Key。[跟读说明](reading/README.md)。
 
 三个学习页面可以互相跳转，在**同一浏览器、同一网站地址**下共用单词库。附带 8 篇结构化阅读范文与 15 份英德听说材料；范文、浏览器朗读、听写对照、收藏和进度保存无需 Key。范文明确标注为演示内容，不冒充现场生成。
 
@@ -106,13 +106,13 @@ A language-learning tool for Chinese speakers. **The website is public, with no 
 | Entry | Purpose | Visual identity |
 | --- | --- | --- |
 | `/listen` | Listen, summarize and practice dictation | Teal; transcript initially hidden, playback at the top |
-| `/speak` | Shadow, retell, respond and record yourself | Lavender; focused on speaking |
-| `/`, `/read` | Original Read Along: import articles, shadow sentences, look up words | Original inbox, lavender background, pink active sentence; expanded playback |
+| `/speak` | Original Read Along: import articles, shadow sentences and look up words; retelling/recording in the corner menu | Original inbox, lavender background, pink active sentence; expanded playback |
+| `/`, `/read` | Contextual reading: Chinese prose with English expressions or German vocabulary, original text, word cards and favorites | Quiet article layout and soft pink accents; resumes contextual articles |
 | `/library` | Contextual English/German articles and samples | Preserved source, code and vocabulary cards |
 | `/vocabulary` | Shared vocabulary, learning state and source sentences | Reuse words in listening or speaking |
 | `/settings` | Your provider, model, API key and data export | Saving does not call a model; connection testing uses a small amount of credit |
 
-The homepage and `/read` restore the original article-inbox and sentence-by-sentence interface from the `reading` branch. First use includes a sample; subsequent visits resume the article and sentence. `/listen` and `/speak` remain separate exercises, reachable in the top-right navigation. Selecting words uses free translation, without AI or a 3–5-word limit. Optional whole-article reference translation uses the learner’s key. See the [restored Read Along guide](reading/README.md).
+Website: <https://weavie.netlify.app/> (rename confirmed by the owner on 2026-11-20). The homepage and `/read` open contextual reading, starting with a React sample and later resuming the learner's contextual article. `/speak` hosts the original article-inbox and sentence-by-sentence Read Along interface restored from the `reading` branch, with its own saved article and sentence. Retelling, situational speaking and recording remain at `/speak/practice`, linked from the speaking page's corner menu. `/listen` remains a separate listening exercise. The three entries link to each other. Word selection in Read Along uses free translation; optional whole-article reference translation uses the learner’s key. See the [Read Along guide](reading/README.md).
 
 All three pages link to one another and share words within the **same browser and website origin**. Eight structured reading samples and fifteen English/German practice materials work without a key. Samples, system-voice playback, dictation comparison, favorites and progress are available for free; samples are explicitly labeled.
 

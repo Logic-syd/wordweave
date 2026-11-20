@@ -51,6 +51,7 @@ import { PracticePlayer, PracticeRecorder } from "./practice-audio";
 import { useHydrated } from "./use-hydrated";
 
 import { browserFetch } from "@/lib/browser-api";
+import { practicePath } from "@/lib/learning-links";
 type Props = {
   skill: PracticeSkill;
   owner: string | null;
@@ -224,7 +225,7 @@ function Studio({
   );
   const otherSkill = skill === "listen" ? "speak" : "listen";
   const Icon = skill === "listen" ? Headphones : Mic2;
-  const otherLink = `/${otherSkill}?material=${encodeURIComponent(material.id)}&paragraph=${encodeURIComponent(paragraph.id)}`;
+  const otherLink = `${practicePath(otherSkill)}?material=${encodeURIComponent(material.id)}&paragraph=${encodeURIComponent(paragraph.id)}`;
 
   useEffect(() => {
     latest.current = progress;
@@ -354,7 +355,7 @@ function Studio({
     window.history.replaceState(
       null,
       "",
-      `/${skill}?material=${encodeURIComponent(m.id)}&paragraph=${encodeURIComponent(pid)}`,
+      `${practicePath(skill)}?material=${encodeURIComponent(m.id)}&paragraph=${encodeURIComponent(pid)}`,
     );
   }
   async function persistHistory(entry: PracticeHistory) {
@@ -516,7 +517,7 @@ function Studio({
           title: material.title,
           form: form.trim(),
           sentence: paragraph.text,
-          href: `/${skill}?word=${encodeURIComponent(existing.id)}`,
+          href: `${practicePath(skill)}?word=${encodeURIComponent(existing.id)}`,
         });
         word = sampleVocabulary().find((w) => w.id === existing.id)!;
       } else {
@@ -870,7 +871,7 @@ function Studio({
                   <p className="history-answer">{h.answer}</p>
                   {h.grade && <GradeResult grade={h.grade} />}
                   <Link
-                    href={`/${skill}?material=${encodeURIComponent(h.mid)}&paragraph=${encodeURIComponent(h.pid)}`}
+                    href={`${practicePath(skill)}?material=${encodeURIComponent(h.mid)}&paragraph=${encodeURIComponent(h.pid)}`}
                   >
                     回到这一段 <ArrowRight size={13} />
                   </Link>
@@ -963,7 +964,7 @@ function Studio({
                       <span>{w.meaning}</span>
                     </button>
                     <Link
-                      href={`/${skill}?word=${encodeURIComponent(w.id)}`}
+                      href={`${practicePath(skill)}?word=${encodeURIComponent(w.id)}`}
                       aria-label={`${skill === "listen" ? "听" : "说"} ${w.lemma}`}
                     >
                       <Icon size={16} />

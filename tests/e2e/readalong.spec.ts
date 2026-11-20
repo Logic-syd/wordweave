@@ -43,7 +43,7 @@ test("original design, imported sentences, expanded playback and position surviv
     });
   });
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.goto("/");
+  await page.goto("/speak");
   await expect(page.getByRole("heading", { name: "文章收件箱" })).toBeVisible();
   await expect(page.locator("#sentences .sentence")).toHaveCount(5);
   await expect(page.locator("#vocabulary")).toHaveCount(0);
@@ -97,7 +97,7 @@ test("free mobile lookup shares favorites, retains scroll position and imports o
       headers: { "Access-Control-Allow-Origin": "*" },
     });
   });
-  await page.goto("/read");
+  await page.goto("/speak");
   await page.locator("#focus-reading").click();
   await expect(page.locator(".sentence")).toHaveCount(5);
   const before = await page.evaluate(() => [
@@ -134,13 +134,18 @@ test("free mobile lookup shares favorites, retains scroll position and imports o
   await expect(
     page.getByRole("heading", { name: "coffee shop", exact: true }),
   ).toBeVisible();
+  await expect(page.locator(".word-source-badge").first()).toHaveText("口语");
   await page.locator(".appearance-details summary").click();
+  await expect(page.locator(".appearance a")).toHaveAttribute(
+    "href",
+    /^\/speak\?article=/,
+  );
   await page.locator(".appearance a").click();
   await expect(page.locator("#practiceTitle")).toHaveText(
     "A small pause in the day",
   );
   await expect(page.locator(".sentence.active")).toContainText("coffee shop");
-  await page.goto("/read");
+  await page.goto("/speak");
   await page.locator("#focus-reading").click();
   const backup = [
     {
@@ -208,7 +213,7 @@ test("AI uses only the learner's key, blocks double submit and preserves success
       },
     });
   });
-  await page.goto("/read");
+  await page.goto("/speak");
   await page
     .locator("#text")
     .fill(
@@ -251,4 +256,45 @@ test("AI uses only the learner's key, blocks double submit and preserves success
     "First paragraph keeps its condition.\n\nSecond paragraph only continues when ready.",
   );
   expect(siteAi).toEqual([]);
+});
+
+test("old Read Along bookmarks still open the saved speaking sentence", async ({
+  page,
+}) => {
+  await page.goto("/speak");
+  await page.evaluate(() => {
+    localStorage.setItem(
+      "readalong.articles",
+      JSON.stringify([
+        {
+          id: "existing-shadowing",
+          title: "My speaking article",
+          text: "First original sentence. Second original sentence. Third original sentence.",
+          index: 0,
+        },
+      ]),
+    );
+  });
+  for (const path of ["/read", "/"]) {
+    await page.goto(`${path}?article=existing-shadowing&sentence=2#exercise`);
+    await expect(page).toHaveURL(
+      /\/speak\?article=existing-shadowing&sentence=2#exercise$/,
+    );
+    await expect(page.locator(".sentence.active")).toContainText(
+      "Third original sentence.",
+    );
+    await expect(page.locator('nav [aria-current="page"]')).toHaveText("口语");
+  }
+  await page.goto("/read");
+  await expect(
+    page.getByRole("heading", { name: "状态更新，并不会立刻发生" }),
+  ).toBeVisible();
+  await expect(page.locator("#sentences")).toHaveCount(0);
+  await page.goto("/speak");
+  await expect(page.locator("#practiceTitle")).toHaveText(
+    "My speaking article",
+  );
+  await expect(page.locator(".sentence.active")).toContainText(
+    "Third original sentence.",
+  );
 });

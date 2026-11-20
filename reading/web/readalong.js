@@ -163,7 +163,7 @@ function updateVocabularyStatus() {
 }
 function setFocus(active) {
   document.body.classList.toggle("reading-focus", active);
-  $("focus-reading").textContent = active ? "文章与设置" : "展开阅读";
+  $("focus-reading").textContent = active ? "文章与设置" : "展开正文";
   $("focus-reading").setAttribute("aria-pressed", String(active));
   try {
     localStorage.setItem("readalong.focus", String(active));
@@ -864,33 +864,42 @@ document.addEventListener("keydown", (event) => {
     document.querySelector(".playback-options").open = false;
   }
 });
-// Keep existing article IDs and positions, including imported backups from the old site.
-library();
 const query = new URLSearchParams(location.search);
-let last = "";
-try {
-  last = localStorage.getItem("readalong.last") || "";
-} catch {}
-const selected =
-  articles.find((a) => a.id === query.get("article")) ||
-  articles.find((a) => a.id === last) ||
-  articles[0];
-if (selected) {
-  const requested = Number(query.get("sentence"));
-  if (
-    query.has("sentence") &&
-    selected.id === query.get("article") &&
-    Number.isInteger(requested) &&
-    requested >= 0
-  )
-    selected.index = requested;
-  load(selected);
+// Old practice/word links keep their target after the speaking entry moves.
+if (query.has("word") || query.has("material")) {
+  const target = new URL("/speak/practice", location.origin);
+  for (const key of ["word", "material", "paragraph"]) {
+    if (query.has(key)) target.searchParams.set(key, query.get(key));
+  }
+  location.replace(target.href);
 } else {
-  $("demo").click();
-}
-try {
-  if (localStorage.getItem("readalong.focus") === "true") setFocus(true);
-} catch {}
-updateVocabularyStatus();
+  // Keep existing article IDs and positions, including imported backups from the old site.
+  library();
+  let last = "";
+  try {
+    last = localStorage.getItem("readalong.last") || "";
+  } catch {}
+  const selected =
+    articles.find((a) => a.id === query.get("article")) ||
+    articles.find((a) => a.id === last) ||
+    articles[0];
+  if (selected) {
+    const requested = Number(query.get("sentence"));
+    if (
+      query.has("sentence") &&
+      selected.id === query.get("article") &&
+      Number.isInteger(requested) &&
+      requested >= 0
+    )
+      selected.index = requested;
+    load(selected);
+  } else {
+    $("demo").click();
+  }
+  try {
+    if (localStorage.getItem("readalong.focus") === "true") setFocus(true);
+  } catch {}
+  updateVocabularyStatus();
 
-void restoreSavedArticles();
+  void restoreSavedArticles();
+}

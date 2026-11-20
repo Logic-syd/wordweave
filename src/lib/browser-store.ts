@@ -30,6 +30,7 @@ import {
   removeSampleArticleOccurrences,
 } from "./sample-storage";
 import { AppError } from "./app-error";
+import { practicePath } from "./learning-links";
 
 export type LocalArticle = ArticleDetail & {
   draftSettings: Settings;
@@ -518,13 +519,13 @@ export async function saveLocalReadingWord(input: {
       )
     ) {
       word.appearances.push({
-        skill: "read",
+        skill: "speak",
         articleId,
         sourceId,
         title: input.title,
         form: input.form,
         sentence: input.sentence,
-        href: `/read?article=${encodeURIComponent(input.articleId)}&sentence=${input.index}#exercise`,
+        href: `/speak?article=${encodeURIComponent(input.articleId)}&sentence=${input.index}#exercise`,
       });
       word.user.exposureCount++;
     }
@@ -656,7 +657,7 @@ export async function saveLocalPracticeWord(input: PracticeWordInput) {
         title: m.title,
         form: contained ? input.form : p.text,
         sentence: p.text,
-        href: `/${input.skill}?material=${encodeURIComponent(m.id)}&paragraph=${encodeURIComponent(p.id)}`,
+        href: `${practicePath(input.skill)}?material=${encodeURIComponent(m.id)}&paragraph=${encodeURIComponent(p.id)}`,
       });
       w.user.exposureCount++;
     }
