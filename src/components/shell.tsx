@@ -49,6 +49,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div
       className={`app learning-shell direct-learning study-app${path === "/" || path.startsWith("/read") ? " reading-app" : ""}`}
+      data-theme={
+        active("/read") ? "read" : active("/listen") ? "listen" : undefined
+      }
     >
       <header className="platform-header">
         <div className="platform-header-inner">

@@ -1,0 +1,142 @@
+/* Pastel reading/listening palettes. Speaking keeps the original shared theme.
+   Root variables also tint the page background and native word-card dialogs;
+   the route attribute updates immediately without persisting a theme choice. */
+:root:has(.study-app[data-theme="read"]) {
+  --study-bg: #f3f7fd;
+  --study-muted: #5f7089;
+  --study-line: #dce6f2;
+  --study-accent: #496d9a;
+  --study-soft: #e8f0fb;
+  --study-input: #fbfdff;
+  --theme-ink: #31577f;
+  --theme-button: #dceafb;
+  --theme-button-hover: #ccdef5;
+  --theme-border: #bfd2e9;
+  --theme-surface: #f0f5fc;
+  --theme-field-border: #ccd9e9;
+  --theme-shadow: #496d9a20;
+}
+:root:has(.study-app[data-theme="listen"]) {
+  --study-bg: #fdfaf0;
+  --study-muted: #786c56;
+  --study-line: #ebe2ca;
+  --study-accent: #82672c;
+  --study-soft: #fbf2d2;
+  --study-input: #fffef9;
+  --theme-ink: #66501f;
+  --theme-button: #f5e5ad;
+  --theme-button-hover: #edda94;
+  --theme-border: #e0ce98;
+  --theme-surface: #fdf7e4;
+  --theme-field-border: #e2d8bc;
+  --theme-shadow: #82672c20;
+}
+.study-app[data-theme] [data-skill] {
+  --skill-line: var(--theme-border);
+}
+.study-app[data-theme] .study-nav a:hover {
+  background: var(--study-soft);
+  border-color: var(--theme-border);
+}
+.study-app[data-theme] .study-nav a[aria-current="page"] {
+  background: var(--theme-button);
+  border-color: var(--theme-border);
+  color: var(--theme-ink);
+  box-shadow: 0 2px 6px var(--theme-shadow);
+}
+.study-app[data-theme] :is(button, a, summary):focus-visible,
+.study-app[data-theme] :is(input, textarea, select):focus {
+  outline-color: var(--study-accent);
+}
+.study-app[data-theme] .platform-more[open] > summary {
+  background: var(--study-soft);
+}
+.study-app[data-theme] .study-intro .eyebrow,
+.study-app[data-theme] :is(.inbox-form, .practice-inline-import) label {
+  color: var(--study-muted);
+}
+.study-app[data-theme]
+  .study-panel
+  :is(input:not([type="checkbox"]):not([type="radio"]), textarea, select) {
+  border-color: var(--theme-field-border);
+  color: var(--study-ink);
+}
+.study-app[data-theme] input[type="file"]::file-selector-button {
+  color: var(--theme-ink);
+}
+.study-app[data-theme] :is(.primary, .skill-primary) {
+  background: var(--theme-button);
+  border-color: var(--theme-border);
+  color: var(--theme-ink);
+}
+.study-app[data-theme] :is(.primary, .skill-primary):hover:not(:disabled) {
+  background: var(--theme-button-hover);
+  border-color: var(--theme-border);
+}
+.study-app[data-theme] .secondary {
+  border-color: var(--study-line);
+  color: var(--theme-ink);
+}
+.study-app[data-theme] .segmented {
+  background: var(--theme-surface);
+}
+.study-app[data-theme] .segmented .selected {
+  color: var(--theme-ink);
+}
+.study-app[data-theme] .daily-lesson :is(strong, a),
+.study-app[data-theme] .daily-return > a {
+  color: var(--study-accent);
+}
+.study-app[data-theme] .daily-lesson .button {
+  border-color: var(--theme-border);
+  background: var(--theme-surface);
+  color: var(--theme-ink);
+}
+.study-app[data-theme] .term-button {
+  color: var(--study-accent);
+  border-color: var(--theme-border);
+}
+.study-app[data-theme] .term-button:hover {
+  background: var(--study-soft);
+  border-color: var(--study-accent);
+}
+.study-app[data-theme] .gloss {
+  color: var(--study-muted);
+}
+.study-app[data-theme] .original-details > div {
+  color: var(--study-ink);
+}
+.study-app[data-theme] .reading-paragraph code {
+  background: var(--study-soft);
+  color: var(--theme-ink);
+}
+.study-app[data-theme] .reading-paragraph pre code {
+  background: none;
+}
+.study-app[data-theme] .reading-paragraph :is(a, blockquote) {
+  color: var(--study-accent);
+  border-color: var(--theme-border);
+}
+.study-app[data-theme]
+  :is(.code-scroll, .practice-player, .local-audio-player, .transcript-text) {
+  background: var(--theme-surface);
+  border-color: var(--study-line);
+}
+.study-app[data-theme] .play-main strong {
+  color: var(--theme-ink);
+}
+.study-app[data-theme] .play-disc {
+  background: var(--theme-button);
+  color: var(--theme-ink);
+}
+.study-app[data-theme] .speaking-cue {
+  background: var(--theme-surface);
+  border-color: var(--theme-border);
+}
+.study-app[data-theme] .listening-saved > button[aria-pressed="true"] {
+  border-color: var(--theme-border);
+}
+.study-app[data-theme] .inbox-toggle {
+  border-color: var(--theme-border);
+  color: var(--theme-ink);
+}
