@@ -147,6 +147,12 @@ test("mobile: bottom wordcard keeps position, review selection and German view w
     ),
   ).toBe(true);
   await page.goto("/new?mode=german");
+  await page.getByLabel(uiName("AI 服务商")).selectOption("deepseek");
+  await page.getByLabel(uiName("自己的 API Key")).fill("fixture-review-key");
+  await page.getByLabel(uiName("模型名称")).fill("user-selected-model");
+  await page
+    .getByRole("button", { name: uiName("保存并继续"), exact: true })
+    .click();
   await expect(
     page.locator(".review-summary").filter({ hasText: "Kasse" }),
   ).toBeVisible();
@@ -160,6 +166,9 @@ test("public import validates input, preserves Markdown and deletes locally with
       siteWrites.push(request.url());
   });
   await page.goto("/new?mode=tech");
+  await page
+    .getByRole("button", { name: uiName("只导入原文（免费）") })
+    .click();
   await page
     .getByLabel(uiName("文章标题"), { exact: true })
     .fill("浏览器导入测试");

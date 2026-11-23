@@ -2,8 +2,9 @@
 import { ui } from "@/lib/ui";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { ChevronDown, FilePlus2 } from "lucide-react";
+import { ArrowUpRight, ChevronDown, FilePlus2 } from "lucide-react";
 import { browserData, localReviewWords } from "@/lib/browser-store";
 import { browserAiReady } from "@/lib/browser-ai";
 import { settingsSchema, type Settings } from "@/lib/schemas";
@@ -56,14 +57,25 @@ export function ArticleInbox({
   mode: initialMode,
   expanded,
   onExpandedChange,
+  daily = false,
   children,
 }: {
   mode: "tech" | "german";
   expanded: boolean;
   onExpandedChange: (expanded: boolean) => void;
+  daily?: boolean;
   children: ReactNode;
 }) {
   const [mode, setMode] = useState(initialMode);
+  const router = useRouter();
+  function changeMode(next: "tech" | "german") {
+    if (next === mode) return;
+    setMode(next);
+    if (daily)
+      router.push(next === "german" ? "/read?lang=de" : "/read", {
+        scroll: false,
+      });
+  }
   return (
     <aside className="reading-inbox" aria-label="文章导入与阅读设置">
       <button
@@ -82,26 +94,38 @@ export function ArticleInbox({
         id="reading-inbox-body"
         className={`inbox-body study-panel${expanded ? " is-open" : ""}`}
       >
-        <div className="inbox-heading">
-          <h2>{ui("文章收件箱")}</h2>
-          <Link href="/library">{ui("我的文章 →")}</Link>
+        <div className="inbox-heading reading-inbox-heading">
+          <h2 aria-label={ui("文章收件箱")}>
+            <span>文章收件箱</span>
+            <small lang="en">Article inbox</small>
+          </h2>
+          <Link href="/library" aria-label={ui("我的文章 →")}>
+            <span>
+              我的文章<small lang="en">My articles</small>
+            </span>
+            <ArrowUpRight size={15} aria-hidden="true" />
+          </Link>
         </div>
-        <div className="segmented inbox-modes" aria-label="导入语言">
+        <div className="segmented inbox-modes" aria-label={ui("文章语言")}>
           <button
             type="button"
+            aria-label={ui("英语")}
             aria-pressed={mode === "tech"}
             className={mode === "tech" ? "selected" : ""}
-            onClick={() => setMode("tech")}
+            onClick={() => changeMode("tech")}
           >
-            {ui("英语")}
+            <span>英语</span>
+            <small lang="en">English</small>
           </button>
           <button
             type="button"
+            aria-label={ui("德语")}
             aria-pressed={mode === "german"}
             className={mode === "german" ? "selected" : ""}
-            onClick={() => setMode("german")}
+            onClick={() => changeMode("german")}
           >
-            {ui("德语")}
+            <span>德语</span>
+            <small lang="en">German</small>
           </button>
         </div>
         <InboxForm key={mode} mode={mode} />

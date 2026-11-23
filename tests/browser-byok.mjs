@@ -258,6 +258,9 @@ try {
   await expect(page.getByRole("link", { name: uiName("登录") })).toHaveCount(0);
   await page.goto(base + "/");
   await page
+    .getByRole("button", { name: uiName("只导入原文（免费）") })
+    .click();
+  await page
     .getByLabel(uiName("文章标题"), { exact: true })
     .fill("我的本地文章");
   const code = 'const untouched = "<safe>";';
@@ -278,9 +281,11 @@ try {
   );
 
   await page.goto(base + "/settings");
+  await page.getByLabel(uiName("AI 服务商")).selectOption("custom");
   await page.getByLabel(uiName("API 地址（Base URL）")).fill(providerBase);
   await page.getByLabel(uiName("模型名称")).fill("user-model");
   await page.getByLabel(uiName("自己的 API Key")).fill(userKey);
+  await page.getByText(uiName("存储与高级设置"), { exact: true }).click();
   await page.getByRole("checkbox", { name: /在这个浏览器记住 Key/ }).check();
   await page
     .getByRole("button", { name: uiName("保存配置"), exact: true })

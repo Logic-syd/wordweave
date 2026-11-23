@@ -19,13 +19,13 @@
 
 三个学习页面可以互相跳转，在**同一浏览器、同一网站地址**下共用单词库。附带 8 篇结构化阅读范文与 15 份英德听说材料；范文、浏览器朗读、听写对照、收藏和进度保存无需 Key。范文明确标注为演示内容，不冒充现场生成。
 
-听力与阅读均采用左侧导入、右侧学习的布局，与口语收件箱保持一致。阅读页导入、学习版／原文切换和释义设置集中在左栏，手机默认收起左栏。右上角是明确的听力／口语／阅读切换按钮。公开学习界面的标签、按钮和说明同时显示中文与英文；文章、原文、代码和生成内容按学习内容原样显示。
+听力与阅读均采用左侧导入、右侧学习的布局，与口语收件箱保持一致。阅读页导入、学习版／原文切换和释义设置集中在左栏，手机默认收起左栏。右上角是明确的阅读／听力／口语切换按钮。公开学习界面的标签、按钮和说明同时显示中文与英文；文章、原文、代码和生成内容按学习内容原样显示。
 
 **后端仍在仓库中**：Prisma schema、PostgreSQL 迁移和服务端 API 均保留。本次只调整界面，不把公开版学习记录改为数据库存储；公开版接入数据库另行实现。
 
 ### 每日内容与听力导入
 
-- 直接打开听、说、读，每天分别提供一条听力和问题、一篇口语短文、一篇语境文章。基础版从 **15 份听力材料、7 篇口语短文、8 篇阅读范文**按浏览器本地日期轮换，同一天刷新不变，轮完会重复。不是实时生成、新闻抓取或通知推送。
+- 直接打开听、说、读，每天分别提供一条听力和问题、一篇口语短文、一篇语境文章。基础版从 **15 份听力材料、7 篇口语短文、8 篇阅读范文**按浏览器本地日期轮换，同一天刷新不变，轮完会重复。不是实时生成、新闻抓取或通知推送。阅读默认英语，英德各自按 4 篇范文轮换；点击左栏德语才打开德语今日文章（`/read?lang=de`），明确选择后刷新保留，直接打开 `/read` 仍为英语。
 - 点击「保存到我的库」才收藏每日内容，最多 500 条；不收藏也能学，答案、阅读位置和单词状态仍独立保存。从「我的库」的明确链接继续旧内容；直接进三个入口始终打开当日内容。
 - 日常维护在 `src/lib/daily.ts` 追加口语和阅读选项，听力使用 `src/lib/practice-content.ts`。保留旧 ID 和内容以保证收藏链接可用；更换内容请新增 ID。这版还没有运营发布后台。
 - 听力左栏支持 MP3、WAV、M4A、OGG、WebM、AAC、FLAC，单文件最多 **20 MB**，是否可播放取决于浏览器解码能力。文件留在 IndexedDB，刷新可继续使用，不上传服务器或 AI。
@@ -53,11 +53,11 @@ npm start
 
 ### 使用自己的 API
 
-1. 打开「我的 API」，填入 Base URL、供应商当前支持 JSON 输出的准确模型 ID、自己的 Key。没有硬编码默认模型。
-2. 保存。默认只在当前标签页会话保存；勾选「在这个浏览器记住 Key」后才长期保存在本机。
-3. 返回听、说、读页面，主动点击生成或 AI 反馈才调用供应商。
+1. 阅读左栏未配置时直接显示 API 表单，也可从「我的 API」进入。选择 GPT / OpenAI、Claude / Anthropic、Grok / xAI、DeepSeek，或自定义兼容接口，填写自己的 Key 和供应商当前支持 JSON 输出的准确模型 ID。没有预选供应商或硬编码默认模型。
+2. 保存后原地展开文章导入。默认只在当前标签页会话保存；在「存储与高级设置」勾选记住后才长期保存在本机。保存不会请求模型，只有测试连接、生成和 AI 反馈会调用供应商。
+3. 不用 AI 时，点击「只导入原文（免费）」即可保存、阅读原文；免费范文、词卡与学习记录照常使用。
 
-DeepSeek 的 Base URL 可填 `https://api.deepseek.com/v1`，模型 ID 从自己的供应商控制台确认。接口使用 OpenAI 兼容的 `/chat/completions`；默认对官方 DeepSeek 关闭深度思考，可在设置中更改。Key 仅直接发送到使用者填写的供应商地址，不传到语境后端；学习记录导出不含 Key。网站不会从 `LLM_*` 读取一个备用 Key 来替用户调用。
+官方地址随服务商自动填写，自定义地址可编辑。Claude 使用原生 `/messages`，其余使用 OpenAI 兼容的 `/chat/completions`；默认对官方 DeepSeek 关闭深度思考。切换服务商或修改自定义地址会清空待保存的 Key，取消修改则保留原配置和文章草稿。保存前说明 Key 的存储位置和发送对象：Key 与待处理文本直接发给所选供应商，不传到语境后端；学习记录导出不含 Key。网站不会从 `LLM_*` 读取备用 Key。
 
 **服务商必须允许网页直接跨域调用（CORS）。** 网络、权限或 CORS 不允许时会明确提示，不走网站代理，也不自动换供应商。HTTPS 网站连接本机模型还受浏览器本地网络权限限制。模型请求仍在供应商服务器执行并可能收费；“本地使用”指配置与学习数据保存在浏览器，不是模型离线运行。建议在供应商账户设置消费上限。不要在共用电脑勾选长期记住 Key。
 
@@ -129,13 +129,13 @@ Website: <https://weavie.netlify.app/> (rename confirmed by the owner on 2026-11
 
 All three pages link to one another and share words within the **same browser and website origin**. Eight structured reading samples and fifteen English/German practice materials work without a key. Samples, system-voice playback, dictation comparison, favorites and progress are available for free; samples are explicitly labeled.
 
-Listening and reading both use a left import inbox and a right learning workspace, consistent with the speaking page. Import, learning/original views and gloss settings live in the sidebar, collapsed initially on phones. Clear Listen / Speak / Read buttons switch pages. Public learning controls and instructions display Chinese and English together; article content, source text, code and generated learning content retain their original format.
+Listening and reading both use a left import inbox and a right learning workspace, consistent with the speaking page. Import, learning/original views and gloss settings live in the sidebar, collapsed initially on phones. Clear Read / Listen / Speak buttons switch pages. Public learning controls and instructions display Chinese and English together; article content, source text, code and generated learning content retain their original format.
 
 **The backend remains in the repository**: Prisma schema, PostgreSQL migrations and server APIs are retained. This interface update does not switch public learning records to database storage; connecting the public app to PostgreSQL is a separate future task.
 
 ### Daily content and listening imports
 
-- Each entry opens a daily lesson immediately: one listening item with a question, one speaking passage, and one contextual reading article. The free catalog rotates **15 listening materials, 7 speaking passages and 8 reading samples** by browser-local calendar date. It repeats after cycling and does not use AI, scrape news or send notifications.
+- Each entry opens a daily lesson immediately: one listening item with a question, one speaking passage, and one contextual reading article. The free catalog rotates **15 listening materials, 7 speaking passages and 8 reading samples** by browser-local calendar date. It repeats after cycling and does not use AI, scrape news or send notifications. Reading defaults to English, with separate four-article English and German rotations. Selecting German opens `/read?lang=de`, which survives refresh; plain `/read` always starts in English.
 - Daily lessons enter your library only after **Save to my library** (up to 500 bookmarks). Learning progress and word status are saved independently. Explicit saved links resume older lessons; the three plain entry URLs open today’s content.
 - Maintain the catalog in `src/lib/daily.ts` and `src/lib/practice-content.ts`. Preserve existing content IDs and records for saved links; changed content should receive a new ID. There is no editorial publishing dashboard yet.
 - The listening inbox accepts MP3, WAV, M4A, OGG, WebM, AAC and FLAC files up to **20 MB**; decoding support varies by browser. Audio stays in IndexedDB and survives reloads. It is not uploaded to the website or an AI provider.
@@ -163,9 +163,9 @@ Both `npm run build` and `npm run build:web` build only the website. Extension p
 
 ### Bring your own API
 
-Open **我的 API**, supply a Base URL, the provider's current JSON-capable model ID, and your own key. There is no hardcoded model. Configuration is session-only by default; explicitly check “remember” to keep the key in this browser. Saving configuration makes no request. Generation and AI feedback require an explicit click.
+The reading sidebar shows API setup until configured; the same form is available under **My API**. Choose GPT / OpenAI, Claude / Anthropic, Grok / xAI, DeepSeek or a custom compatible endpoint, then enter your key and your provider's current JSON-capable model ID. No provider or model is preselected. Saving opens the article importer in place, without a model request. Configuration is session-only by default; persistent storage requires an explicit choice under **Storage & advanced**. Connection tests, generation and AI feedback require an explicit click. **Import original for free** keeps import and reading available without a key; free samples remain available throughout.
 
-DeepSeek's Base URL can be `https://api.deepseek.com/v1`; obtain the model ID from your provider console. Requests use OpenAI-compatible `/chat/completions`. Thinking is disabled by default for the official DeepSeek endpoint, and can be adjusted. The key goes directly to the configured provider, not to Wordweave's backend, and is excluded from learning-data exports. Server `LLM_*` variables are never used as a public fallback.
+Official addresses are filled automatically; custom addresses remain editable. Claude uses native `/messages`; other providers use OpenAI-compatible `/chat/completions`. Thinking is disabled by default for the official DeepSeek endpoint. Changing providers or custom destinations clears the draft key; canceling preserves the saved configuration and article draft. Before saving, the form explains storage and transmission: the key and submitted text go directly to the chosen provider, not to WordWeave servers. Keys are excluded from learning-data exports, and server `LLM_*` variables are never a public fallback.
 
 **The provider must permit browser CORS requests.** Network, permissions or CORS failures show an error without a proxy or provider switch. Accessing a localhost model from an HTTPS site is also subject to browser local-network permissions. Models still run on the provider's servers and may incur charges: local storage does not mean offline inference. Set spending limits with the provider and avoid persistent keys on shared computers.
 

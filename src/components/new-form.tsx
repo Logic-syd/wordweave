@@ -19,7 +19,8 @@ import { SpriteIcon } from "./sprite-icon";
 import { PersonalLoginPrompt } from "./personal-login-prompt";
 import { GenerationAllowance } from "./generation-allowance";
 import { browserFetch } from "@/lib/browser-api";
-import { LocalAiNotice } from "./browser-ai-settings";
+import { LocalAiNotice, useBrowserAi } from "./browser-ai-settings";
+import { BrowserAiConnection } from "./browser-ai-connection";
 export function NewForm({
   mode,
   configured,
@@ -46,6 +47,9 @@ export function NewForm({
   const [importGerman, setImportGerman] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [freeImport, setFreeImport] = useState(false);
+  const [editingAi, setEditingAi] = useState(false);
+  const aiConfig = useBrowserAi();
   const [canCreate, setCanCreate] = useState(authorized);
   const [loginOpen, setLoginOpen] = useState(false);
   const [loginMessage, setLoginMessage] = useState("");
@@ -149,8 +153,57 @@ export function NewForm({
       );
     }
   }
+  if (browserLocal && ((!configured && !freeImport) || editingAi))
+    return (
+      <Container className={embedded ? "inbox-form" : "page create-page"}>
+        <BrowserAiConnection
+          inline
+          onSaved={() => {
+            setEditingAi(false);
+            setFreeImport(false);
+          }}
+          onCancel={
+            configured || freeImport ? () => setEditingAi(false) : undefined
+          }
+        />
+        {!configured && (
+          <div className="api-free-option">
+            <p>{ui("免费范文照常阅读，无需 API。")}</p>
+            <button
+              type="button"
+              className="button"
+              onClick={() => {
+                setFreeImport(true);
+                setEditingAi(false);
+                if (!tech) setImportGerman(true);
+              }}
+            >
+              {ui("只导入原文（免费）")}
+            </button>
+          </div>
+        )}
+      </Container>
+    );
   return (
     <Container className={embedded ? "inbox-form" : "page create-page"}>
+      {browserLocal && (
+        <div className="inbox-api-status">
+          <div>
+            <strong>
+              {configured ? ui("我的 API 已配置") : ui("免费保存原文")}
+            </strong>
+            {configured && <span>{aiConfig.model}</span>}
+          </div>
+          <button
+            type="button"
+            className="text-button"
+            disabled={busy}
+            onClick={() => setEditingAi(true)}
+          >
+            {configured ? ui("修改 API") : ui("填写 API")}
+          </button>
+        </div>
+      )}
       {!embedded && (
         <>
           {browserLocal && <LocalAiNotice />}
@@ -179,7 +232,7 @@ export function NewForm({
                 )
               : ui("在中文故事里遇见德语词，也可以对照阅读自然的德语全文。")}
           </p>
-          {canCreate && !configured && (
+          {canCreate && !configured && !browserLocal && (
             <div className="notice">
               <Info size={19} />
               <div>
@@ -205,20 +258,24 @@ export function NewForm({
               {tech ? ui("导入英文文章") : ui("你的故事")}
             </h2>
             {!tech && (
-              <div className="segmented small">
+              <div className="segmented small import-kind-switch">
                 <button
                   type="button"
+                  aria-label={ui("生成短文")}
                   className={!importGerman ? "selected" : ""}
                   onClick={() => setImportGerman(false)}
                 >
-                  {ui("生成短文")}
+                  <span>生成短文</span>
+                  <small lang="en">Create story</small>
                 </button>
                 <button
                   type="button"
+                  aria-label={ui("导入德语")}
                   className={importGerman ? "selected" : ""}
                   onClick={() => setImportGerman(true)}
                 >
-                  {ui("导入德语")}
+                  <span>导入德语</span>
+                  <small lang="en">Import German</small>
                 </button>
               </div>
             )}
@@ -305,7 +362,7 @@ export function NewForm({
               </div>
             </>
           )}
-          {!tech && !importGerman && (
+          {!tech && !importGerman && !embedded && (
             <div className="story-intro">
               <span className="story-quote">“</span>
               <p>
@@ -320,45 +377,47 @@ export function NewForm({
           )}
         </div>
         <aside className="form-panel settings-panel">
-          <details
-            className="import-generation-options"
-            open={embedded ? undefined : true}
-          >
-            <summary>{ui("生成选项")}</summary>
-            <SettingsFields
-              mode={mode}
-              value={settings}
-              onChange={setSettings}
-              disabled={busy || !hydrated}
-            />
-            {!tech && (
-              <div className="review-summary">
-                <strong>{ui("让旧词再见一面")}</strong>
-                {dueWords.length ? (
-                  <p>
-                    {ui("本次可带入复习：")}
-                    {dueWords.join("、")}
-                    {ui("。生成后只记录实际覆盖的词。")}
-                  </p>
-                ) : (
-                  <p>
-                    {ui(
-                      "还没有待复习词。读文章时选“想学”，它们就会在新故事里再出现。",
-                    )}
-                  </p>
-                )}
+          {(configured || !browserLocal) && (
+            <details
+              className="import-generation-options"
+              open={embedded ? undefined : true}
+            >
+              <summary>{ui("生成选项")}</summary>
+              <SettingsFields
+                mode={mode}
+                value={settings}
+                onChange={setSettings}
+                disabled={busy || !hydrated}
+              />
+              {!tech && (
+                <div className="review-summary">
+                  <strong>{ui("让旧词再见一面")}</strong>
+                  {dueWords.length ? (
+                    <p>
+                      {ui("本次可带入复习：")}
+                      {dueWords.join("、")}
+                      {ui("。生成后只记录实际覆盖的词。")}
+                    </p>
+                  ) : (
+                    <p>
+                      {ui(
+                        "还没有待复习词。读文章时选“想学”，它们就会在新故事里再出现。",
+                      )}
+                    </p>
+                  )}
+                </div>
+              )}
+              <div className="generation-note">
+                <Sparkles size={16} />
+                <p>
+                  {ui(
+                    "生成会调用你配置的模型 API。语言内容可能有误，可以对照原文阅读。",
+                  )}
+                </p>
               </div>
-            )}
-            <div className="generation-note">
-              <Sparkles size={16} />
-              <p>
-                {ui(
-                  "生成会调用你配置的模型 API。语言内容可能有误，可以对照原文阅读。",
-                )}
-              </p>
-            </div>
-          </details>
-          {embedded && (
+            </details>
+          )}
+          {embedded && !browserLocal && (
             <p className="field-hint">
               {configured
                 ? ui("使用自己的 API 生成语境学习版。")

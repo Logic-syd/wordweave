@@ -6,6 +6,7 @@ import "./learning-nav.css";
 import "./reading-workspace.css";
 import "./daily-learning.css";
 import "./study-workspace.css";
+import "./api-connection.css";
 import "./study-themes.css";
 export const metadata: Metadata = {
   title: {

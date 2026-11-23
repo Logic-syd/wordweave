@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { lastSkill } from "@/lib/learning-entry";
 import { getSample } from "@/lib/samples";
 import { SampleReader } from "./sample-reader";
-import { dailyLesson, localDay } from "@/lib/daily";
+import { dailyReading, localDay } from "@/lib/daily";
 import { useHydrated } from "./use-hydrated";
 
 export function ResumeLearning() {
@@ -20,7 +20,7 @@ export function ResumeLearning() {
     </main>
   );
 }
-export function DirectReading() {
+export function DirectReading({ language = "en" }: { language?: "en" | "de" }) {
   const [day] = useState(localDay);
   const hydrated = useHydrated();
   if (!hydrated)
@@ -29,6 +29,6 @@ export function DirectReading() {
         <p role="status">正在打开今日阅读 / Opening today’s reading…</p>
       </main>
     );
-  const sample = getSample(dailyLesson(day).reading)!;
+  const sample = getSample(dailyReading(day, language))!;
   return <SampleReader article={sample} daily={day} />;
 }

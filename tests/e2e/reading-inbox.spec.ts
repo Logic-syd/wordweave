@@ -1,6 +1,68 @@
 import { test, expect } from "./fixtures";
 import { uiName } from "../ui-name.mjs";
 
+test("daily reading defaults to English and German only opens after an explicit switch", async ({
+  page,
+}) => {
+  await page.clock.setFixedTime(new Date("2026-11-23T12:00:00Z"));
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/read");
+  const modes = page.locator(".inbox-modes");
+  await expect(
+    modes.getByRole("button", { name: uiName("英语"), exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".article-heading")).toContainText("技术英语");
+  await modes
+    .getByRole("button", { name: uiName("德语"), exact: true })
+    .click();
+  await page.waitForURL(/\/read\?lang=de$/);
+  await expect(page.locator(".article-heading")).toContainText("德语日常");
+  await page.reload();
+  await expect(
+    modes.getByRole("button", { name: uiName("德语"), exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  // The German form has the longest bilingual controls; all must fit the sidebar.
+  await page.getByLabel(uiName("AI 服务商")).selectOption("deepseek");
+  await page.getByLabel(uiName("自己的 API Key")).fill("fixture-layout-key");
+  await page.getByLabel(uiName("模型名称")).fill("user-selected-model");
+  await page
+    .getByRole("button", { name: uiName("保存并继续"), exact: true })
+    .click();
+  await expect(page.locator(".import-kind-switch")).toBeVisible();
+  for (const width of [1280, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    if (width === 390)
+      await page
+        .getByRole("button", { name: "导入文章与阅读设置", exact: true })
+        .click();
+    const fits = await page.locator(".inbox-body").evaluate((panel) => {
+      const box = panel.getBoundingClientRect();
+      return [
+        ...panel.querySelectorAll(
+          ".inbox-modes button, .import-kind-switch button, .reading-inbox-heading a",
+        ),
+      ].every((el) => {
+        const r = el.getBoundingClientRect();
+        return (
+          r.left >= box.left &&
+          r.right <= box.right &&
+          el.scrollWidth <= el.clientWidth + 1
+        );
+      });
+    });
+    expect(fits).toBe(true);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+  }
+  await page.goto("/read");
+  await expect(page.locator(".article-heading")).toContainText("技术英语");
+  await page.goto("/");
+  await expect(page.locator(".article-heading")).toContainText("技术英语");
+});
+
 test("desktop inbox imports beside contextual reading and preserves Markdown without an API", async ({
   page,
 }) => {
@@ -45,6 +107,11 @@ test("desktop inbox imports beside contextual reading and preserves Markdown wit
   });
   const original =
     '# State updates\n\nKeep `state` and the condition unchanged.\n\n```js\nconst kept = "<tag> & original";\n```\n\n- Only update when ready.\n';
+  await expect(inbox.getByLabel(uiName("AI 服务商"))).toBeVisible();
+  await expect(inbox.getByLabel(uiName("英文正文"))).toHaveCount(0);
+  await inbox
+    .getByRole("button", { name: uiName("只导入原文（免费）") })
+    .click();
   await inbox.locator('input[type="file"]').setInputFiles({
     name: "Sidebar import.md",
     mimeType: "text/markdown",
@@ -91,7 +158,7 @@ test("mobile starts with the article and has visible bilingual mode buttons", as
   await page
     .getByRole("button", { name: "导入文章与阅读设置", exact: true })
     .click();
-  await expect(page.getByLabel(uiName("英文正文"))).toBeVisible();
+  await expect(page.getByLabel(uiName("AI 服务商"))).toBeVisible();
   await page.getByLabel("释义显示方式").selectOption("click");
   await page
     .getByRole("button", { name: "导入文章与阅读设置", exact: true })

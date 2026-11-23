@@ -8,6 +8,29 @@ import { generationPrompt } from "./generation-prompt";
 import type { GenerationModel } from "./generation-engine";
 
 const CONFIG_KEY = "wordweave.browser-ai.v1";
+export const BROWSER_AI_PROVIDERS = {
+  openai: { label: "GPT · OpenAI", baseUrl: "https://api.openai.com/v1" },
+  anthropic: {
+    label: "Claude · Anthropic",
+    baseUrl: "https://api.anthropic.com/v1",
+  },
+  xai: { label: "Grok · xAI", baseUrl: "https://api.x.ai/v1" },
+  deepseek: { label: "DeepSeek", baseUrl: "https://api.deepseek.com/v1" },
+  custom: { label: "自定义 / Custom · OpenAI compatible", baseUrl: "" },
+} as const;
+export type BrowserAiProvider = keyof typeof BROWSER_AI_PROVIDERS;
+export function browserAiProvider(baseUrl: string): BrowserAiProvider | "" {
+  const base = baseUrl.trim().replace(/\/+$/, "");
+  if (!base) return "";
+  for (const [id, value] of Object.entries(BROWSER_AI_PROVIDERS)) {
+    if (
+      base === value.baseUrl ||
+      (id === "deepseek" && base === "https://api.deepseek.com")
+    )
+      return id as BrowserAiProvider;
+  }
+  return "custom";
+}
 export const browserAiSchema = z.object({
   baseUrl: z.string().trim().max(1000),
   model: z.string().trim().max(150),
@@ -16,7 +39,7 @@ export const browserAiSchema = z.object({
 });
 export type BrowserAiConfig = z.infer<typeof browserAiSchema>;
 export const emptyBrowserAi: BrowserAiConfig = {
-  baseUrl: "https://api.deepseek.com/v1",
+  baseUrl: "",
   model: "",
   apiKey: "",
   thinking: "auto",
@@ -41,10 +64,13 @@ export function browserAiReady(config = readBrowserAi()) {
 export function modelEndpoint(config: BrowserAiConfig) {
   let url: URL;
   try {
-    url = new URL(config.baseUrl.replace(/\/+$/, "") + "/chat/completions");
+    const base = new URL(config.baseUrl);
+    const resource =
+      base.hostname === "api.anthropic.com" ? "messages" : "chat/completions";
+    url = new URL(config.baseUrl.replace(/\/+$/, "") + "/" + resource);
   } catch {
     throw new AppError(
-      "请填写完整的 API Base URL，例如 https://api.deepseek.com/v1",
+      "请填写完整的 API Base URL，例如 https://api.openai.com/v1",
     );
   }
   if (
@@ -101,6 +127,7 @@ export async function browserCompletion(
   if (!browserAiReady(config))
     throw new AppError("请先在「我的 API」中填写自己的 Key 和模型。", 503);
   const url = modelEndpoint(config);
+  const anthropic = url.hostname === "api.anthropic.com";
   const thinking =
     config.thinking === "auto"
       ? url.hostname === "api.deepseek.com"
@@ -116,20 +143,27 @@ export async function browserCompletion(
       cache: "no-store",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${config.apiKey}`,
+        ...(anthropic
+          ? {
+              "x-api-key": config.apiKey,
+              "anthropic-version": "2023-06-01",
+              "anthropic-dangerous-direct-browser-access": "true",
+            }
+          : { Authorization: `Bearer ${config.apiKey}` }),
       },
       signal: signal
         ? AbortSignal.any([signal, AbortSignal.timeout(90000)])
         : AbortSignal.timeout(90000),
       body: JSON.stringify({
         model: config.model,
+        ...(anthropic ? { system: instruction } : {}),
         messages: [
-          { role: "system", content: instruction },
+          ...(anthropic ? [] : [{ role: "system", content: instruction }]),
           { role: "user", content: JSON.stringify(data) },
         ],
-        response_format: { type: "json_object" },
+        ...(!anthropic ? { response_format: { type: "json_object" } } : {}),
         max_tokens: 8192,
-        ...(thinking ? { thinking: { type: thinking } } : {}),
+        ...(!anthropic && thinking ? { thinking: { type: thinking } } : {}),
       }),
     });
     const body = await readModelResponse(response, 1048576).catch((error) => {
@@ -138,6 +172,37 @@ export async function browserCompletion(
     });
     if (isContentRefusal(body)) throw new ContentRefusalError();
     if (!response.ok) throw providerRequestError(response, body);
+    if (anthropic) {
+      const envelope = z
+        .object({
+          stop_reason: z.string(),
+          content: z.array(
+            z.object({ type: z.string(), text: z.string().optional() }),
+          ),
+        })
+        .parse(body);
+      if (envelope.stop_reason === "refusal") throw new ContentRefusalError();
+      if (envelope.stop_reason === "max_tokens")
+        throw new ModelRequestError(
+          "回复被长度限制截断，请缩短材料后重试。",
+          "output_length",
+          false,
+        );
+      if (
+        envelope.stop_reason !== "end_turn" ||
+        envelope.content.some((part) => part.type !== "text")
+      )
+        throw new AppError("模型未返回完整的结构化回复，请重试。", 502);
+      const content = envelope.content
+        .map((part) => part.text ?? "")
+        .join("")
+        .trim();
+      if (isContentRefusal({ choices: [{ message: { content } }] }))
+        throw new ContentRefusalError();
+      return JSON.parse(
+        content.replace(/^```(?:json)?\s*\n?([\s\S]*?)\n?```$/i, "$1"),
+      );
+    }
     const envelope = z
       .object({
         choices: z
@@ -171,7 +236,7 @@ export async function browserCompletion(
       );
     if (error instanceof z.ZodError)
       throw new AppError(
-        "模型响应结构不完整，请确认接口兼容 Chat Completions。",
+        "模型响应结构不完整，请检查服务商、API 地址和模型。",
         502,
       );
     if (signal?.aborted)

@@ -4,14 +4,14 @@ export const metadata = { title: "语境阅读 / Contextual reading" };
 export default async function ReadingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ article?: string; sentence?: string }>;
+  searchParams: Promise<{ article?: string; sentence?: string; lang?: string }>;
 }) {
-  const { article, sentence } = await searchParams;
+  const { article, sentence, lang } = await searchParams;
   // Keep links saved when Read Along incorrectly occupied the reading entry.
   if (article) {
     const query = new URLSearchParams({ article });
     if (sentence) query.set("sentence", sentence);
     redirect(`/speak?${query}#exercise`);
   }
-  return <DirectReading />;
+  return <DirectReading language={lang === "de" ? "de" : "en"} />;
 }

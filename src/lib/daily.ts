@@ -40,16 +40,21 @@ export const speakingPicks = [
 ] as const;
 
 // Keep IDs stable when editing the catalog so saved links continue to work.
-export const readingPicks = [
-  "sample-react-state-v1",
-  "sample-supermarket-v1",
-  "sample-async-search-v1",
-  "sample-commute-v1",
-  "sample-code-review-v1",
-  "sample-cafe-v1",
-  "sample-http-cache-v1",
-  "sample-apartment-v1",
-] as const;
+const readingByLanguage = {
+  en: [
+    "sample-react-state-v1",
+    "sample-async-search-v1",
+    "sample-code-review-v1",
+    "sample-http-cache-v1",
+  ],
+  de: [
+    "sample-supermarket-v1",
+    "sample-commute-v1",
+    "sample-cafe-v1",
+    "sample-apartment-v1",
+  ],
+} as const;
+export const readingPicks = [...readingByLanguage.en, ...readingByLanguage.de];
 export function localDay(date = new Date()): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
@@ -68,11 +73,14 @@ function pick<T>(values: readonly T[], day: string) {
   const n = dayNumber(day);
   return values[((n % values.length) + values.length) % values.length];
 }
+export function dailyReading(day = localDay(), language: "en" | "de" = "en") {
+  return pick(readingByLanguage[language], day);
+}
 export function dailyLesson(day = localDay()) {
   const listening = pick(practiceSamples, day);
   return {
     day,
-    reading: pick(readingPicks, day),
+    reading: dailyReading(day),
     speaking: pick(speakingPicks, day),
     listening,
     paragraph: listening.paragraphs[0].id,

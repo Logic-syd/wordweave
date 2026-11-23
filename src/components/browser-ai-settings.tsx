@@ -3,20 +3,16 @@ import { ui } from "@/lib/ui";
 
 import Link from "next/link";
 import { useState, useSyncExternalStore } from "react";
-import { Download, KeyRound, ShieldCheck, Trash2 } from "lucide-react";
+import { Download, KeyRound } from "lucide-react";
 import {
   browserAiReady,
-  browserAiRemembered,
-  browserCompletion,
-  clearBrowserAi,
   emptyBrowserAi,
-  modelEndpoint,
   readBrowserAi,
-  saveBrowserAi,
   type BrowserAiConfig,
 } from "@/lib/browser-ai";
 import { browserData } from "@/lib/browser-store";
 import { useHydrated } from "./use-hydrated";
+import { BrowserAiConnection } from "./browser-ai-connection";
 
 function subscribe(callback: () => void) {
   window.addEventListener("wordweave:ai-config", callback);
@@ -68,60 +64,11 @@ export function BrowserAiSettings() {
   );
 }
 function SettingsForm() {
-  const [config, setConfig] = useState(readBrowserAi);
-  const [remember, setRemember] = useState(browserAiRemembered);
   const [message, setMessage] = useState("");
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  function change(patch: Partial<BrowserAiConfig>) {
-    setConfig((value) => ({ ...value, ...patch }));
-    setMessage("");
-    setError("");
-  }
-  function save() {
-    try {
-      saveBrowserAi(config, remember);
-      setMessage(
-        remember
-          ? ui("已保存在这个浏览器，听说读都能使用。")
-          : ui("已保存到当前浏览器会话，关闭此标签页后需要重新填写。"),
-      );
-      setError("");
-      return true;
-    } catch (e) {
-      setError(e instanceof Error ? e.message : ui("保存失败"));
-      return false;
-    }
-  }
-  async function test() {
-    if (busy || !save()) return;
-    setBusy(true);
-    setError("");
-    setMessage("");
-    try {
-      const value = await browserCompletion(
-        'Return only JSON: {"ok":true}.',
-        { task: "connection check" },
-        undefined,
-        config,
-      );
-      if (
-        !value ||
-        typeof value !== "object" ||
-        !("ok" in value) ||
-        value.ok !== true
-      )
-        throw new Error(
-          ui("已连接，但模型未按要求返回 JSON。请确认模型支持结构化输出。"),
-        );
-      setMessage(ui("连接成功，返回了有效 JSON。现在可以去生成或批改了。"));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : ui("连接失败"));
-    } finally {
-      setBusy(false);
-    }
-  }
   async function exportData() {
+    setError("");
+    setMessage("");
     try {
       const data = await browserData(false, (data) => data);
       const samples = localStorage.getItem("wordweave.samples.v1");
@@ -152,135 +99,27 @@ function SettingsForm() {
       setError(ui("导出失败，请检查浏览器存储权限。"));
     }
   }
-  let host = ui("填写后显示");
-  try {
-    host = modelEndpoint(config).origin;
-  } catch {
-    /* Form validation displays the error on save. */
-  }
   return (
     <main className="page api-settings-page">
       <span className="skill-kicker" data-skill="read">
         <KeyRound size={16} />
         {ui("我的 API / MY API")}
       </span>
-      <h1>{ui("用自己的 Key，开始听说读。")}</h1>
+      <h1>{ui("免费学习，AI 按需开启。")}</h1>
       <p className="page-subtitle">
-        {ui("不用注册。三个页面共用这里的配置。")}
+        {ui("使用 AI 时填自己的 Key。三个页面共用，无需注册。")}
       </p>
-      <form
-        className="api-settings-panel"
-        onSubmit={(e) => {
-          e.preventDefault();
-          save();
-        }}
-      >
-        <fieldset disabled={busy}>
-          <label>
-            {ui("API 地址（Base URL）")}
-            <input
-              value={config.baseUrl}
-              onChange={(e) => change({ baseUrl: e.target.value })}
-              placeholder="https://api.deepseek.com/v1"
-              type="url"
-              required
-              autoComplete="off"
-            />
-          </label>
-          <label>
-            {ui("模型名称")}
-            <input
-              value={config.model}
-              onChange={(e) => change({ model: e.target.value })}
-              placeholder={ui("填写服务商当前提供的模型 ID")}
-              required
-              autoComplete="off"
-              spellCheck={false}
-            />
-          </label>
-          <label>
-            {ui("自己的 API Key")}
-            <input
-              value={config.apiKey}
-              onChange={(e) => change({ apiKey: e.target.value })}
-              placeholder={ui("从模型服务商获取的 Key")}
-              type="password"
-              required
-              autoComplete="off"
-              spellCheck={false}
-            />
-          </label>
-          <details>
-            <summary>{ui("高级设置")}</summary>
-            <label>
-              {ui("深度思考")}
-              <select
-                value={config.thinking}
-                onChange={(e) =>
-                  change({
-                    thinking: e.target.value as BrowserAiConfig["thinking"],
-                  })
-                }
-              >
-                <option value="auto">
-                  {ui("自动（DeepSeek 默认关闭，加快响应）")}
-                </option>
-                <option value="disabled">{ui("关闭")}</option>
-                <option value="enabled">{ui("开启")}</option>
-              </select>
-            </label>
-          </details>
-          <label className="self-check-point">
-            <input
-              type="checkbox"
-              checked={remember}
-              onChange={(e) => setRemember(e.target.checked)}
-            />
-            <span>{ui("在这个浏览器记住 Key（公共设备请勿勾选）")}</span>
-          </label>
-          <p className="api-destination">
-            <ShieldCheck size={16} />
-            {ui("请求直接发送到")}
-            <strong>{host}</strong>
-            {ui("。Key 不会发给语境服务器。")}
-          </p>
-          <div className="practice-submit">
-            <button type="submit" className="button primary">
-              {ui("保存配置")}
-            </button>
-            <button
-              type="button"
-              className="button"
-              onClick={() => void test()}
-            >
-              {busy ? ui("正在测试…") : ui("测试连接（使用少量额度）")}
-            </button>
-          </div>
-        </fieldset>
-        <button
-          type="button"
-          className="text-button remove-key"
-          disabled={busy}
-          onClick={() => {
-            clearBrowserAi();
-            setConfig({ ...config, apiKey: "" });
-            setMessage(ui("API Key 已从当前浏览器移除，学习记录保留。"));
-          }}
-        >
-          <Trash2 size={14} />
-          {ui("移除 Key")}
-        </button>
-        {message && (
-          <p className="practice-notice" role="status">
-            {message}
-          </p>
-        )}
-        {error && (
-          <p className="practice-notice error" role="alert">
-            {error}
-          </p>
-        )}
-      </form>
+      <BrowserAiConnection />
+      {message && (
+        <p className="practice-notice" role="status">
+          {message}
+        </p>
+      )}
+      {error && (
+        <p className="practice-notice error" role="alert">
+          {error}
+        </p>
+      )}
       <section className="local-data-note">
         <h2>{ui("你的学习记录，留在你的浏览器。")}</h2>
         <p>

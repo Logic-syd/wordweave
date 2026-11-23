@@ -582,6 +582,7 @@ export function Reader({
         mode={de ? "german" : "tech"}
         expanded={inboxExpanded}
         onExpandedChange={setInboxExpanded}
+        daily={Boolean(daily)}
       >
         <div className="reader-toolbar">
           <div className="segmented reader-views">

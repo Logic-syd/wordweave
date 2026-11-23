@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   dailyLesson,
+  dailyReading,
   dayNumber,
   localDay,
   readingPicks,
@@ -15,6 +16,16 @@ import {
 import { lessonHref, lessonKey } from "../src/lib/saved-lessons";
 
 describe("daily editorial schedule", () => {
+  it("defaults to English every day and keeps German in an explicit separate rotation", () => {
+    for (let i = 0; i < 30; i++) {
+      const day = new Date(Date.UTC(2026, 10, 20 + i))
+        .toISOString()
+        .slice(0, 10);
+      expect(getSample(dailyLesson(day).reading)?.mode).toBe("tech");
+      expect(getSample(dailyReading(day, "de"))?.mode).toBe("german");
+      expect(dailyReading(day, "en")).toBe(dailyLesson(day).reading);
+    }
+  });
   it("is stable on a calendar date and changes all three picks the next day", () => {
     expect(dailyLesson("2026-11-20")).toEqual(dailyLesson("2026-11-20"));
     const today = dailyLesson("2026-11-20"),

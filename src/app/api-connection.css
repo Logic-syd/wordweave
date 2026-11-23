@@ -1,0 +1,140 @@
+.api-connection {
+  color: var(--study-ink, #30283e);
+}
+.api-connection-inline {
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  max-width: 540px;
+}
+.api-connection-heading h3 {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.5;
+}
+.api-connection-heading svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+.api-connection-heading p {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--study-muted, #6b6578);
+  margin: 8px 0 16px;
+}
+.api-connection label {
+  display: block;
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+.api-connection :is(input:not([type="checkbox"]), select) {
+  width: 100%;
+  min-width: 0;
+  margin-top: 5px;
+}
+.api-connection .api-endpoint {
+  font-size: 11px;
+  color: var(--study-muted, #6b6578);
+  overflow-wrap: anywhere;
+  margin: 8px 0;
+}
+.api-connection .api-key-notice {
+  border-left: 3px solid var(--study-line, #dddbe7);
+  padding-left: 10px;
+  margin: 12px 0;
+}
+.api-connection .api-key-notice p,
+.api-connection .field-hint {
+  font-size: 12px;
+  line-height: 1.65;
+  margin: 6px 0;
+  color: var(--study-muted, #6b6578);
+}
+.api-connection .api-key-options summary {
+  color: var(--study-accent, #a63e69);
+  font-size: 12px;
+  margin: 0;
+  padding: 8px 0;
+}
+.api-connection .self-check-point {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+}
+.api-connection .self-check-point input {
+  margin-top: 5px;
+  flex-shrink: 0;
+}
+.api-connection-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 10px;
+}
+.api-connection-actions .button {
+  white-space: normal;
+  min-height: 44px;
+}
+.api-connection-inline .api-connection-actions .button {
+  width: 100%;
+}
+.api-connection-actions .text-button {
+  font-size: 12px;
+  min-height: 32px;
+}
+.api-connection-secondary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+}
+.api-connection-secondary .text-button {
+  margin-top: 8px;
+  min-height: 32px;
+  font-size: 12px;
+}
+.api-free-option {
+  max-width: 540px;
+  border-top: 1px solid var(--study-line, #dddbe7);
+  margin-top: 14px;
+  padding-top: 12px;
+}
+.api-free-option p {
+  font-size: 12px;
+  color: var(--study-muted, #6b6578);
+  margin: 0 0 8px;
+}
+.api-free-option .button {
+  min-height: 44px;
+  width: 100%;
+  white-space: normal;
+  font-size: 13px;
+}
+.inbox-api-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 10px;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--study-line, #dddbe7);
+  font-size: 12px;
+}
+.inbox-api-status > div {
+  min-width: 0;
+}
+.inbox-api-status span {
+  display: block;
+  overflow-wrap: anywhere;
+  color: var(--study-muted, #6b6578);
+}
+.inbox-api-status .text-button {
+  min-height: 32px;
+  font-size: 12px;
+}
