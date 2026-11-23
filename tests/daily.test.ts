@@ -2,12 +2,14 @@ import { describe, it, expect } from "vitest";
 import {
   dailyLesson,
   dailyReading,
+  dailyReadings,
   dayNumber,
   localDay,
   readingPicks,
   speakingPicks,
 } from "../src/lib/daily";
 import { getSample } from "../src/lib/samples";
+import { englishProseWordCount } from "../src/lib/markdown";
 import { practiceMaterialSchema } from "../src/lib/practice-schemas";
 import {
   MAX_AUDIO_BYTES,
@@ -24,7 +26,19 @@ describe("daily editorial schedule", () => {
       expect(getSample(dailyLesson(day).reading)?.mode).toBe("tech");
       expect(getSample(dailyReading(day, "de"))?.mode).toBe("german");
       expect(dailyReading(day, "en")).toBe(dailyLesson(day).reading);
+      const pair = dailyReadings(day);
+      expect(new Set(pair).size).toBe(2);
+      expect(dailyReading(day, "en", 1)).toBe(pair[1]);
+      expect(dailyReadings(day, "de")).toHaveLength(1);
+      for (const id of pair)
+        expect(
+          englishProseWordCount(getSample(id)!.sourceBlocks),
+        ).toBeGreaterThanOrEqual(1000);
     }
+    expect(
+      new Set([...dailyReadings("2026-11-20"), ...dailyReadings("2026-11-21")])
+        .size,
+    ).toBe(4);
   });
   it("is stable on a calendar date and changes all three picks the next day", () => {
     expect(dailyLesson("2026-11-20")).toEqual(dailyLesson("2026-11-20"));

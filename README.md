@@ -17,7 +17,7 @@
 
 线上地址：<https://weavie.netlify.app/>（用户于 2026-11-20 确认改名）。首页和 `/read` 直接打开今日语境阅读。`/speak` 使用从 `reading` 分支恢复的原版「文章收件箱＋逐句跟读」，默认打开今日短文；已保存的文章链接恢复当前句。复述、情景表达、录音保留在 `/speak/practice`，从口语页右上角更多菜单进入。`/listen` 是独立听力练习，三个入口互相切换。跟读选词免费查义，可选的全文中文参考使用自己的 Key。[跟读说明](reading/README.md)。
 
-三个学习页面可以互相跳转，在**同一浏览器、同一网站地址**下共用单词库。附带 8 篇结构化阅读范文与 15 份英德听说材料；范文、浏览器朗读、听写对照、收藏和进度保存无需 Key。范文明确标注为演示内容，不冒充现场生成。
+三个学习页面可以互相跳转，在**同一浏览器、同一网站地址**下共用单词库。附带 12 篇结构化阅读范文（含 4 篇千词英语长文）与 15 份英德听说材料；范文、浏览器朗读、听写对照、收藏和进度保存无需 Key。范文明确标注为演示内容，不冒充现场生成。
 
 听力与阅读均采用左侧导入、右侧学习的布局，与口语收件箱保持一致。阅读页导入、学习版／原文切换和释义设置集中在左栏，手机默认收起左栏。右上角是明确的阅读／听力／口语切换按钮。公开学习界面的标签、按钮和说明同时显示中文与英文；文章、原文、代码和生成内容按学习内容原样显示。
 
@@ -25,9 +25,9 @@
 
 ### 每日内容与听力导入
 
-- 直接打开听、说、读，每天分别提供一条听力和问题、一篇口语短文、一篇语境文章。基础版从 **15 份听力材料、7 篇口语短文、8 篇阅读范文**按浏览器本地日期轮换，同一天刷新不变，轮完会重复。不是实时生成、新闻抓取或通知推送。阅读默认英语，英德各自按 4 篇范文轮换；点击左栏德语才打开德语今日文章（`/read?lang=de`），明确选择后刷新保留，直接打开 `/read` 仍为英语。
+- 直接打开听、说、读，每天分别提供一条听力和问题、一篇口语短文、两篇英语语境长文（德语仍为一篇短文）。基础版从 **15 份听力材料、7 篇口语短文、8 篇阅读范文**按浏览器本地日期轮换，同一天刷新不变，轮完会重复。不是实时生成、新闻抓取或通知推送。阅读默认英语，英语每天选 2 篇，每篇英文正文约 1,300–1,450 词，当前 4 篇长文每两天轮完；正文上方可切换第一篇、第二篇（`/read?part=2`），分别保存与恢复进度。德语按 4 篇短文轮换；点击左栏德语才打开德语今日文章（`/read?lang=de`），明确选择后刷新保留，直接打开 `/read` 仍为英语。
 - 点击「保存到我的库」才收藏每日内容，最多 500 条；不收藏也能学，答案、阅读位置和单词状态仍独立保存。从「我的库」的明确链接继续旧内容；直接进三个入口始终打开当日内容。
-- 日常维护在 `src/lib/daily.ts` 追加口语和阅读选项，听力使用 `src/lib/practice-content.ts`。保留旧 ID 和内容以保证收藏链接可用；更换内容请新增 ID。这版还没有运营发布后台。
+- 长文是明确标注的 AI 辅助原创练习文章，英文原文与学习版随网站提供，无需 Key；不是转载新闻。日常维护在 `src/lib/daily.ts` 追加口语和阅读选项，英语长文内容在 `src/lib/long-reads/`，听力使用 `src/lib/practice-content.ts`。保留旧 ID 和内容以保证收藏链接可用；更换内容请新增 ID。这版还没有运营发布后台。
 - 听力左栏支持 MP3、WAV、M4A、OGG、WebM、AAC、FLAC，单文件最多 **20 MB**，是否可播放取决于浏览器解码能力。文件留在 IndexedDB，刷新可继续使用，不上传服务器或 AI。
 - 播放 → 写重点 → 提交 → 重听／看原文核对。支持暂停、拖动进度、前后跳 5 秒和调速。有原文可做听写对照；整段录音使用完整原文，没有时间戳就不假装逐句定位。听写最多 2,000 字符；长原文可练大意。没有原文只能保存笔记，不自动转写、不自动评分；有原文时可主动使用自己的 API 评价文字回答。
 - 「保存并开始练习」会把主动导入的听力放进自己的库。JSON 备份**不包含音频文件**，请保留原始音频。收藏移出只取消收藏，不删除导入材料、学习进度或词条。
@@ -127,7 +127,7 @@ A language-learning tool for Chinese speakers. **The website is public, with no 
 
 Website: <https://weavie.netlify.app/> (rename confirmed by the owner on 2026-11-20). The homepage and `/read` open today’s contextual reading article. `/speak` hosts the original article-inbox and sentence-by-sentence Read Along interface restored from the `reading` branch, with a daily short passage; saved article links restore their sentence. Retelling, situational speaking and recording remain at `/speak/practice`, linked from the speaking page's corner menu. `/listen` remains a separate listening exercise. The three entries link to each other. Word selection in Read Along uses free translation; optional whole-article reference translation uses the learner’s key. See the [Read Along guide](reading/README.md).
 
-All three pages link to one another and share words within the **same browser and website origin**. Eight structured reading samples and fifteen English/German practice materials work without a key. Samples, system-voice playback, dictation comparison, favorites and progress are available for free; samples are explicitly labeled.
+All three pages link to one another and share words within the **same browser and website origin**. Twelve structured reading samples (including four English long reads of over 1,000 words each) and fifteen English/German practice materials work without a key. Samples, system-voice playback, dictation comparison, favorites and progress are available for free; samples are explicitly labeled.
 
 Listening and reading both use a left import inbox and a right learning workspace, consistent with the speaking page. Import, learning/original views and gloss settings live in the sidebar, collapsed initially on phones. Clear Read / Listen / Speak buttons switch pages. Public learning controls and instructions display Chinese and English together; article content, source text, code and generated learning content retain their original format.
 
@@ -135,9 +135,9 @@ Listening and reading both use a left import inbox and a right learning workspac
 
 ### Daily content and listening imports
 
-- Each entry opens a daily lesson immediately: one listening item with a question, one speaking passage, and one contextual reading article. The free catalog rotates **15 listening materials, 7 speaking passages and 8 reading samples** by browser-local calendar date. It repeats after cycling and does not use AI, scrape news or send notifications. Reading defaults to English, with separate four-article English and German rotations. Selecting German opens `/read?lang=de`, which survives refresh; plain `/read` always starts in English.
+- Each entry opens a daily lesson immediately: one listening item with a question, one speaking passage, and two English contextual long reads (one short article in German mode). The free catalog rotates **15 listening materials, 7 speaking passages and 8 reading samples** by browser-local calendar date. It repeats after cycling and does not use AI, scrape news or send notifications. Reading defaults to English, with two 1,300–1,450-word articles per day from a four-article English rotation, repeating every two days. Switch between Article 1 and Article 2 (`/read?part=2`); each has separate bookmarks and progress. German retains a separate four-article rotation. Selecting German opens `/read?lang=de`, which survives refresh; plain `/read` always starts in English.
 - Daily lessons enter your library only after **Save to my library** (up to 500 bookmarks). Learning progress and word status are saved independently. Explicit saved links resume older lessons; the three plain entry URLs open today’s content.
-- Maintain the catalog in `src/lib/daily.ts` and `src/lib/practice-content.ts`. Preserve existing content IDs and records for saved links; changed content should receive a new ID. There is no editorial publishing dashboard yet.
+- The long reads are labeled AI-assisted original practice texts, bundled with full English originals and learning versions; they require no key and are not republished news. Maintain long-read content in `src/lib/long-reads/` and the catalog in `src/lib/daily.ts` and `src/lib/practice-content.ts`. Preserve existing content IDs and records for saved links; changed content should receive a new ID. There is no editorial publishing dashboard yet.
 - The listening inbox accepts MP3, WAV, M4A, OGG, WebM, AAC and FLAC files up to **20 MB**; decoding support varies by browser. Audio stays in IndexedDB and survives reloads. It is not uploaded to the website or an AI provider.
 - Play → write notes → submit → replay or compare with the transcript. Controls include pause, seeking, ±5 seconds and speed. Audio dictation compares the entire supplied transcript, with a 2,000-character limit; longer transcripts support summary practice. Without a transcript, answers are saved without automatic scoring. There is no transcription or invented sentence timing. Optional AI evaluates written answers using the supplied transcript and your own key.
 - **Save and start practicing** saves explicitly imported listening materials to your library. JSON backups **exclude audio files**, so keep your originals. Removing a bookmark retains imported source materials, progress and vocabulary.

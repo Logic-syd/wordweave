@@ -37,6 +37,7 @@ import { ArticleInbox } from "./article-inbox";
 import { rememberReading } from "@/lib/learning-entry";
 import { DailyLessonBar, SaveLessonButton } from "./daily-lesson";
 import { StudyIntro } from "./study-intro";
+import { englishProseWordCount } from "@/lib/markdown";
 type SavedSegment = Segment & { occurrenceId?: string };
 const markdownPlugins = [remarkGfm];
 const EMPTY_OCCURRENCES: OccurrenceView[] = [];
@@ -170,6 +171,7 @@ export function Reader({
   initialSettings,
   local = false,
   daily,
+  dailyPart,
 }: {
   initial: ArticleDetail;
   configured: boolean;
@@ -177,6 +179,7 @@ export function Reader({
   initialSettings: Settings;
   local?: boolean;
   daily?: string;
+  dailyPart?: 0 | 1;
 }) {
   const hydrated = useHydrated();
   const browserLocal = initial.id.startsWith("local-article-");
@@ -184,6 +187,13 @@ export function Reader({
     rememberReading(initial.id);
   }, [initial.id]);
   const [article, setArticle] = useState(initial);
+  const proseWords = useMemo(
+    () =>
+      article.language === "en"
+        ? englishProseWordCount(article.sourceBlocks)
+        : 0,
+    [article.language, article.sourceBlocks],
+  );
   const [view, setView] = useState(initial.progress?.view ?? "learning");
   const [gloss, setGloss] = useState(
     initial.progress?.glossMode ?? initial.defaultGlossMode,
@@ -682,6 +692,7 @@ export function Reader({
         {daily ? (
           <DailyLessonBar
             day={daily}
+            readingPart={dailyPart}
             lesson={{
               skill: "read",
               contentId: article.id,
@@ -834,12 +845,19 @@ export function Reader({
                   : article.origin.startsWith("demo")
                     ? ui("结构化演示 · ")
                     : ""}
-                {article.origin.includes("generated")
-                  ? ui("生成短文")
-                  : de
-                    ? ui("导入原文 · 学习改写版")
-                    : ui("英文原文 · 中文学习版")}
+                {article.origin === "demo-authored-long"
+                  ? "原创练习长文（AI 辅助） / Original practice article (AI-assisted)"
+                  : article.origin.includes("generated")
+                    ? ui("生成短文")
+                    : de
+                      ? ui("导入原文 · 学习改写版")
+                      : ui("英文原文 · 中文学习版")}
               </span>
+              {proseWords > 0 && (
+                <span className="reading-length" data-word-count={proseWords}>
+                  {proseWords.toLocaleString()} 英文词 / English words
+                </span>
+              )}
               {article.version && (
                 <span>
                   {coverage?.newWords.length ?? 0}

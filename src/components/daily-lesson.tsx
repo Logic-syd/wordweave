@@ -72,9 +72,11 @@ export function SaveLessonButton({ lesson }: { lesson: Lesson }) {
 export function DailyLessonBar({
   day,
   lesson,
+  readingPart,
 }: {
   day: string;
   lesson: Lesson;
+  readingPart?: 0 | 1;
 }) {
   const title = {
     listen: "今日听力 / Daily listening",
@@ -94,6 +96,23 @@ export function DailyLessonBar({
           <time>{day}</time> · 精选轮换 / Curated rotation
         </small>
       </div>
+      {readingPart !== undefined && lesson.skill === "read" && (
+        <nav
+          className="daily-reading-switch"
+          aria-label="今日英语阅读篇目 / Today's English articles"
+        >
+          {([0, 1] as const).map((part) => (
+            <Link
+              key={part}
+              href={part === 0 ? "/read" : "/read?part=2"}
+              aria-current={readingPart === part ? "page" : undefined}
+            >
+              <span>{part === 0 ? "第一篇" : "第二篇"}</span>
+              <small lang="en">Article {part + 1}</small>
+            </Link>
+          ))}
+        </nav>
+      )}
       <SaveLessonButton key={lessonKey(lesson)} lesson={lesson} />
       <Link className="daily-library-link" href="/library">
         我的库 / My library →

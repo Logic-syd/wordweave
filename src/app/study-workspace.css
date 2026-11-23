@@ -365,6 +365,41 @@ body {
   padding-bottom: 12px;
   margin-bottom: 12px;
 }
+.study-app .daily-reading-switch {
+  display: flex;
+  flex-shrink: 0;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--study-line);
+  border-radius: 10px;
+  background: var(--study-input);
+}
+.study-app .daily-reading-switch a {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 44px;
+  min-width: 65px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  font-size: 12px;
+  text-decoration: none;
+  color: var(--study-muted);
+}
+.study-app .daily-reading-switch a[aria-current="page"] {
+  background: white;
+  color: var(--study-accent);
+  font-weight: 700;
+  box-shadow: 0 1px 4px #253c5920;
+}
+.study-app .daily-reading-switch small {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 400;
+  color: inherit;
+}
 .study-app .daily-lesson .button,
 .study-app .daily-lesson > button {
   border: 1px solid #e1bacb;
@@ -654,6 +689,12 @@ body {
   .study-app .daily-lesson > div:first-child {
     grid-column: 1 / -1;
     min-width: 0;
+  }
+  .study-app .daily-lesson:has(.daily-reading-switch) > div:first-child {
+    grid-column: 1;
+  }
+  .study-app .daily-reading-switch {
+    grid-column: 2;
   }
   .study-app .daily-lesson .lesson-save {
     min-width: 0;

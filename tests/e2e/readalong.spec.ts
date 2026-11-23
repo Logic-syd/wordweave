@@ -301,13 +301,15 @@ test("old Read Along bookmarks still open the saved speaking sentence", async ({
     await expect(page.locator(".sentence.active")).toContainText(
       "Third original sentence.",
     );
-    await expect(page.locator('nav [aria-current="page"]')).toHaveText(
+    await expect(page.locator('nav.study-nav [aria-current="page"]')).toHaveText(
       uiName("口语"),
     );
   }
   await page.goto("/read");
   await expect(
-    page.getByRole("heading", { name: uiName("状态更新，并不会立刻发生") }),
+    page.getByRole("heading", {
+      name: uiName("一次点击之后：从 React 状态快照到可靠界面"),
+    }),
   ).toBeVisible();
   await expect(page.locator("#sentences")).toHaveCount(0);
   await page.goto("/speak");

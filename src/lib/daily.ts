@@ -42,10 +42,10 @@ export const speakingPicks = [
 // Keep IDs stable when editing the catalog so saved links continue to work.
 const readingByLanguage = {
   en: [
-    "sample-react-state-v1",
-    "sample-async-search-v1",
-    "sample-code-review-v1",
-    "sample-http-cache-v1",
+    "sample-react-state-long-v1",
+    "sample-async-search-long-v1",
+    "sample-code-review-long-v1",
+    "sample-http-cache-long-v1",
   ],
   de: [
     "sample-supermarket-v1",
@@ -73,8 +73,21 @@ function pick<T>(values: readonly T[], day: string) {
   const n = dayNumber(day);
   return values[((n % values.length) + values.length) % values.length];
 }
-export function dailyReading(day = localDay(), language: "en" | "de" = "en") {
-  return pick(readingByLanguage[language], day);
+export function dailyReadings(day = localDay(), language: "en" | "de" = "en") {
+  if (language === "de") return [pick(readingByLanguage.de, day)];
+  const articles = readingByLanguage.en;
+  const start =
+    (((dayNumber(day) * 2) % articles.length) + articles.length) %
+    articles.length;
+  return [articles[start], articles[(start + 1) % articles.length]];
+}
+export function dailyReading(
+  day = localDay(),
+  language: "en" | "de" = "en",
+  part: 0 | 1 = 0,
+) {
+  const articles = dailyReadings(day, language);
+  return articles[part] ?? articles[0];
 }
 export function dailyLesson(day = localDay()) {
   const listening = pick(practiceSamples, day);

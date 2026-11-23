@@ -20,7 +20,13 @@ export function ResumeLearning() {
     </main>
   );
 }
-export function DirectReading({ language = "en" }: { language?: "en" | "de" }) {
+export function DirectReading({
+  language = "en",
+  part = 0,
+}: {
+  language?: "en" | "de";
+  part?: 0 | 1;
+}) {
   const [day] = useState(localDay);
   const hydrated = useHydrated();
   if (!hydrated)
@@ -29,6 +35,12 @@ export function DirectReading({ language = "en" }: { language?: "en" | "de" }) {
         <p role="status">正在打开今日阅读 / Opening today’s reading…</p>
       </main>
     );
-  const sample = getSample(dailyReading(day, language))!;
-  return <SampleReader article={sample} daily={day} />;
+  const sample = getSample(dailyReading(day, language, part))!;
+  return (
+    <SampleReader
+      article={sample}
+      daily={day}
+      dailyPart={language === "en" ? part : undefined}
+    />
+  );
 }

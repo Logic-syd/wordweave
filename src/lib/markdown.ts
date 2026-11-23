@@ -24,6 +24,18 @@ type Node = {
 function tree(markdown: string): Root {
   return unified().use(remarkParse).use(remarkGfm).parse(markdown);
 }
+/** Count readable English prose; headings, code blocks and link destinations do not pad it. */
+export function englishProseWordCount(blocks: SourceBlock[]): number {
+  return blocks
+    .filter((block) => ["paragraph", "list", "blockquote"].includes(block.kind))
+    .reduce(
+      (total, block) =>
+        total +
+        (toString(tree(block.original)).match(/[A-Za-z]+(?:['’-][A-Za-z]+)*/g)
+          ?.length ?? 0),
+      0,
+    );
+}
 // Model text must not introduce executable markup or new outbound resources.
 // Comparing raw protected nodes also prevents a model from adding extra code.
 function protectedMarkup(markdown: string) {

@@ -74,7 +74,7 @@ test("desktop inbox imports beside contextual reading and preserves Markdown wit
   });
   await page.goto("/");
   await expect(page.locator(".article-heading h1")).toHaveText(
-    "状态更新，并不会立刻发生",
+    "一次点击之后：从 React 状态快照到可靠界面",
   );
   await expect(page.locator(".reader-top")).toHaveCount(0);
   await expect(page.locator(".reader-document .reader-toolbar")).toHaveCount(0);

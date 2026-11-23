@@ -197,7 +197,7 @@ test("public import validates input, preserves Markdown and deletes locally with
     page.getByRole("link", { name: "the docs", exact: true }),
   ).toHaveAttribute("href", "https://react.dev/learn");
   await page.goto("/library");
-  await expect(page.locator(".article-card")).toHaveCount(9);
+  await expect(page.locator(".article-card")).toHaveCount(13);
   await page
     .getByRole("button", {
       name: uiName("删除文章：浏览器导入测试"),
@@ -207,7 +207,7 @@ test("public import validates input, preserves Markdown and deletes locally with
   await page
     .getByRole("button", { name: uiName("确认删除"), exact: true })
     .click();
-  await expect(page.locator(".article-card")).toHaveCount(8);
+  await expect(page.locator(".article-card")).toHaveCount(12);
   await page.goto(articleUrl);
   await expect(page.locator(".practice-notice")).toContainText(
     "这个浏览器里没有这篇文章",
@@ -223,7 +223,9 @@ test("home and three entries keep contextual reading, shadowing and listening di
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: uiName("状态更新，并不会立刻发生") }),
+    page.getByRole("heading", {
+      name: uiName("一次点击之后：从 React 状态快照到可靠界面"),
+    }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", {
@@ -232,7 +234,7 @@ test("home and three entries keep contextual reading, shadowing and listening di
     }),
   ).toBeVisible();
   await expect(page.locator("#sentences")).toHaveCount(0);
-  await expect(page.locator('nav [aria-current="page"]')).toHaveText(
+  await expect(page.locator('nav.study-nav [aria-current="page"]')).toHaveText(
     uiName("阅读"),
   );
   await page.goto("/listen");
@@ -248,7 +250,7 @@ test("home and three entries keep contextual reading, shadowing and listening di
     "A small pause in the day",
   );
   await expect(page.locator(".sentence")).toHaveCount(5);
-  await expect(page.locator('nav [aria-current="page"]')).toHaveText(
+  await expect(page.locator('nav.study-nav [aria-current="page"]')).toHaveText(
     uiName("口语"),
   );
   await page.getByLabel(uiName("更多功能")).click();
@@ -262,7 +264,9 @@ test("home and three entries keep contextual reading, shadowing and listening di
     .getByRole("link", { name: uiName("阅读"), exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: uiName("状态更新，并不会立刻发生") }),
+    page.getByRole("heading", {
+      name: uiName("一次点击之后：从 React 状态快照到可靠界面"),
+    }),
   ).toBeVisible();
   await expect(page.locator("#sentences")).toHaveCount(0);
   await page.goto(`/read/${germanId}`);
@@ -284,7 +288,7 @@ test("home and three entries keep contextual reading, shadowing and listening di
     .toBe("click");
   await page.getByRole("link", { name: uiName("语境 · 继续学习") }).click();
   await expect(page.locator(".article-heading h1")).toHaveText(
-    uiName("状态更新，并不会立刻发生"),
+    uiName("一次点击之后：从 React 状态快照到可靠界面"),
   );
   await page.goto(`/read/${germanId}`);
   await expect(page.locator(".article-heading h1")).toHaveText(germanTitle);

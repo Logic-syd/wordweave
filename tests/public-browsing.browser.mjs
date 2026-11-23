@@ -25,9 +25,9 @@ export async function checkPublicBrowsing(baseURL) {
   await mkdir(screenshots, { recursive: true });
   try {
     await page.goto("/read");
-    await expect(
-      page.getByRole("heading", { name: "状态更新，并不会立刻发生" }),
-    ).toBeVisible();
+    await expect(page.locator(".article-heading h1")).toBeVisible();
+    await expect(page.locator(".daily-reading-switch a")).toHaveCount(2);
+    assert.ok(Number(await page.locator(".reading-length").getAttribute("data-word-count")) >= 1000);
     await page.goto("/library?mode=german");
     await expect(page.locator(".article-card")).toHaveCount(4);
     await expect(page.getByRole("button", { name: /^删除文章/ })).toHaveCount(
@@ -130,7 +130,7 @@ export async function checkPublicBrowsing(baseURL) {
     );
     await visitor.close();
     assert.deepEqual(errors, []);
-    return "Public browser: eight samples, mode filter, local favorites/progress, isolated visitors, registration-free local import, mobile reader and plugin install page";
+    return "Public browser: twelve samples, daily long reads, mode filter, local favorites/progress, isolated visitors, registration-free local import, mobile reader and plugin install page";
   } finally {
     await context.close();
     await browser.close();

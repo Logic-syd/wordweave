@@ -26,13 +26,15 @@ export function ArticleCard({
           </span>
           <span className="meta-dot">·</span>
           <span>
-            {a.id.startsWith("sample-")
-              ? ui("免费范文")
-              : a.origin.startsWith("demo")
-                ? ui("演示文章")
-                : a.origin === "generated"
-                  ? ui("生成短文")
-                  : ui("导入文章")}
+            {a.origin === "demo-authored-long"
+              ? "原创练习长文 / Original practice article"
+              : a.id.startsWith("sample-")
+                ? ui("免费范文")
+                : a.origin.startsWith("demo")
+                  ? ui("演示文章")
+                  : a.origin === "generated"
+                    ? ui("生成短文")
+                    : ui("导入文章")}
           </span>
         </div>
         <h3>{a.title}</h3>
