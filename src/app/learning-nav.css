@@ -9,9 +9,9 @@
   align-items: center;
   justify-content: center;
   gap: 9px;
-  min-width: 104px;
-  min-height: 52px;
-  padding: 9px 18px;
+  min-width: 88px;
+  min-height: 44px;
+  padding: 6px 14px;
   text-decoration: none;
   border: 1px solid #d4d8dc;
   border-radius: 12px;
@@ -67,7 +67,7 @@
   }
   .study-nav.study-nav > a {
     min-width: 58px;
-    min-height: 48px;
+    min-height: 44px;
     padding: 6px 9px;
     gap: 0;
   }

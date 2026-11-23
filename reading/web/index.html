@@ -71,18 +71,8 @@
     </header>
     <main class="study-frame">
       <section class="intro study-intro">
-        <div class="study-intro-top">
-          <p class="eyebrow">
-            口语 · 听一句，跟一句 / Speak · Listen and repeat
-          </p>
-        </div>
-        <h1>
-          读一篇，<em>说出来。</em><small lang="en">Read it. Say it.</small>
-        </h1>
-        <p class="study-description">
-          把喜欢的文章带进来。听一句，跟一句，找到自己的节奏。 / Bring an
-          article you like. Listen, repeat and find your rhythm.
-        </p>
+        <h1>口语跟读 / Shadowing</h1>
+        <p class="study-intro-hint">听一句，跟一句 / Listen and repeat</p>
       </section>
       <div class="layout study-grid">
         <aside class="speaking-inbox">
@@ -178,7 +168,6 @@
           <p id="save-lesson-status" role="status" class="hint"></p>
           <div class="heading">
             <div>
-              <p class="eyebrow">听 · 停 · 跟读 / LISTEN · PAUSE · REPEAT</p>
               <h2 id="practiceTitle">
                 先听，再跟着说 / Listen first, then repeat
               </h2>
@@ -202,19 +191,19 @@
                 >
                   展开正文 / Expand text
                 </button>
-                <div class="rate-control">
-                  <label
-                    >语速 / Speed<select id="rate">
-                      <option value="0.7">0.7× 慢速 / Slow</option>
-                      <option value="0.85" selected>0.85× 舒缓 / Gentle</option>
-                      <option value="1">1.0× 正常 / Normal</option>
-                      <option value="1.15">1.15× 稍快 / Faster</option>
-                    </select></label
-                  >
-                </div>
                 <details class="playback-options">
                   <summary>播放设置 / Playback settings</summary>
                   <div class="settings">
+                    <label
+                      >语速 / Speed<select id="rate">
+                        <option value="0.7">0.7× 慢速 / Slow</option>
+                        <option value="0.85" selected>
+                          0.85× 舒缓 / Gentle
+                        </option>
+                        <option value="1">1.0× 正常 / Normal</option>
+                        <option value="1.15">1.15× 稍快 / Faster</option>
+                      </select></label
+                    >
                     <label
                       >朗读声音 / Voice<select id="voice">
                         <option>加载声音… / Loading voices…</option>
@@ -254,8 +243,7 @@
             <progress id="progress" value="0" max="1"></progress>
             <div class="vocabulary-bar">
               <span id="vocabulary-status" role="status"
-                >选中单词或短语，免费查中文 · 不用 AI Key / Select a word or
-                phrase for free Chinese lookup · No AI key</span
+                >选词免费查中文 / Select text for free lookup</span
               >
             </div>
           </div>

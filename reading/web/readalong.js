@@ -182,9 +182,7 @@ function render() {
   highlight();
 }
 function updateVocabularyStatus() {
-  $("vocabulary-status").textContent = ui(
-    "选中单词或短语，免费查中文 · 不用 AI Key",
-  );
+  $("vocabulary-status").textContent = ui("选词免费查中文");
 }
 function setFocus(active) {
   document.body.classList.toggle("reading-focus", active);
@@ -403,7 +401,7 @@ function load(a) {
   $("practiceTitle").textContent = a.title;
   render();
   updateDaily();
-  $("status").textContent = ui("已准备好，点击开始跟读。");
+  $("status").textContent = ui("已就绪");
 }
 function start() {
   if (sentences.length) setFocus(true);
