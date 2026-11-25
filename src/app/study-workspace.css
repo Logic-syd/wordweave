@@ -358,6 +358,46 @@ body {
   color: #7d244a;
   background: white;
 }
+.study-app .retention-control {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.study-app .retention-control legend {
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--study-muted);
+}
+.study-app .retention-control .segmented {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.study-app .retention-control button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 48px;
+  min-width: 0;
+  padding: 7px 4px;
+  line-height: 1.3;
+}
+.study-app .retention-control small {
+  font-size: 10px;
+  font-weight: 400;
+}
+.study-app .retention-control .field-hint {
+  margin: 8px 0 0;
+  font-size: 11px;
+  line-height: 1.7;
+}
+.study-app .retention-pending {
+  color: var(--study-accent);
+  font-size: 12px;
+  line-height: 1.7;
+}
 .study-app .daily-lesson {
   border-color: var(--study-line);
   font-family: inherit;

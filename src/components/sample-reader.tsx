@@ -23,7 +23,7 @@ function SavedSample({
       initial={initial}
       configured={false}
       autoGenerate={false}
-      initialSettings={settingsSchema.parse(article.version!.settings)}
+      initialSettings={settingsSchema.parse(initial.version!.settings)}
       local
       daily={daily}
       dailyPart={dailyPart}

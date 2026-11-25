@@ -21,6 +21,8 @@
 
 听力与阅读均采用左侧导入、右侧学习的布局，与口语收件箱保持一致。阅读页导入、学习版／原文切换和释义设置集中在左栏，手机默认收起左栏。右上角是明确的阅读／听力／口语切换按钮。公开学习界面的标签、按钮和说明同时显示中文与英文；文章、原文、代码和生成内容按学习内容原样显示。
 
+阅读设置直接显示 **英文保留量：少／中／多**，独立于释义显示方式。八篇英语范文内置三档内容：少档中文更多，中档保留重点表达，多档保留更多完整英文句子；立即切换，不调用 API，并按文章在浏览器保存选择和阅读进度。自己导入的文章先选择程度，再明确点击重新生成，才使用自己的 Key；失败保留已有成功版本。
+
 **后端仍在仓库中**：Prisma schema、PostgreSQL 迁移和服务端 API 均保留。本次只调整界面，不把公开版学习记录改为数据库存储；公开版接入数据库另行实现。
 
 ### 每日内容与听力导入
@@ -130,6 +132,8 @@ Website: <https://weavie.netlify.app/> (rename confirmed by the owner on 2026-11
 All three pages link to one another and share words within the **same browser and website origin**. Twelve structured reading samples (including four English long reads of over 1,000 words each) and fifteen English/German practice materials work without a key. Samples, system-voice playback, dictation comparison, favorites and progress are available for free; samples are explicitly labeled.
 
 Listening and reading both use a left import inbox and a right learning workspace, consistent with the speaking page. Import, learning/original views and gloss settings live in the sidebar, collapsed initially on phones. Clear Read / Listen / Speak buttons switch pages. Public learning controls and instructions display Chinese and English together; article content, source text, code and generated learning content retain their original format.
+
+Reading settings expose **English retention: Low / Medium / High**, separately from gloss visibility. All eight English samples include three versions: more Chinese at Low, key expressions at Medium, and more complete English sentences at High. Switching is instant and makes no API requests; the level and reading progress are saved per article in the browser. Imported articles use the learner's key only after an explicit regeneration click. Failed generation preserves the last successful version.
 
 **The backend remains in the repository**: Prisma schema, PostgreSQL migrations and server APIs are retained. This interface update does not switch public learning records to database storage; connecting the public app to PostgreSQL is a separate future task.
 

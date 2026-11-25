@@ -2,18 +2,20 @@ import { originalDemos, demoSegments } from "./demo-content";
 import { extraDemos } from "./sample-extras";
 import { longReadDemos } from "./long-reads";
 import { parseSource } from "./markdown";
-import { settingsSchema } from "./schemas";
+import { settingsSchema, type Settings } from "./schemas";
+import { sampleLearningAtRetention } from "./sample-retention";
 import type { ArticleDetail, LibraryArticle, OccurrenceView } from "./types";
 
 // Public reading is a fixed, reviewed catalog, never a query over users' articles.
 const date = "2026-10-20T00:00:00.000Z";
-const samples: ArticleDetail[] = [
-  ...originalDemos,
-  ...extraDemos,
-  ...longReadDemos,
-].map((data) => {
+const catalog = [...originalDemos, ...extraDemos, ...longReadDemos];
+function buildSample(
+  data: (typeof catalog)[number],
+  retention: Settings["retention"] = "medium",
+): ArticleDetail {
   const id = `sample-${data.key}`;
   const blocks = parseSource(data.source);
+  const learning = sampleLearningAtRetention(data, retention);
   const occurrences: OccurrenceView[] = [];
   const paragraphs = blocks.map((block, position) => ({
     id: `${id}-${block.id}`,
@@ -21,7 +23,7 @@ const samples: ArticleDetail[] = [
     position,
     original: block.original,
     segments: demoSegments(
-      data.learning[position] || block.original,
+      learning[position] || block.original,
       data.terms,
       block.original,
     ).map((segment, i) => {
@@ -64,11 +66,12 @@ const samples: ArticleDetail[] = [
     progress: null,
     defaultGlossMode: "first",
     version: {
-      id: `${id}-v1`,
+      id: `${id}-v1${retention === "medium" ? "" : `-${retention}`}`,
       createdAt: date,
       paragraphs,
       occurrences,
       settings: settingsSchema.parse({
+        retention,
         level: "level" in data ? data.level : "A2",
         newWordCount: newWords.length <= 3 ? 3 : newWords.length <= 5 ? 5 : 8,
       }),
@@ -81,11 +84,24 @@ const samples: ArticleDetail[] = [
       },
     },
   };
-});
+}
+const samples = catalog.map((data) => buildSample(data));
+const variants = new Map<string, ArticleDetail>();
 
-export function getSample(id: string): ArticleDetail | null {
+export function getSample(
+  id: string,
+  retention: Settings["retention"] = "medium",
+): ArticleDetail | null {
   const article = samples.find((item) => item.id === id);
-  return article ? structuredClone(article) : null;
+  if (!article) return null;
+  if (retention === "medium" || article.language !== "en")
+    return structuredClone(article);
+  const key = `${id}:${retention}`;
+  if (!variants.has(key)) {
+    const data = catalog.find((item) => `sample-${item.key}` === id)!;
+    variants.set(key, buildSample(data, retention));
+  }
+  return structuredClone(variants.get(key)!);
 }
 export function listSamples(mode?: string): LibraryArticle[] {
   return samples

@@ -2,6 +2,7 @@
 import { ui } from "@/lib/ui";
 
 import type { Settings } from "@/lib/schemas";
+import { RetentionControl } from "./retention-control";
 const topics = [
   "购物",
   "通勤",
@@ -29,29 +30,11 @@ export function SettingsFields({
     onChange({ ...value, [key]: next });
   if (mode === "tech")
     return (
-      <fieldset disabled={disabled} className="settings-fields">
-        <legend>{ui("英文保留量")}</legend>
-        <div className="segmented">
-          {[
-            ["low", ui("少")],
-            ["medium", ui("中")],
-            ["high", ui("多")],
-          ].map(([v, label]) => (
-            <button
-              type="button"
-              key={v}
-              className={value.retention === v ? "selected" : ""}
-              aria-pressed={value.retention === v}
-              onClick={() => set("retention", v as Settings["retention"])}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <p className="field-hint">
-          {ui("保留有用的搭配与完整表达。调整后点击生成才会调用 API。")}
-        </p>
-      </fieldset>
+      <RetentionControl
+        value={value.retention}
+        onChange={(retention) => set("retention", retention)}
+        disabled={disabled}
+      />
     );
   return (
     <div className="settings-fields">

@@ -17,6 +17,7 @@ const progressSchema = z.object({
   view: z.enum(["learning", "original"]),
   glossMode: z.enum(["all", "first", "click"]),
   completed: z.boolean(),
+  retention: z.enum(["low", "medium", "high"]).optional(),
   updatedAt: z.string(),
 });
 const schema = z.object({
@@ -33,7 +34,9 @@ const schema = z.object({
           title: z.string(),
           sentence: z.string(),
           form: z.string(),
-          href: z.string().regex(/^\/(?:(listen|speak)\?|read\/local-article-)/),
+          href: z
+            .string()
+            .regex(/^\/(?:(listen|speak)\?|read\/local-article-)/),
         }),
       ),
     )
@@ -59,7 +62,9 @@ function write(state: State) {
 }
 export function sampleWithProgress(article: ArticleDetail): ArticleDetail {
   const state = read();
-  const result = structuredClone(article);
+  const result =
+    getSample(article.id, state.progress[article.id]?.retention ?? "medium") ??
+    structuredClone(article);
   result.progress = state.progress[article.id] ?? null;
   for (const o of result.version?.occurrences ?? [])
     o.word.user = state.words[o.word.id] ?? null;
@@ -153,8 +158,16 @@ export function saveSamplePracticeOccurrence(
 }
 export function removeSampleArticleOccurrences(articleId: string) {
   const state = read();
-  if (!Object.values(state.practice).some(items => items.some(a => a.articleId === articleId))) return;
-  for (const id of Object.keys(state.practice)) state.practice[id] = state.practice[id].filter(a => a.articleId !== articleId);
+  if (
+    !Object.values(state.practice).some((items) =>
+      items.some((a) => a.articleId === articleId),
+    )
+  )
+    return;
+  for (const id of Object.keys(state.practice))
+    state.practice[id] = state.practice[id].filter(
+      (a) => a.articleId !== articleId,
+    );
   write(state);
 }
 export function sampleShelf() {

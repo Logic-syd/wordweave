@@ -28,10 +28,11 @@ import { settingsSchema, type Settings, type Segment } from "@/lib/schemas";
 import { useHydrated } from "./use-hydrated";
 import { WordCard } from "./word-card";
 import { SettingsFields } from "./settings-fields";
+import { RetentionControl } from "./retention-control";
 import { GenerationAllowance } from "./generation-allowance";
 import { browserFetch } from "@/lib/browser-api";
 import { LocalAiNotice } from "./browser-ai-settings";
-import { saveSampleProgress } from "@/lib/sample-storage";
+import { sampleWithProgress, saveSampleProgress } from "@/lib/sample-storage";
 import { saveLocalProgress } from "@/lib/browser-store";
 import { ArticleInbox } from "./article-inbox";
 import { rememberReading } from "@/lib/learning-entry";
@@ -478,6 +479,33 @@ export function Reader({
         window.scrollBy({ top: after - before, behavior: "instant" });
     });
   }
+  function changeRetention(retention: Settings["retention"]) {
+    if (settings.retention === retention) return;
+    if (!local) {
+      setSettings((previous) => ({ ...previous, retention }));
+      setShowSettings(true);
+      return;
+    }
+    const id = active.current;
+    const before = document.getElementById(id)?.getBoundingClientRect().top;
+    try {
+      saveSampleProgress(initial.id, { retention, paragraphId: id });
+      const next = sampleWithProgress(initial);
+      setArticle(next);
+      setSettings(next.version!.settings);
+      setSelected(null);
+      setClickedGloss(new Set());
+      setError("");
+      setSaveState(ui("进度保存在这个浏览器"));
+      requestAnimationFrame(() => {
+        const after = document.getElementById(id)?.getBoundingClientRect().top;
+        if (before !== undefined && after !== undefined)
+          window.scrollBy({ top: after - before, behavior: "instant" });
+      });
+    } catch (error) {
+      setError(error instanceof Error ? error.message : ui("保存失败"));
+    }
+  }
   function updateWord(user: UserWord) {
     if (!selected) return;
     setArticle((prev) => ({
@@ -609,6 +637,18 @@ export function Reader({
               {de ? ui("德语全文") : ui("英文原文")}
             </button>
           </div>
+          {!de && (
+            <RetentionControl
+              value={settings.retention}
+              onChange={changeRetention}
+              disabled={pending}
+              hint={
+                local
+                  ? "少：中文更多；多：英文更多。范文立即切换，无需 API。 / Low: more Chinese. High: more English. Samples switch instantly, without an API."
+                  : undefined
+              }
+            />
+          )}
           <label className="gloss-control">
             {ui("释义")}
             <select
@@ -649,13 +689,21 @@ export function Reader({
               </button>
             </div>
             {browserLocal && <LocalAiNotice />}
-            <SettingsFields
-              mode={article.mode}
-              value={settings}
-              onChange={setSettings}
-              disabled={pending}
-              compact
-            />
+            {de ? (
+              <SettingsFields
+                mode={article.mode}
+                value={settings}
+                onChange={setSettings}
+                disabled={pending}
+                compact
+              />
+            ) : article.version &&
+              settings.retention !== article.version.settings.retention ? (
+              <p className="retention-pending" role="status">
+                当前仍是上一次的学习版。点击下方重新生成后生效。 / The current
+                version stays unchanged until you regenerate below.
+              </p>
+            ) : null}
             <p className="field-hint">
               {de
                 ? ui("已有原文会保留，重新生成同一内容的学习版。")

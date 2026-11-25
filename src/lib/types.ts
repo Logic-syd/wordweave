@@ -79,6 +79,7 @@ export type ArticleDetail = {
     view: string;
     glossMode: string;
     completed: boolean;
+    retention?: Settings["retention"];
   } | null;
   defaultGlossMode: string;
 };
