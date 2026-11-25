@@ -1,0 +1,76 @@
+name: Prepare daily reading
+on:
+  schedule:
+    # 04:17 Berlin in winter, 05:17 in summer. GitHub schedules are best-effort.
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Publication date (YYYY-MM-DD); leave blank for today in Berlin"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+concurrency:
+  group: daily-reading-publisher
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DAILY_DEEPSEEK_API_KEY: ${{ secrets.DAILY_DEEPSEEK_API_KEY }}
+      DAILY_DEEPSEEK_MODEL: ${{ vars.DAILY_DEEPSEEK_MODEL }}
+      DAILY_DEEPSEEK_BASE_URL: https://api.deepseek.com/v1
+      NODE_USE_ENV_PROXY: "1"
+      SERVER_AI_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Determine the calendar date
+        id: day
+        env:
+          REQUESTED_DATE: ${{ inputs.date }}
+        run: |
+          DATE="${REQUESTED_DATE:-$(TZ=Europe/Berlin date +%F)}"
+          [[ "$DATE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || exit 1
+          echo "value=$DATE" >> "$GITHUB_OUTPUT"
+      - name: Check private configuration
+        run: |
+          test -n "$DAILY_DEEPSEEK_API_KEY" || { echo 'Add the DAILY_DEEPSEEK_API_KEY repository secret.'; exit 1; }
+          test -n "$DAILY_DEEPSEEK_MODEL" || { echo 'Add the DAILY_DEEPSEEK_MODEL repository variable.'; exit 1; }
+      - run: npm ci
+      - name: Open the public content branch
+        run: |
+          git fetch origin daily-content
+          git worktree add .local/daily-feed FETCH_HEAD
+      - uses: actions/cache/restore@v4
+        with:
+          path: .local/daily-publisher/${{ steps.day.outputs.value }}/journal.json
+          key: daily-editor-v1-${{ steps.day.outputs.value }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: daily-editor-v1-${{ steps.day.outputs.value }}-
+      - name: Prepare and validate both articles
+        env:
+          PUBLICATION_DATE: ${{ steps.day.outputs.value }}
+        run: npm run daily:generate -- --date "$PUBLICATION_DATE"
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .local/daily-publisher/${{ steps.day.outputs.value }}/journal.json
+          key: daily-editor-v1-${{ steps.day.outputs.value }}-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Publish validated content only
+        env:
+          PUBLICATION_DATE: ${{ steps.day.outputs.value }}
+        run: |
+          git -C .local/daily-feed config user.name 'WordWeave daily editor'
+          git -C .local/daily-feed config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git -C .local/daily-feed add index.json "editions/$PUBLICATION_DATE.json"
+          if ! git -C .local/daily-feed diff --cached --quiet; then
+            git -C .local/daily-feed commit -m "Publish daily reading $PUBLICATION_DATE"
+            git -C .local/daily-feed push origin HEAD:daily-content
+          fi

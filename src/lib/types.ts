@@ -56,6 +56,12 @@ export type ArticleDetail = {
   sourceText: string;
   sourceBlocks: SourceBlock[];
   origin: string;
+  publication?: {
+    date: string;
+    provider: string;
+    model: string;
+    processedAt: string;
+  };
   generationStartedAt: string | null;
   generationError: string | null;
   generationProgress?: GenerationProgress | null;

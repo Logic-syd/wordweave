@@ -8,6 +8,8 @@ import { AppError } from "@/lib/errors";
 import { getSample } from "@/lib/samples";
 import { SampleReader } from "@/components/sample-reader";
 import { BrowserReader } from "@/components/browser-pages";
+import { PublishedReader } from "@/components/published-reader";
+import { dailySampleId } from "@/lib/daily-publication";
 export const dynamic = "force-dynamic";
 export default async function ReadPage({
   params,
@@ -17,6 +19,8 @@ export default async function ReadPage({
   searchParams: Promise<{ generate?: string }>;
 }) {
   const { id } = await params;
+  if (dailySampleId.safeParse(id).success)
+    return <PublishedReader key={id} id={id} />;
   if (id.startsWith("local-article-"))
     return (
       <BrowserReader

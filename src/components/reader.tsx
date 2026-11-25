@@ -741,6 +741,7 @@ export function Reader({
           <DailyLessonBar
             day={daily}
             readingPart={dailyPart}
+            publication={article.publication}
             lesson={{
               skill: "read",
               contentId: article.id,
@@ -888,22 +889,32 @@ export function Reader({
             <h1>{article.title}</h1>
             <div className="reading-meta">
               <span>
-                {local
+                {local && !article.publication
                   ? ui("公开范文 · ")
                   : article.origin.startsWith("demo")
                     ? ui("结构化演示 · ")
                     : ""}
-                {article.origin === "demo-authored-long"
-                  ? "原创练习长文（AI 辅助） / Original practice article (AI-assisted)"
-                  : article.origin.includes("generated")
-                    ? ui("生成短文")
-                    : de
-                      ? ui("导入原文 · 学习改写版")
-                      : ui("英文原文 · 中文学习版")}
+                {article.origin === "daily-deepseek"
+                  ? "免费原创长文 / Free original article"
+                  : article.origin === "demo-authored-long"
+                    ? "原创练习长文（AI 辅助） / Original practice article (AI-assisted)"
+                    : article.origin.includes("generated")
+                      ? ui("生成短文")
+                      : de
+                        ? ui("导入原文 · 学习改写版")
+                        : ui("英文原文 · 中文学习版")}
               </span>
               {proseWords > 0 && (
                 <span className="reading-length" data-word-count={proseWords}>
                   {proseWords.toLocaleString()} 英文词 / English words
+                </span>
+              )}
+              {article.publication && !daily && (
+                <span
+                  className="daily-processing"
+                  title={`${article.publication.model} · ${article.publication.processedAt}`}
+                >
+                  DeepSeek · {article.publication.date}
                 </span>
               )}
               {article.version && (

@@ -5,6 +5,7 @@ import { parseSource } from "./markdown";
 import { settingsSchema, type Settings } from "./schemas";
 import { sampleLearningAtRetention } from "./sample-retention";
 import type { ArticleDetail, LibraryArticle, OccurrenceView } from "./types";
+import { getPublishedSample } from "./published-catalog";
 
 // Public reading is a fixed, reviewed catalog, never a query over users' articles.
 const date = "2026-10-20T00:00:00.000Z";
@@ -92,6 +93,8 @@ export function getSample(
   id: string,
   retention: Settings["retention"] = "medium",
 ): ArticleDetail | null {
+  const published = getPublishedSample(id, retention);
+  if (published) return published;
   const article = samples.find((item) => item.id === id);
   if (!article) return null;
   if (retention === "medium" || article.language !== "en")

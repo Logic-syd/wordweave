@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { getSample, listSamples } from "./samples";
+import { termSchema } from "./schemas";
+import { publishedVocabularyArticles } from "./published-catalog";
 import type { ArticleDetail, UserWord, VocabularyView } from "./types";
 
 const KEY = "wordweave.samples.v1";
@@ -20,9 +22,25 @@ const progressSchema = z.object({
   retention: z.enum(["low", "medium", "high"]).optional(),
   updatedAt: z.string(),
 });
+const snapshotSchema = termSchema.omit({ reviewVocabularyId: true }).extend({
+  language: z.literal("en"),
+  appearances: z
+    .array(
+      z.object({
+        articleId: z.string(),
+        title: z.string(),
+        sourceId: z.string(),
+        sentence: z.string(),
+        form: z.string(),
+      }),
+    )
+    .max(1000),
+});
 const schema = z.object({
   words: z.record(z.string(), userSchema),
   progress: z.record(z.string(), progressSchema),
+  // Keep explicitly saved daily word cards usable even before an old edition is downloaded.
+  snapshots: z.record(z.string(), snapshotSchema).default({}),
   practice: z
     .record(
       z.string(),
@@ -48,9 +66,9 @@ function read(): State {
     const raw = localStorage.getItem(KEY);
     return raw
       ? schema.parse(JSON.parse(raw))
-      : { words: {}, progress: {}, practice: {} };
+      : { words: {}, progress: {}, practice: {}, snapshots: {} };
   } catch {
-    return { words: {}, progress: {}, practice: {} };
+    return { words: {}, progress: {}, practice: {}, snapshots: {} };
   }
 }
 function write(state: State) {
@@ -129,6 +147,12 @@ export function saveSampleWord(
             ).toISOString()
           : null;
   state.words[id] = user;
+  if (id.startsWith("sample-daily-word-")) {
+    state.snapshots[id] = snapshotSchema.parse({
+      ...word,
+      appearances: word.appearances.filter((appearance) => !appearance.skill),
+    });
+  }
   write(state);
   if (typeof window !== "undefined")
     window.dispatchEvent(new Event("wordweave:vocabulary"));
@@ -181,21 +205,37 @@ export function sampleShelf() {
 export function sampleVocabulary(): VocabularyView[] {
   const state = read();
   const words = new Map<string, VocabularyView>();
-  for (const summary of listSamples()) {
-    const article = getSample(summary.id)!;
+  for (const snapshot of Object.values(state.snapshots))
+    words.set(snapshot.id, {
+      ...snapshot,
+      user: state.words[snapshot.id] ?? null,
+    });
+  for (const article of [
+    ...listSamples().map((summary) => getSample(summary.id)!),
+    ...publishedVocabularyArticles(),
+  ]) {
     for (const o of article.version!.occurrences) {
       const word = words.get(o.word.id) ?? {
         ...o.word,
         user: state.words[o.word.id] ?? null,
         appearances: [],
       };
-      word.appearances.push({
-        articleId: article.id,
-        title: article.title,
-        sourceId: o.sourceId,
-        sentence: o.sentence,
-        form: o.form,
-      });
+      if (
+        !word.appearances.some(
+          (a) =>
+            a.articleId === article.id &&
+            a.sourceId === o.sourceId &&
+            a.form === o.form &&
+            a.sentence === o.sentence,
+        )
+      )
+        word.appearances.push({
+          articleId: article.id,
+          title: article.title,
+          sourceId: o.sourceId,
+          sentence: o.sentence,
+          form: o.form,
+        });
       words.set(word.id, word);
     }
   }

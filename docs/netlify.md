@@ -18,7 +18,7 @@ Netlify 提供免费方案，适用于额度内试运行；免费额度、适用
 
 | 模式 | 体验 | 谁支付模型费用 | 当前状态 |
 | --- | --- | --- | --- |
-| 基础版 | 导入正文、自动分句、设备朗读、跟读、听写、收藏和本机记录；选词免费查义 | 不调用大模型 | 已实现 |
+| 基础版 | 导入正文、朗读、跟读、听写、收藏与本机记录；免费每日英语长文 | 读者阅读不调用模型；站主承担提前编辑范文的 DeepSeek 费用 | 已实现 |
 | 自带 API | 自己填写 Key，主动使用全文中文参考、学习内容生成和文字反馈 | 使用者向自己的模型供应商付费 | 已实现；供应商需允许浏览器跨域请求 |
 | 站方付费模式 | 购买站方提供的额度，免去个人 API 配置 | 站方计费并承担供应商调用费用 | 尚未实现 |
 
@@ -28,7 +28,7 @@ Netlify 提供免费方案，适用于额度内试运行；免费额度、适用
 
 当前没有云同步；换浏览器或域名不会自动带过记录。旧 Read Along 文章可以从旧站导出 JSON，再在新站「导入文件」。
 
-每日精选与本地音频导入均无需新增环境变量或数据库：三个入口按浏览器日期轮换内置内容，用户可选收藏。听力文件只存于该域名的浏览器空间，最大 20 MB；清除站点数据或改域名不会迁移音频。没有自动转写，未提供原文时不评分。
+免费每日英语阅读改为提前用站主 DeepSeek 处理并发布两篇长文，网站本身仍无需配置 Key 或数据库；单独的 GitHub Actions 需要配置密钥和模型，见 [每日发布说明](daily-publishing.md)。听力、口语、德语仍轮换内置内容，用户可选收藏。听力文件只存于该域名的浏览器空间，最大 20 MB；清除站点数据或改域名不会迁移音频。没有自动转写，未提供原文时不评分。
 
 ## 部署记录与检查
 
@@ -74,3 +74,7 @@ Check Netlify's current plan terms, usage allowances and overage behavior in its
 Daily picks and local listening imports need no new environment variables or database. Each entry rotates bundled content by browser-local date with optional saving. Audio files (up to 20 MB) stay in this origin’s browser storage and are excluded from JSON exports. No transcript means no automatic grade; speech transcription is not implemented.
 
 Validation for daily lessons and listening imports: 24 focused unit tests, 14 Playwright flows, typecheck, lint, production build, existing practice/BYOK browser checks and native Netlify static routing passed. Audio playback used a decodable WAV fixture; coverage does not establish support for every device or codec. No paid model calls or PostgreSQL migration were performed. Anonymous hosted access still returns HTTP 401.
+
+2026-11-25 每日英语编辑流程：首期两篇原创英文正文分别为 1,129 / 1,207 词，原稿、三档学习版、润色与独立审校均真实调用配置中的 DeepSeek；一处否定句经过额外校对后再审校。首期开发调试累计 49 次请求（含失败和重试），有返回用量的调用共 270,112 输入 tokens、143,842 输出 tokens；不是日常用量预测，准确费用以供应商账单为准。每日期保护上限为 50 次请求和 1,200,000 输入字符。重复执行已完成日期验证为零模型调用。
+
+Validation: 136 unit tests, eight Playwright reading/publication flows, TypeScript, lint and production build passed. Desktop and 390 px mobile rendering were inspected; remote-feed checks used explicit fixtures, including checksum failure, caching, archived links and saved word cards after reload. The first edition used real configured DeepSeek calls, including development retries; usage above is observed returned usage, not an estimated daily bill. Database and extension packaging were not part of this change. Scheduled GitHub Actions still requires the owner to configure its repository secret and model variable; this environment's integration cannot manage Actions secrets (HTTP 403).

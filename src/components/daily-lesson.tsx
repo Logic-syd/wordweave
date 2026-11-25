@@ -73,10 +73,12 @@ export function DailyLessonBar({
   day,
   lesson,
   readingPart,
+  publication,
 }: {
   day: string;
   lesson: Lesson;
   readingPart?: 0 | 1;
+  publication?: { date: string; provider: string };
 }) {
   const title = {
     listen: "今日听力 / Daily listening",
@@ -91,10 +93,23 @@ export function DailyLessonBar({
       data-content-id={lesson.contentId}
     >
       <div>
-        <strong>{title}</strong>
+        <strong>
+          {publication && publication.date < day
+            ? "最近一期阅读 / Latest reading"
+            : title}
+        </strong>
         <small>
-          <time>{day}</time> · 精选轮换 / Curated rotation
+          <time>{publication?.date ?? day}</time> ·{" "}
+          {publication
+            ? "DeepSeek 编辑 / Processed with DeepSeek"
+            : "精选轮换 / Curated rotation"}
         </small>
+        {publication && publication.date < day && (
+          <small className="daily-edition-status">
+            今日新内容尚未发布，先读最近一期。 / Today&apos;s new edition is not
+            published yet.
+          </small>
+        )}
       </div>
       {readingPart !== undefined && lesson.skill === "read" && (
         <nav

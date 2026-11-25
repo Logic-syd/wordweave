@@ -1,4 +1,5 @@
 import { practiceSamples } from "./practice-content";
+import { latestDailyEdition } from "./published-catalog";
 
 /** Editorial content, bundled with the site. No model call or scraped article. */
 export const speakingPicks = [
@@ -74,7 +75,10 @@ function pick<T>(values: readonly T[], day: string) {
   return values[((n % values.length) + values.length) % values.length];
 }
 export function dailyReadings(day = localDay(), language: "en" | "de" = "en") {
+  dayNumber(day);
   if (language === "de") return [pick(readingByLanguage.de, day)];
+  const edition = latestDailyEdition(day);
+  if (edition) return edition.articles.map((article) => article.id);
   const articles = readingByLanguage.en;
   const start =
     (((dayNumber(day) * 2) % articles.length) + articles.length) %

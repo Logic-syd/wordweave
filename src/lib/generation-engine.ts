@@ -190,6 +190,12 @@ export async function generateTranslated(
     validate?: (result: Generation) => Generation;
     beforeModelCall?: () => Promise<void>;
     callModel?: GenerationModel;
+    /** Editorial jobs can trade more, smaller requests for reliable JSON output. */
+    chunkCharacters?: number;
+    withValidatedChunk?: (
+      blocks: SourceBlock[],
+      generate: () => Promise<Generation>,
+    ) => Promise<Generation>;
   } = {},
 ): Promise<Generation> {
   const all: Generation = { title: "学习文章", terms: [], paragraphs: [] };
@@ -201,7 +207,8 @@ export async function generateTranslated(
     mode === "tech"
       ? "把英文解释性正文翻译成以中文为主体的自然正文，再嵌入少量有学习价值的英文搭配、工作表达或完整分句。每个正文段落的普通 text 片段必须提供有实质内容的中文译文，词卡释义里的中文不算正文翻译。绝不能只把原文拆成多个 term 或仅删掉部分英文就当作学习版。一个短句只选择 1–2 个连续完整表达（high 最多3个），不要拆成许多单词卡；例如 avoid unnecessary re-renders 应作为一个整体，不能分别标注 avoid、unnecessary、re-renders。不要把 React 等产品名和零散功能词当学习目标。先完整表达原文主谓宾、动作和因果，再嵌入表达；不得省略谓语或改写关键事实。英文保留量按数据中的 settings.retention（low 约 10%，medium 约 25%，high 约 40%），选择表达数量要克制，避免把全部英文词变成词卡。严格保留否定、条件、限制、推测程度、数字和关键事实。term.sentence 必须逐字引用所在原文的完整英文句子。category 标记 technical 或 general。"
       : "把德语原文改造成中文为主嵌入德语词/短语的学习版，同一内容和段落对应不变。难度与学习目标按数据中的 settings。必须恰好使用设置的新词数（只复习则 0）和给定复习目标，已有词汇不算新词。reviewVocabularyId 仅在复习目标词上填写对应 id。term.sentence 必须引用对应完整德语原文句子。";
-  const chunks = mode === "german" ? [blocks] : chunkBlocks(blocks);
+  const chunks =
+    mode === "german" ? [blocks] : chunkBlocks(blocks, options.chunkCharacters);
   let completed = 0;
   await options.onProgress?.({
     stage: "translating",
@@ -213,149 +220,157 @@ export async function generateTranslated(
     chunks,
     mode === "german" ? 1 : generationLimits().concurrency,
     async (chunk, _index, chunkSignal) => {
-      const editable = chunk.filter((b) => !isLiteral(b));
-      let validated: Generation = {
-        title: "学习文章",
-        terms: [],
-        paragraphs: [],
-      };
-      const translate = async (
-        subset: SourceBlock[],
-        recovering = false,
-      ): Promise<Generation> => {
-        try {
-          const compact = compactVocabularyContext(
-            context,
-            subset.map((block) => block.original).join("\n"),
-          );
-          const generationContext =
-            mode === "tech"
-              ? {
-                  existingVocabulary:
-                    compact &&
-                    typeof compact === "object" &&
-                    "existingVocabulary" in compact
-                      ? compact.existingVocabulary
-                      : [],
-                  sourceIsUntrusted: true,
-                }
-              : compact;
-          return await validatedModel(
-            instructions,
-            {
-              settings:
-                mode === "tech" ? { retention: settings.retention } : settings,
-              paragraphs: subset.map((b) => ({
-                id: b.id,
-                kind: b.kind,
-                source: b.masked,
-                ...(Object.keys(b.protected).length
-                  ? { protectedTokens: Object.keys(b.protected) }
-                  : {}),
-              })),
-              context: generationContext,
-            },
-            (result) => {
-              if (
-                result.paragraphs.length !== subset.length ||
-                result.paragraphs.some(
-                  (paragraph, index) => paragraph.id !== subset[index].id,
+      const generateChunk = async () => {
+        const editable = chunk.filter((b) => !isLiteral(b));
+        let validated: Generation = {
+          title: "学习文章",
+          terms: [],
+          paragraphs: [],
+        };
+        const translate = async (
+          subset: SourceBlock[],
+          recovering = false,
+        ): Promise<Generation> => {
+          try {
+            const compact = compactVocabularyContext(
+              context,
+              subset.map((block) => block.original).join("\n"),
+            );
+            const generationContext =
+              mode === "tech"
+                ? {
+                    existingVocabulary:
+                      compact &&
+                      typeof compact === "object" &&
+                      "existingVocabulary" in compact
+                        ? compact.existingVocabulary
+                        : [],
+                    sourceIsUntrusted: true,
+                  }
+                : compact;
+            return await validatedModel(
+              instructions,
+              {
+                settings:
+                  mode === "tech"
+                    ? { retention: settings.retention }
+                    : settings,
+                paragraphs: subset.map((b) => ({
+                  id: b.id,
+                  kind: b.kind,
+                  source: b.masked,
+                  ...(Object.keys(b.protected).length
+                    ? { protectedTokens: Object.keys(b.protected) }
+                    : {}),
+                })),
+                context: generationContext,
+              },
+              (result) => {
+                if (
+                  result.paragraphs.length !== subset.length ||
+                  result.paragraphs.some(
+                    (paragraph, index) => paragraph.id !== subset[index].id,
+                  )
                 )
-              )
-                throw new Error("段落数量、顺序或对应 ID 不一致");
-              const refused = subset.filter((block, index) =>
-                isParagraphRefusal(result.paragraphs[index], block.original),
-              );
-              if (refused.length && mode !== "tech")
-                throw new ContentRefusalError();
-              if (refused.length === subset.length)
-                return keepOriginal(refused, "content_refused");
-              const refusedIds = new Set(refused.map((block) => block.id));
-              const accepted = subset.filter(
-                (block) => !refusedIds.has(block.id),
-              );
-              const paragraphs = result.paragraphs.filter(
-                (paragraph) => !refusedIds.has(paragraph.id),
-              );
-              const used = new Set(
-                paragraphs.flatMap((paragraph) =>
-                  paragraph.segments.flatMap((segment) =>
-                    segment.type === "term" ? [segment.termId] : [],
+                  throw new Error("段落数量、顺序或对应 ID 不一致");
+                const refused = subset.filter((block, index) =>
+                  isParagraphRefusal(result.paragraphs[index], block.original),
+                );
+                if (refused.length && mode !== "tech")
+                  throw new ContentRefusalError();
+                if (refused.length === subset.length)
+                  return keepOriginal(refused, "content_refused");
+                const refusedIds = new Set(refused.map((block) => block.id));
+                const accepted = subset.filter(
+                  (block) => !refusedIds.has(block.id),
+                );
+                const paragraphs = result.paragraphs.filter(
+                  (paragraph) => !refusedIds.has(paragraph.id),
+                );
+                const used = new Set(
+                  paragraphs.flatMap((paragraph) =>
+                    paragraph.segments.flatMap((segment) =>
+                      segment.type === "term" ? [segment.termId] : [],
+                    ),
                   ),
-                ),
-              );
-              const restored = restoreAndValidate(
-                refused.length
-                  ? {
-                      ...result,
-                      paragraphs,
-                      terms: result.terms.filter((term) => used.has(term.id)),
-                    }
-                  : result,
-                accepted,
-              );
-              if (mode === "tech")
-                validateTechnicalProse(restored, accepted, settings);
-              validateSourceSentences(restored);
-              // Semantic checks run per chunk before success is retained. There is
-              // no outer whole-article retry that resends already validated chunks.
-              const validated = options.validate
-                ? options.validate(restored)
-                : restored;
-              if (!refused.length) return validated;
-              const original = keepOriginal(refused, "content_refused");
-              const byId = new Map(
-                [...validated.paragraphs, ...original.paragraphs].map(
-                  (paragraph) => [paragraph.id, paragraph],
-                ),
-              );
-              return {
-                ...validated,
-                paragraphs: subset.map((block) => byId.get(block.id)!),
-                untranslated: original.untranslated,
-              };
-            },
-            budget,
-            chunkSignal,
-            (message) =>
-              options.onProgress?.({
-                stage: "translating",
-                completed,
-                total: chunks.length,
-                message:
-                  message ?? "正在重试未通过校验的分块，已完成部分会保留",
-              }),
-            async () => {
-              if (recovering && !refusalBudget.take())
-                throw new RefusalRecoveryLimitError();
-              await options.beforeModelCall?.();
-            },
-            options.callModel,
-          );
-        } catch (error) {
-          if (mode !== "tech") throw error;
-          if (error instanceof RefusalRecoveryLimitError)
-            return keepOriginal(subset, "recovery_limit");
-          if (!(error instanceof ContentRefusalError)) throw error;
-          if (subset.length === 1)
-            return keepOriginal(subset, "content_refused");
-          await options.onProgress?.({
-            stage: "translating",
-            completed,
-            total: chunks.length,
-            message:
-              "模型拒绝了部分内容，正在按段缩小范围；被拒绝的段落将保留原文",
-          });
-          // Sequential subdivision stays within the existing article concurrency.
-          // Never redact words, resend a rejected leaf, or send protected code.
-          const middle = Math.ceil(subset.length / 2);
-          const left = await translate(subset.slice(0, middle), true);
-          chunkSignal.throwIfAborted();
-          const right = await translate(subset.slice(middle), true);
-          return mergeRecovered([left, right]);
-        }
+                );
+                const restored = restoreAndValidate(
+                  refused.length
+                    ? {
+                        ...result,
+                        paragraphs,
+                        terms: result.terms.filter((term) => used.has(term.id)),
+                      }
+                    : result,
+                  accepted,
+                );
+                if (mode === "tech")
+                  validateTechnicalProse(restored, accepted, settings);
+                validateSourceSentences(restored);
+                // Semantic checks run per chunk before success is retained. There is
+                // no outer whole-article retry that resends already validated chunks.
+                const validated = options.validate
+                  ? options.validate(restored)
+                  : restored;
+                if (!refused.length) return validated;
+                const original = keepOriginal(refused, "content_refused");
+                const byId = new Map(
+                  [...validated.paragraphs, ...original.paragraphs].map(
+                    (paragraph) => [paragraph.id, paragraph],
+                  ),
+                );
+                return {
+                  ...validated,
+                  paragraphs: subset.map((block) => byId.get(block.id)!),
+                  untranslated: original.untranslated,
+                };
+              },
+              budget,
+              chunkSignal,
+              (message) =>
+                options.onProgress?.({
+                  stage: "translating",
+                  completed,
+                  total: chunks.length,
+                  message:
+                    message ?? "正在重试未通过校验的分块，已完成部分会保留",
+                }),
+              async () => {
+                if (recovering && !refusalBudget.take())
+                  throw new RefusalRecoveryLimitError();
+                await options.beforeModelCall?.();
+              },
+              options.callModel,
+            );
+          } catch (error) {
+            if (mode !== "tech") throw error;
+            if (error instanceof RefusalRecoveryLimitError)
+              return keepOriginal(subset, "recovery_limit");
+            if (!(error instanceof ContentRefusalError)) throw error;
+            if (subset.length === 1)
+              return keepOriginal(subset, "content_refused");
+            await options.onProgress?.({
+              stage: "translating",
+              completed,
+              total: chunks.length,
+              message:
+                "模型拒绝了部分内容，正在按段缩小范围；被拒绝的段落将保留原文",
+            });
+            // Sequential subdivision stays within the existing article concurrency.
+            // Never redact words, resend a rejected leaf, or send protected code.
+            const middle = Math.ceil(subset.length / 2);
+            const left = await translate(subset.slice(0, middle), true);
+            chunkSignal.throwIfAborted();
+            const right = await translate(subset.slice(middle), true);
+            return mergeRecovered([left, right]);
+          }
+        };
+        if (editable.length) validated = await translate(editable);
+        return validated;
       };
-      if (editable.length) validated = await translate(editable);
+      const validated = options.withValidatedChunk
+        ? await options.withValidatedChunk(chunk, generateChunk)
+        : await generateChunk();
       completed++;
       await options.onProgress?.({
         stage: "translating",

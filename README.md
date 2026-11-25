@@ -4,32 +4,33 @@
 
 ## 简体中文
 
-给中文母语者的语言学习工具。**网站公开使用，无需注册；每个人填写自己的 API，文章、词卡和练习记录保存在自己的浏览器。** 网站不代转模型请求，也不使用站主的 Key。
+给中文母语者的语言学习工具。**网站公开使用，无需注册；每个人填写自己的 API，文章、词卡和练习记录保存在自己的浏览器。** 个人 AI 请求由浏览器直连供应商；免费每日英语范文由站主的 DeepSeek 在发布前统一处理，读者不需要 Key。
 
 | 入口 | 做什么 | 特点 |
 | --- | --- | --- |
-| `/listen` 听力 | 每日一题，导入音频、概括重点、听写对照 | 青绿色；左侧导入、右侧练习，默认收起原文 |
+| `/listen` 听力 | 每日一题，导入音频、概括重点、听写对照 | 淡黄色；左侧导入、右侧练习，默认收起原文 |
 | `/speak` 口语 | 原版 Read Along：导入文章、逐句跟读、选词查义；角落可进入复述与录音 | 文章收件箱、淡紫背景、粉色当前句；播放时展开正文 |
-| `/`、`/read` 阅读 | 语境阅读：中文正文嵌入英文表达或德语词，原文对照、词卡与收藏 | 安静的文章排版、淡粉强调；直接打开今日文章 |
+| `/`、`/read` 阅读 | 语境阅读：中文正文嵌入英文表达或德语词，原文对照、词卡与收藏 | 淡蓝阅读主题；直接打开今日文章 |
 | `/library` 我的库 | 主动保存的听说读内容，以及语境文章与范文 | 按听、说、读筛选；原文、代码与语境词卡保留 |
 | `/vocabulary` 单词库 | 听说读共用收藏、认识状态、出现句子 | 词条可直接拿去听或说 |
 | `/settings` 我的 API | 设置自己的服务、模型与 Key，导出记录 | 保存配置不发请求；测试连接会消耗少量额度 |
 
 线上地址：<https://weavie.netlify.app/>（用户于 2026-11-20 确认改名）。首页和 `/read` 直接打开今日语境阅读。`/speak` 使用从 `reading` 分支恢复的原版「文章收件箱＋逐句跟读」，默认打开今日短文；已保存的文章链接恢复当前句。复述、情景表达、录音保留在 `/speak/practice`，从口语页右上角更多菜单进入。`/listen` 是独立听力练习，三个入口互相切换。跟读选词免费查义，可选的全文中文参考使用自己的 Key。[跟读说明](reading/README.md)。
 
-三个学习页面可以互相跳转，在**同一浏览器、同一网站地址**下共用单词库。附带 12 篇结构化阅读范文（含 4 篇千词英语长文）与 15 份英德听说材料；范文、浏览器朗读、听写对照、收藏和进度保存无需 Key。范文明确标注为演示内容，不冒充现场生成。
+三个学习页面可以互相跳转，在**同一浏览器、同一网站地址**下共用单词库。附带 12 篇结构化阅读范文（含 4 篇千词英语长文）与 15 份英德听说材料；范文、浏览器朗读、听写对照、收藏和进度保存无需 Key。旧范文保留演示标识；每日新英语长文另标明 DeepSeek 处理日期，不冒充读者现场生成。
 
 听力与阅读均采用左侧导入、右侧学习的布局，与口语收件箱保持一致。阅读页导入、学习版／原文切换和释义设置集中在左栏，手机默认收起左栏。右上角是明确的阅读／听力／口语切换按钮。公开学习界面的标签、按钮和说明同时显示中文与英文；文章、原文、代码和生成内容按学习内容原样显示。
 
-阅读设置直接显示 **英文保留量：少／中／多**，独立于释义显示方式。八篇英语范文内置三档内容：少档中文更多，中档保留重点表达，多档保留更多完整英文句子；立即切换，不调用 API，并按文章在浏览器保存选择和阅读进度。自己导入的文章先选择程度，再明确点击重新生成，才使用自己的 Key；失败保留已有成功版本。
+阅读设置直接显示 **英文保留量：少／中／多**，独立于释义显示方式。八篇旧英语范文内置三档内容；新的每日英语长文三档均预先通过 DeepSeek 处理。少／中／多对应：少档中文更多，中档保留重点表达，多档保留更多完整英文句子；立即切换，不调用 API，并按文章在浏览器保存选择和阅读进度。自己导入的文章先选择程度，再明确点击重新生成，才使用自己的 Key；失败保留已有成功版本。
 
 **后端仍在仓库中**：Prisma schema、PostgreSQL 迁移和服务端 API 均保留。本次只调整界面，不把公开版学习记录改为数据库存储；公开版接入数据库另行实现。
 
 ### 每日内容与听力导入
 
-- 直接打开听、说、读，每天分别提供一条听力和问题、一篇口语短文、两篇英语语境长文（德语仍为一篇短文）。基础版从 **15 份听力材料、7 篇口语短文、8 篇阅读范文**按浏览器本地日期轮换，同一天刷新不变，轮完会重复。不是实时生成、新闻抓取或通知推送。阅读默认英语，英语每天选 2 篇，每篇英文正文约 1,300–1,450 词，当前 4 篇长文每两天轮完；正文上方可切换第一篇、第二篇（`/read?part=2`），分别保存与恢复进度。德语按 4 篇短文轮换；点击左栏德语才打开德语今日文章（`/read?lang=de`），明确选择后刷新保留，直接打开 `/read` 仍为英语。
-- 点击「保存到我的库」才收藏每日内容，最多 500 条；不收藏也能学，答案、阅读位置和单词状态仍独立保存。从「我的库」的明确链接继续旧内容；直接进三个入口始终打开当日内容。
-- 长文是明确标注的 AI 辅助原创练习文章，英文原文与学习版随网站提供，无需 Key；不是转载新闻。日常维护在 `src/lib/daily.ts` 追加口语和阅读选项，英语长文内容在 `src/lib/long-reads/`，听力使用 `src/lib/practice-content.ts`。保留旧 ID 和内容以保证收藏链接可用；更换内容请新增 ID。这版还没有运营发布后台。
+- 英语每日发布 **2 篇原创长文，每篇英文正文 1,000 词以上**。英文原稿、少／中／多三档学习版均实际调用站主的 DeepSeek，再由独立模型调用审校。代码保护、段落对齐、词卡原句、三档保留量和审校结论都通过后，两篇一起发布；读者打开或切换不触发模型，不需要自己的 Key。
+- 每日作业按柏林日期编排，GitHub Actions 在 UTC 03:17 调度（时间可能延迟）。成功内容存于独立 `daily-content` 分支，网站读取公开 JSON，不需要每天重新构建 Netlify。没有当天成功内容时，显示最近一期及其真实日期；不把旧文改日期当新文。**自动更新需要配置 Actions 密钥和模型变量**，见 [每日发布说明](docs/daily-publishing.md)。
+- 阅读默认英语，上方可切换第一篇、第二篇（`/read?part=2`），进度分开保存。点「保存到我的库」才收藏，每日永久 ID 可打开往期文章；词卡明确收藏后独立保存。德语仍按 4 篇内置短文轮换（`/read?lang=de`）；听力和口语仍轮换内置材料，未改成每日 DeepSeek 发布。
+- 原有 12 篇范文、15 份听力材料和 7 篇口语短文保留，旧 ID 与收藏不变。原始内容是 AI 辅助原创练习，不是转载新闻或实时报道；参考链接是延伸阅读，不代表已经联网核实。模型审校不能保证所有语言和事实都正确。
 - 听力左栏支持 MP3、WAV、M4A、OGG、WebM、AAC、FLAC，单文件最多 **20 MB**，是否可播放取决于浏览器解码能力。文件留在 IndexedDB，刷新可继续使用，不上传服务器或 AI。
 - 播放 → 写重点 → 提交 → 重听／看原文核对。支持暂停、拖动进度、前后跳 5 秒和调速。有原文可做听写对照；整段录音使用完整原文，没有时间戳就不假装逐句定位。听写最多 2,000 字符；长原文可练大意。没有原文只能保存笔记，不自动转写、不自动评分；有原文时可主动使用自己的 API 评价文字回答。
 - 「保存并开始练习」会把主动导入的听力放进自己的库。JSON 备份**不包含音频文件**，请保留原始音频。收藏移出只取消收藏，不删除导入材料、学习进度或词条。
@@ -86,7 +87,7 @@ npm start
 
 原 PostgreSQL 数据、迁移、站主鉴权和旧私有接口保留；不会将私人数据库内容公开，也不会自动迁入浏览器。`/login` 仅是站主的旧数据入口。公开页面不依赖它。新部署不需要邀请码或站主密码。
 
-旧服务器生成接口**默认关闭**，即使仍有 `LLM_API_KEY` 也不调用。只有显式设置 `SERVER_AI_ENABLED=true` 才能供已认证站主使用；保留此开关只是兼容旧个人流程，公开页面始终使用自己的 Key。旧 `GENERATION_*` 限额仅适用于这些私有接口。
+旧服务器生成接口**默认关闭**，即使仍有 `LLM_API_KEY` 也不调用。只有显式设置 `SERVER_AI_ENABLED=true` 才能供已认证站主使用；保留此开关只是兼容旧个人流程，公开页面的个人生成始终使用自己的 Key；每日编辑脚本独立运行。旧 `GENERATION_*` 限额仅适用于这些私有接口。
 
 需要连接旧库时，在服务端配置 `DATABASE_URL`，执行：
 
@@ -116,7 +117,7 @@ npm run test:byok:browser
 
 ## English
 
-A language-learning tool for Chinese speakers. **The website is public, with no registration. Everyone supplies their own API key; articles, vocabulary and practice records stay in their browser.** Model requests go directly to the chosen provider, without a website proxy or an owner-funded fallback.
+A language-learning tool for Chinese speakers. **The website is public, with no registration. Everyone supplies their own API key; articles, vocabulary and practice records stay in their browser.** Personal model requests go directly to the chosen provider. Free daily English editions are prepared in advance with the owner’s DeepSeek account; readers need no key.
 
 | Entry | Purpose | Visual identity |
 | --- | --- | --- |
@@ -133,15 +134,16 @@ All three pages link to one another and share words within the **same browser an
 
 Listening and reading both use a left import inbox and a right learning workspace, consistent with the speaking page. Import, learning/original views and gloss settings live in the sidebar, collapsed initially on phones. Clear Read / Listen / Speak buttons switch pages. Public learning controls and instructions display Chinese and English together; article content, source text, code and generated learning content retain their original format.
 
-Reading settings expose **English retention: Low / Medium / High**, separately from gloss visibility. All eight English samples include three versions: more Chinese at Low, key expressions at Medium, and more complete English sentences at High. Switching is instant and makes no API requests; the level and reading progress are saved per article in the browser. Imported articles use the learner's key only after an explicit regeneration click. Failed generation preserves the last successful version.
+Reading settings expose **English retention: Low / Medium / High**, separately from gloss visibility. All eight legacy English samples include three versions: more Chinese at Low, key expressions at Medium, and more complete English sentences at High. Switching is instant and makes no API requests; the level and reading progress are saved per article in the browser. Imported articles use the learner's key only after an explicit regeneration click. Failed generation preserves the last successful version.
 
 **The backend remains in the repository**: Prisma schema, PostgreSQL migrations and server APIs are retained. This interface update does not switch public learning records to database storage; connecting the public app to PostgreSQL is a separate future task.
 
 ### Daily content and listening imports
 
-- Each entry opens a daily lesson immediately: one listening item with a question, one speaking passage, and two English contextual long reads (one short article in German mode). The free catalog rotates **15 listening materials, 7 speaking passages and 8 reading samples** by browser-local calendar date. It repeats after cycling and does not use AI, scrape news or send notifications. Reading defaults to English, with two 1,300–1,450-word articles per day from a four-article English rotation, repeating every two days. Switch between Article 1 and Article 2 (`/read?part=2`); each has separate bookmarks and progress. German retains a separate four-article rotation. Selecting German opens `/read?lang=de`, which survives refresh; plain `/read` always starts in English.
-- Daily lessons enter your library only after **Save to my library** (up to 500 bookmarks). Learning progress and word status are saved independently. Explicit saved links resume older lessons; the three plain entry URLs open today’s content.
-- The long reads are labeled AI-assisted original practice texts, bundled with full English originals and learning versions; they require no key and are not republished news. Maintain long-read content in `src/lib/long-reads/` and the catalog in `src/lib/daily.ts` and `src/lib/practice-content.ts`. Preserve existing content IDs and records for saved links; changed content should receive a new ID. There is no editorial publishing dashboard yet.
+- English reading publishes **two original articles per day, each over 1,000 English prose words**. The English draft and all three retention levels are generated with the owner's DeepSeek account, followed by a separate model editorial review. Both articles must pass structure, code protection, sentence alignment, level ordering and editorial checks before publication. Readers need no key and make no model calls when opening or switching versions.
+- GitHub Actions schedules the job at 03:17 UTC using the Berlin publication date; execution may be delayed. Validated JSON is published to the separate `daily-content` branch, without a daily Netlify build. If the new edition is missing, the site shows the latest successful edition with its real date. **Actions secrets and a model variable must be configured**; see [Daily publishing](docs/daily-publishing.md).
+- Reading defaults to English. Switch Article 1 / Article 2 (`/read?part=2`), with separate progress and optional library bookmarks. Permanent IDs reopen older editions; explicitly saved word cards remain available locally. German (`/read?lang=de`), listening and speaking still rotate their bundled materials; they are not part of this new DeepSeek publishing job.
+- The original 12 reading samples, 15 listening materials and seven speaking passages remain available with unchanged IDs. Articles are original AI-assisted practice texts, not republished news. Suggested documentation links are further reading, not evidence of live fact-checking. Model editorial review cannot guarantee language or factual accuracy.
 - The listening inbox accepts MP3, WAV, M4A, OGG, WebM, AAC and FLAC files up to **20 MB**; decoding support varies by browser. Audio stays in IndexedDB and survives reloads. It is not uploaded to the website or an AI provider.
 - Play → write notes → submit → replay or compare with the transcript. Controls include pause, seeking, ±5 seconds and speed. Audio dictation compares the entire supplied transcript, with a 2,000-character limit; longer transcripts support summary practice. Without a transcript, answers are saved without automatic scoring. There is no transcription or invented sentence timing. Optional AI evaluates written answers using the supplied transcript and your own key.
 - **Save and start practicing** saves explicitly imported listening materials to your library. JSON backups **exclude audio files**, so keep your originals. Removing a bookmark retains imported source materials, progress and vocabulary.
@@ -187,7 +189,7 @@ Official addresses are filled automatically; custom addresses remain editable. C
 
 Model output is structured JSON, validated with Zod, paragraph correspondence, protected code, source sentences and target-word coverage. Imported instructions remain untrusted data. Long articles are split by paragraph without silent truncation. Failed regeneration retains the original and previous successful version.
 
-Browser generation uses at most two concurrent chunks, two ordinary extra retries across an article (one per chunk), a four-minute overall timeout, a 90-second request timeout, and 8,192-token / 1 MiB output caps. UI guards and browser locks prevent duplicate generation of one article. Users pay their own provider charges; there is no owner-funded daily allowance.
+Browser generation uses at most two concurrent chunks, two ordinary extra retries across an article (one per chunk), a four-minute overall timeout, a 90-second request timeout, and 8,192-token / 1 MiB output caps. UI guards and browser locks prevent duplicate generation of one article. Users pay their own provider charges; there is no owner-funded allowance for personal generation.
 
 Explicit provider refusals are distinguished from authentication or invalid JSON errors. Rejected technical chunks can be narrowed by paragraph, with up to eight extra localization calls; untranslated paragraphs preserve their originals and display their status. German generation keeps strict whole-document coverage requirements. Authentication, balance and unsupported configuration errors stop; temporary service errors retry within bounds. Browser network/CORS errors do not retry automatically. Translation correctness and every implicit refusal cannot be guaranteed. [Earlier fault records](docs/model-failure-checks.md) describe legacy server tests, not live-provider verification of this browser version.
 
@@ -195,7 +197,7 @@ Explicit provider refusals are distinguished from authentication or invalid JSON
 
 Existing PostgreSQL data, migrations and authenticated private APIs remain intact and are not exposed publicly or automatically migrated into browser storage. `/login` is the legacy owner's data entry. The public website needs neither invitations nor an owner password.
 
-Server-funded AI endpoints are **disabled by default**, even with `LLM_API_KEY` configured. Explicit `SERVER_AI_ENABLED=true` restores them only for authenticated legacy owner workflows; public pages still use BYOK. Legacy `GENERATION_*` quotas apply only to those private endpoints.
+Server-funded AI endpoints are **disabled by default**, even with `LLM_API_KEY` configured. Explicit `SERVER_AI_ENABLED=true` restores them only for authenticated legacy owner workflows; personal generation on public pages still uses BYOK. The private daily editorial job is separate. Legacy `GENERATION_*` quotas apply only to those private endpoints.
 
 For an existing database, set server-side `DATABASE_URL`, then run `npm run db:generate`, `npm run db:migrate` and `npm run db:check -- --schema`. The old local PostgreSQL can run through `docker compose up -d db`, with persistent data at `../.wordweave/postgres`. `setup`, `local` and `db:seed` remain legacy database helpers. Do not reset a database containing personal records.
 
